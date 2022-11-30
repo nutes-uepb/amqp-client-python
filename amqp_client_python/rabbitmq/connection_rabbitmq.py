@@ -3,6 +3,7 @@ from .channel_rabbitmq import ChannelRabbitMQ
 from amqp_client_python.exceptions import EventBusException
 from .channel_rabbitmq import ChannelRabbitMQ
 from pika import SelectConnection , URLParameters
+from amqp_client_python.utils import Logger
 
 
 class ConnectionRabbitMQ:
@@ -10,13 +11,13 @@ class ConnectionRabbitMQ:
     _channel:ChannelRabbitMQ
     _ioloop_is_open=False
 
-    def __init__(self, connection_factory:ConnectionFactoryRabbitMQ, channel:ChannelRabbitMQ, logger) -> None:
-        self._connectionFactory = connection_factory
+    def __init__(self) -> None:
+        self._connectionFactory = ConnectionFactoryRabbitMQ()
         self._connection = None
         self._stopping = False
-        self._channel = channel
+        self._channel = ChannelRabbitMQ(Logger.error_logger)
         self._uri = None
-        self.logger = logger
+        self.logger = Logger.error_logger
         self.backup = {
             "exchange": {},
             "queue": {},
@@ -26,7 +27,7 @@ class ConnectionRabbitMQ:
     def open(self, uri: URLParameters, ioloop_active = False):
         if not self._connection or self._connection.is_closed:
             self._uri = uri
-            self._connection=self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed)
+            self._connection = self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed)
             if not self.is_open() and not ioloop_active:
                 self.start()
             
@@ -87,9 +88,6 @@ class ConnectionRabbitMQ:
                 exchange_type=exchange_type,
                 callback=callback)
             self.start()
-        else:
-            pass
-            #self.reconnect()
 
     def declare_queue(self, queue_name, durable=False, auto_delete=False, callback=lambda x:x):
         self.backup["queue"][queue_name] = { "durable": durable, "auto_delete": auto_delete, "callback": callback }
@@ -166,7 +164,7 @@ class ConnectionRabbitMQ:
     def rpc_subscribe(self, queue: str, exchange_name: str, routing_key: str):
         if not self.is_open(): raise EventBusException('No connection open!')
         if not self._channel.is_open(): raise EventBusException("No channel open!")
-        return self._channel.subscribe(queue, exchange_name, routing_key)
+        return self._channel.rpc_subscribe(queue, exchange_name, routing_key)
 
     def close(self):
         self._channel.close()

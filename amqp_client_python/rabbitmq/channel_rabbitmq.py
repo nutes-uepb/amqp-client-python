@@ -10,8 +10,8 @@ import re
 
 
 class ChannelRabbitMQ:
-    def __init__(self, channel_factory:ChannelFactoryRabbitMQ, logger) -> None:
-        self.channel_factory = channel_factory
+    def __init__(self, logger) -> None:
+        self.channel_factory = ChannelFactoryRabbitMQ()
         self.consumer_tag = None
         self.logger = logger
         self._channel = None
@@ -184,10 +184,12 @@ class ChannelRabbitMQ:
         return '[]'
     
     def publish(self, exchange:str, routing_key:str, message):
-        self._channel.confirm_delivery(lambda x: self.stop() )
+        message = dumps({"resource": routing_key, "handle": message})
+        self._channel.confirm_delivery(lambda x: self.stop())
         self._channel.basic_publish(exchange,routing_key, message, properties=BasicProperties(
                 content_type='application/json'
-            ))
+            )
+        )
         self.start()
     
     def serve_resource(self, ch: Channel, method, props, body: bytes):
@@ -225,12 +227,12 @@ class ChannelRabbitMQ:
         return False
 
 
-    def subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=False):
+    def rpc_subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=False):
         if self.is_open():
             if not self.consumer_tag:
                 self.consumer_tag = self._channel.basic_consume(
                 queue = queue_name,
-                on_message_callback = self.serve_resource or self.__on_response,
+                on_message_callback = self.serve_resource,
                 auto_ack=auto_ack,
                 consumer_tag=consumer_tag
             )
@@ -238,20 +240,31 @@ class ChannelRabbitMQ:
             self._channel.queue_bind(exchange=exchange,
                 queue=queue_name, routing_key=routing_key)
             self.queue_declare(queue_name, durable=True, auto_delete=auto_delete, callback=lambda result:result)
-
-            # self._channel.add_on_return_callback(self.serve_resource or self.__on_response)
+    
+    def subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=False):
+        if self.is_open():
+            if not self.consumer_tag:
+                self.consumer_tag = self._channel.basic_consume(
+                queue = queue_name,
+                on_message_callback = self.__on_response,
+                auto_ack=auto_ack,
+                consumer_tag=consumer_tag
+            )
+            self.addResource(routing_key, callback)
+            self._channel.queue_bind(exchange=exchange,
+                queue=queue_name, routing_key=routing_key)
+            self.queue_declare(queue_name, durable=True, auto_delete=auto_delete, callback=lambda result:result)
     
     def unsubscribe(self, consumer_tag:str):
         self._channel.basic_cancel(consumer_tag, callback=lambda x: self.stop())
     
     def __on_response(self, ch:Channel, method, props, body):
-        if self.corr_id == props.correlation_id:
-            self.response = body
-            # ch.basic_ack(delivery_tag=method.delivery_tag)
-        else:
-            self.response = None
-            # ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-        self.stop()
+        if method.routing_key in self.consumers:
+            try:
+                body = self.mount_body(body)
+                self.consumers[method.routing_key](body)
+            except Exception as err:
+                self.logger.error(err)
 
     def close(self):
         if self.is_open():

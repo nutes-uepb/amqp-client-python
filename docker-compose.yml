@@ -18,9 +18,6 @@ services:
       options:
         max-size: 100m
 
-volumes:
-    sc-mongo-data:
-        name: sc-mongo
 networks:
   amqp-network:
     name: amqp-network
