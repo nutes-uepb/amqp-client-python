@@ -3,10 +3,7 @@ from pika.channel import Channel
 from pika import BasicProperties
 from functools import partial
 from uuid import uuid4
-from urllib.parse import parse_qs
 from json import loads, dumps
-from json.decoder import JSONDecodeError
-import re
 
 
 class ChannelRabbitMQ:
@@ -46,12 +43,6 @@ class ChannelRabbitMQ:
         self.add_on_channel_close_callback()
         if ioloop_actor:
             ioloop_actor()
-    
-    def config_exchange(self, exchange_name, exchange_type, routing_key, durable=True):
-        self.exchange_name = exchange_name
-        self.exchange_type = exchange_type
-        self.routing_key = routing_key
-        self.exchange_durable = durable
 
     def declare_exchange(self, exchange, exchange_type, durable=True, callback=None):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
@@ -90,30 +81,6 @@ class ChannelRabbitMQ:
         self._channel.queue_declare(
             queue=queue_name, durable=durable, auto_delete=auto_delete, callback=callback)
 
-    def queue_bind(self, queue="", exchange="", routing_key="", stop_ioloop: bool=False):
-        """Method invoked by pika when the Queue.Declare RPC call made in
-        setup_queue has completed. In this method we will bind the queue
-        and exchange together with the routing key by issuing the Queue.Bind
-        RPC command. When this command is complete, the on_bindok method will
-        be invoked by pika.
-        :param pika.frame.Method method_frame: The Queue.DeclareOk frame
-        """
-        self.logger.debug('Binding %s to %s with %s', exchange, queue,
-                    routing_key)
-        self._channel.queue_bind(
-            queue,
-            exchange,
-            routing_key=routing_key,
-            callback=self.on_bindok)
-        if stop_ioloop:
-            self._connection.stop()
-
-    def on_bindok(self, _unused_frame):
-        """This method is invoked by pika when it receives the Queue.BindOk
-        response from RabbitMQ. Since we know we're now setup and bound, it's
-        time to start publishing."""
-        self.logger.debug('Queue bound')
-
     def add_on_return_callback(self, callback):
         self.logger.debug('Adding channel return callback')
         self._channel.add_on_return_callback(callback)
@@ -136,8 +103,7 @@ class ChannelRabbitMQ:
         :param Exception reason: why the channel was closed
         """
         self.logger.warning('Channel %i was closed: %s', channel, reason)
-
-        if(reason[0]==406):
+        if(isinstance(reason, tuple) and reason[0]==406):
             self.open(self._connection, False)
 
         self._channel = None
@@ -184,7 +150,7 @@ class ChannelRabbitMQ:
         return '[]'
     
     def publish(self, exchange:str, routing_key:str, message):
-        message = dumps({"resource": routing_key, "handle": message})
+        message = dumps({"handle": message})
         self._channel.confirm_delivery(lambda x: self.stop())
         self._channel.basic_publish(exchange,routing_key, message, properties=BasicProperties(
                 content_type='application/json'
@@ -194,40 +160,37 @@ class ChannelRabbitMQ:
     
     def serve_resource(self, ch: Channel, method, props, body: bytes):
         if method.routing_key in self.consumers:
+            response = None
+            type_message = None
             try:
-                body = self.mount_body(body)
-                content = self.consumers[method.routing_key](body)
-                ch.basic_publish(exchange='', routing_key=props.reply_to, properties=BasicProperties(correlation_id=props.correlation_id), body=content)
+                body = loads(body)
+                response = self.consumers[method.routing_key]["handle"](*body["handle"])
+                type_message = 'normal'
+                if props.reply_to:
+                    ch.basic_publish('', props.reply_to or '', response, properties=BasicProperties(
+                        correlation_id=props.correlation_id,
+                        content_type=self.consumers[method.routing_key]["content_type"],
+                        type=type_message
+                    ))
                 ch.basic_ack(delivery_tag=method.delivery_tag)
-            except Exception:
+            except BaseException as err:
+                type_message = 'error'
+                response = str(err)
+                if props.reply_to:
+                    ch.basic_publish('', props.reply_to, response, properties=BasicProperties(
+                        correlation_id=props.correlation_id,
+                        type=type_message
+                    ))
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-
-    def mount_body(self, body: bytes):
-        try:
-            body = loads(body)
-            if "handle" in body:
-                body = body["handle"]
-                if isinstance(body, str) and self.is_qs(body):
-                    body = parse_qs(body[1:])
-        except JSONDecodeError:
-            body=body.decode("utf8")
-            if isinstance(body, str) and self.is_qs(body):
-                body = parse_qs(body[1:])
-        finally:
-            return body
-
-    @staticmethod
-    def is_qs(string: str):
-        return re.match(r"^([?])([a-z_A-Z]{0,20})=", string)
             
-    def addResource(self, name: str, resource) -> bool:
+    def addResource(self, name: str, resource, content_type="application/json") -> bool:
         if not hasattr(self.consumers, name): 
-            self.consumers[name] = resource
+            self.consumers[name] = { "handle": resource, "content_type": content_type }
             return True
         return False
 
 
-    def rpc_subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=False):
+    def rpc_subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=True):
         if self.is_open():
             if not self.consumer_tag:
                 self.consumer_tag = self._channel.basic_consume(
@@ -239,32 +202,39 @@ class ChannelRabbitMQ:
             self.addResource(routing_key, callback)
             self._channel.queue_bind(exchange=exchange,
                 queue=queue_name, routing_key=routing_key)
-            self.queue_declare(queue_name, durable=True, auto_delete=auto_delete, callback=lambda result:result)
     
     def subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=False):
         if self.is_open():
             if not self.consumer_tag:
                 self.consumer_tag = self._channel.basic_consume(
                 queue = queue_name,
-                on_message_callback = self.__on_response,
+                on_message_callback = self.serve_subscribe,
                 auto_ack=auto_ack,
                 consumer_tag=consumer_tag
             )
             self.addResource(routing_key, callback)
             self._channel.queue_bind(exchange=exchange,
                 queue=queue_name, routing_key=routing_key)
-            self.queue_declare(queue_name, durable=True, auto_delete=auto_delete, callback=lambda result:result)
     
     def unsubscribe(self, consumer_tag:str):
         self._channel.basic_cancel(consumer_tag, callback=lambda x: self.stop())
     
-    def __on_response(self, ch:Channel, method, props, body):
+    def serve_subscribe(self, ch:Channel, method, props, body):
         if method.routing_key in self.consumers:
             try:
-                body = self.mount_body(body)
-                self.consumers[method.routing_key](body)
-            except Exception as err:
+                body = loads(body)
+                self.consumers[method.routing_key]["handle"](*body["handle"])
+            except BaseException as err:
                 self.logger.error(err)
+
+    def __on_response(self, ch:Channel, method, props, body):
+        if self.corr_id == props.correlation_id:
+            self.response = body
+            # ch.basic_ack(delivery_tag=method.delivery_tag)
+        else:
+            self.response = None
+            # ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        self.stop()
 
     def close(self):
         if self.is_open():

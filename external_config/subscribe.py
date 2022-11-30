@@ -24,11 +24,11 @@ class ExampleEventHandler(IntegrationEventHandler):
 config = Config(Options(queue, rpc_queue, rpc_exchange))
 eventbus = EventbusRabbitMQ(config=config)
 
-def handle(body):
+def handle(*body):
     print(body)
     return "result"
 
 subscribe_event = ExampleEvent(rpc_exchange)
 subscribe_event_handle = ExampleEventHandler()
-eventbus.subscribe(subscribe_event, rpc_routing_key, handle)
+eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
 eventbus.start_consume()

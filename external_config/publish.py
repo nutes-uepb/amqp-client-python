@@ -17,5 +17,5 @@ config = Config(Options(queue, rpc_queue, rpc_exchange))
 eventbus = EventbusRabbitMQ(config=config)
 
 
-publish_event = ExampleEvent("EventName", rpc_exchange, ["message"])
+publish_event = ExampleEvent(rpc_exchange, ["message"])
 print(eventbus.publish(publish_event, rpc_routing_key, "direct"))

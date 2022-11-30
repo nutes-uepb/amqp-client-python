@@ -2,7 +2,7 @@ from .connection_factory_rabbitmq import ConnectionFactoryRabbitMQ
 from .channel_rabbitmq import ChannelRabbitMQ
 from amqp_client_python.exceptions import EventBusException
 from .channel_rabbitmq import ChannelRabbitMQ
-from pika import SelectConnection , URLParameters
+from pika import SelectConnection, URLParameters
 from amqp_client_python.utils import Logger
 
 
@@ -91,7 +91,7 @@ class ConnectionRabbitMQ:
 
     def declare_queue(self, queue_name, durable=False, auto_delete=False, callback=lambda x:x):
         self.backup["queue"][queue_name] = { "durable": durable, "auto_delete": auto_delete, "callback": callback }
-        self._channel.queue_declare(queue_name, durable=True, auto_delete=False, callback=callback)
+        self._channel.queue_declare(queue_name, durable=durable, auto_delete=auto_delete, callback=callback)
 
     def register_channel_return_callback(self):
         self._channel.register_return_callback(self.pause)
@@ -161,10 +161,10 @@ class ConnectionRabbitMQ:
         if not self._channel.is_open(): self.channel_open()
         return self._channel.rpc_client(exchange_name, routing_key, message, self.start)
     
-    def rpc_subscribe(self, queue: str, exchange_name: str, routing_key: str):
+    def rpc_subscribe(self, queue: str, exchange_name: str, routing_key: str, callback):
         if not self.is_open(): raise EventBusException('No connection open!')
         if not self._channel.is_open(): raise EventBusException("No channel open!")
-        return self._channel.rpc_subscribe(queue, exchange_name, routing_key)
+        return self._channel.rpc_subscribe(queue, exchange_name, routing_key, callback, auto_ack=False)
 
     def close(self):
         self._channel.close()

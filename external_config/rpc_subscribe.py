@@ -8,9 +8,9 @@ from external_config.default import queue, rpc_queue, rpc_exchange, rpc_routing_
 config = Config(Options(queue, rpc_queue, rpc_exchange))
 eventbus = EventbusRabbitMQ(config=config)
 
-def handle(body):
+def handle(*body):
     print(body)
-    return "result"
+    return b"result"
     
-eventbus.provide_resource(rpc_routing_key, handle, auto_ack=False)
+eventbus.provide_resource(rpc_routing_key, handle)
 eventbus.start_rpc_server()

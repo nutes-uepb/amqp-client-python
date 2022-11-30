@@ -17,14 +17,24 @@ class Config:
         opt = {
             **self.options.kwargs,
             "heartbeat": self.options.heartbeat,
-            "ssl_options": None if not self.ssl_options else {
-            'certfile': self.ssl_options.ca_certs_path,
-            'keyfile': self.ssl_options.keyfile_path,
+        }
+        if bool(self.ssl_options):
+            opt["ssl_options"] = {
+                'certfile': self.ssl_options.ca_certs_path,
+                'keyfile': self.ssl_options.keyfile_path,
                 'ca_certs': self.ssl_options.ca_certs_path
             }
-        }
         protocol = "amqps" if bool(self.ssl_options) else "amqp"
-        self.url = URLParameters(f"{protocol}://{self.options.domain}:{self.options.port}/%2F?{urlencode(opt)}")
+        url = '{}://{}:{}@{}:{}{}?{} '.format(
+            protocol,
+            self.options.login,
+            self.options.passwd,
+            self.options.domain,
+            self.options.port,
+            self.options.vhost,
+            urlencode(opt)
+        )
+        self.url = URLParameters(url)
         return self
 
 
