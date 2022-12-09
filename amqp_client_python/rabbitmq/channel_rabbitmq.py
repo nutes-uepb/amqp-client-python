@@ -142,12 +142,19 @@ class ChannelRabbitMQ:
                 consumer_tag=None
             )
         self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result:on_declare())
-        
-        self.start(force=True)
-        if self.response:
-            return self.response
-        self.logger.warning("Empty response")
-        return '[]'
+        if not self._connection.ioloop_is_open:
+            last_id = self.corr_id
+            def prevent_infinite_loop():
+                if self.corr_id == last_id:
+                    self._connection.ioloop_is_open = False
+                    self._connection.ioloop.stop()
+            self._connection._connection.ioloop.call_later(5, prevent_infinite_loop)
+            self.start(force=True)
+            if self.response:
+                return self.response
+            self.logger.warning("Empty response")
+            return '[]'
+
     
     def publish(self, exchange:str, routing_key:str, message):
         message = dumps({"handle": message})
@@ -157,7 +164,7 @@ class ChannelRabbitMQ:
             )
         )
         self.start()
-    
+
     def serve_resource(self, ch: Channel, method, props, body: bytes):
         if method.routing_key in self.consumers:
             response = None

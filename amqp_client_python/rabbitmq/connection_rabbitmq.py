@@ -4,16 +4,17 @@ from amqp_client_python.exceptions import EventBusException
 from .channel_rabbitmq import ChannelRabbitMQ
 from pika import SelectConnection, URLParameters
 from amqp_client_python.utils import Logger
-
+from pika.adapters.select_connection import IOLoop
 
 class ConnectionRabbitMQ:
     _connection:SelectConnection
     _channel:ChannelRabbitMQ
-    _ioloop_is_open=False
+    ioloop_is_open=False
 
     def __init__(self) -> None:
         self._connectionFactory = ConnectionFactoryRabbitMQ()
         self._connection = None
+        self.ioloop: IOLoop = None
         self._stopping = False
         self._channel = ChannelRabbitMQ(Logger.error_logger)
         self._uri = None
@@ -30,18 +31,19 @@ class ConnectionRabbitMQ:
             self._connection = self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed)
             if not self.is_open() and not ioloop_active:
                 self.start()
+                self.ioloop: IOLoop = self._connection.ioloop
             
 
     def reconnect(self):
-        self.logger.debug('reconnect %s',self._ioloop_is_open)
+        self.logger.debug('reconnect %s',self.ioloop_is_open)
         self._stopping=False
-        self._ioloop_is_open=False
+        self.ioloop_is_open=False
         def connection_open(unused_connection):
             self.logger.debug("connection reopened  %s",unused_connection)
             self.stop()
         self._connection=self._connectionFactory.create_connection(self._uri, connection_open, self.on_connection_open_error, self.on_connection_closed)
         self.start()
-        self._channel.open(self, self._ioloop_is_open)
+        self._channel.open(self, self.ioloop_is_open)
         self.restore()
     
     def restore(self):
@@ -58,19 +60,19 @@ class ConnectionRabbitMQ:
 
     def start(self, force = False):
         self._stopping=False
-        if not self._ioloop_is_open or force:
-            self._ioloop_is_open=True
+        if not self.ioloop_is_open or force:
+            self.ioloop_is_open=True
             self._connection.ioloop.start()
     
     def pause(self):
-        if self._ioloop_is_open:
-            self._ioloop_is_open=False
+        if self.ioloop_is_open:
+            self.ioloop_is_open=False
             self._connection.ioloop.stop()
 
     def stop(self):
         self._stopping=True
-        if self._ioloop_is_open:
-            self._ioloop_is_open=False
+        if self.ioloop_is_open:
+            self.ioloop_is_open=False
             self._connection.ioloop.stop()
 
     def declare_exchange(self, exchange, exchange_type, durable=True, callback=None):
