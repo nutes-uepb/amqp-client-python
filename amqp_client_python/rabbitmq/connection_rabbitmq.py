@@ -158,10 +158,10 @@ class ConnectionRabbitMQ:
         self.backup["subscribe"][routing_key] = { "exchange": exchange_name, "queue": queue_name, "callback": callback, "auto_ack": auto_ack }
         return self._channel.subscribe(queue_name, exchange_name, routing_key, callback=callback, auto_ack=auto_ack)
 
-    def rpc_client(self, exchange_name: str, routing_key: str, message:str):
+    def rpc_client(self, exchange_name: str, routing_key: str, message:str, content_type, timeout):
         if not self.is_open(): self.reconnect()
         if not self._channel.is_open(): self.channel_open()
-        return self._channel.rpc_client(exchange_name, routing_key, message, self.start)
+        return self._channel.rpc_client(exchange_name, routing_key, message, content_type=content_type, timeout=timeout, ioloop_actor=self.start)
     
     def rpc_subscribe(self, queue: str, exchange_name: str, routing_key: str, callback):
         if not self.is_open(): raise EventBusException('No connection open!')

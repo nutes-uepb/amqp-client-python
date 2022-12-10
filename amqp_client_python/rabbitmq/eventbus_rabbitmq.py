@@ -13,10 +13,10 @@ class EventbusRabbitMQ:
         self.config = config.build()
         self._rpc_server_initialized = False
     
-    def rpc_client(self, exchange: str, routing_key: str, body: List[Any]):
+    def rpc_client(self, exchange: str, routing_key: str, body: List[Any], content_type="application/json", timeout=5):
         self.rpc_client_connection.open(self.config.url)
         self.rpc_client_connection.channel_open()
-        return self.rpc_client_connection.rpc_client(exchange, routing_key, body)
+        return self.rpc_client_connection.rpc_client(exchange, routing_key, body, content_type=content_type, timeout=timeout)
 
     def publish(self, event: IntegrationEvent, routing_key: str, exchange_type: str = "direct", exchange_durable=True, ioloop_active = False):
         self.pub_connection.open(self.config.url)

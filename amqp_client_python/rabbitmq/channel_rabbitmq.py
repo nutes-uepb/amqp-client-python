@@ -4,6 +4,8 @@ from pika import BasicProperties
 from functools import partial
 from uuid import uuid4
 from json import loads, dumps
+from datetime import datetime, timedelta
+from time import time
 
 
 class ChannelRabbitMQ:
@@ -125,35 +127,35 @@ class ChannelRabbitMQ:
             self.logger.debug('Closing the channel')
             self._channel.close()
 
-    def rpc_client(self, exchange, routing_key, message, ioloop_actor = None):
+    def rpc_client(self, exchange, routing_key, message, content_type, timeout, ioloop_actor = None):
         message = dumps({"handle": message})
         self.corr_id = str(uuid4())
         self.response=None
         self._channel.basic_publish(exchange, routing_key, message, properties=BasicProperties(
                 reply_to=self._callback_queue,
                 correlation_id=self.corr_id,
-                content_type='application/json'
+                content_type=content_type,
             ))
-        def on_declare():
-            self._channel.basic_consume(
-                queue=self._callback_queue,
-                on_message_callback = self.__on_response,
-                auto_ack=True,
-                consumer_tag=None
-            )
-        self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result:on_declare())
+        if not self.consumer_tag:
+            def on_declare():
+                self.consumer_tag = self._channel.basic_consume(
+                    queue=self._callback_queue,
+                    on_message_callback = self.__on_response,
+                    auto_ack=True,
+                    consumer_tag=None
+                )
+            self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result:on_declare())
         if not self._connection.ioloop_is_open:
             last_id = self.corr_id
             def prevent_infinite_loop():
                 if self.corr_id == last_id:
                     self._connection.ioloop_is_open = False
                     self._connection.ioloop.stop()
-            self._connection._connection.ioloop.call_later(5, prevent_infinite_loop)
+            self._connection._connection.ioloop.call_later(timeout, prevent_infinite_loop)
             self.start(force=True)
             if self.response:
                 return self.response
-            self.logger.warning("Empty response")
-            return '[]'
+            raise TimeoutError("request timeout!!!")
 
     
     def publish(self, exchange:str, routing_key:str, message):
@@ -174,7 +176,7 @@ class ChannelRabbitMQ:
                 response = self.consumers[method.routing_key]["handle"](*body["handle"])
                 type_message = 'normal'
                 if props.reply_to:
-                    ch.basic_publish('', props.reply_to or '', response, properties=BasicProperties(
+                    ch.basic_publish('', props.reply_to, response, properties=BasicProperties(
                         correlation_id=props.correlation_id,
                         content_type=self.consumers[method.routing_key]["content_type"],
                         type=type_message
@@ -186,7 +188,8 @@ class ChannelRabbitMQ:
                 if props.reply_to:
                     ch.basic_publish('', props.reply_to, response, properties=BasicProperties(
                         correlation_id=props.correlation_id,
-                        type=type_message
+                        content_type="plain/text",
+                        type=type_message,
                     ))
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
             
@@ -236,6 +239,8 @@ class ChannelRabbitMQ:
 
     def __on_response(self, ch:Channel, method, props, body):
         if self.corr_id == props.correlation_id:
+            if props.type=="error":
+                raise Exception(f"Internal Server Error: {body.decode('utf-8')}")
             self.response = body
             # ch.basic_ack(delivery_tag=method.delivery_tag)
         else:
