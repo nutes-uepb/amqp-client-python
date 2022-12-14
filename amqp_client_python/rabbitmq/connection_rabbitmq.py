@@ -150,23 +150,22 @@ class ConnectionRabbitMQ:
                     self.ioloop.call_later(1, channel_openned)
             self.ioloop.add_callback_threadsafe(channel_openned)
 
-        
     def channel_open(self, ioloop_active = False, callback=lambda x:x):
-        if not self.is_open(): return EventBusException('No connection open!')
-        if self.channel_is_open(): return EventBusException('channel already open!')
-        self._channel.open(self, ioloop_active, callback)
+        if not self.is_open(): raise EventBusException('No connection open!')
+        if not self.channel_is_open():
+            self._channel.open(self, ioloop_active, callback)
 
     def is_open(self)->bool:
         return self._connection and self._connection.is_open
-    
+
     def channel_is_open(self):
         return self._channel and self._channel.is_open()
-    
-    def publish(self, exchange_name: str, routing_key: str, message:str):
+
+    def publish(self, exchange_name: str, routing_key: str, message:str, ioloop_active=True):
         if not self.is_open(): raise EventBusException('No connection open!')
         if not self._channel.is_open(): raise EventBusException("No channel open!")
-        return self._channel.publish(exchange_name, routing_key, message)
-    
+        return self._channel.publish(exchange_name, routing_key, message, ioloop_active)
+
     def subscribe(self, queue_name: str, exchange_name: str, routing_key: str, callback, auto_ack=True):
         if not self.is_open(): raise EventBusException('No connection open!')
         if not self._channel.is_open(): raise EventBusException("No channel open!")

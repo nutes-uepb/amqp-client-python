@@ -4,8 +4,6 @@ from pika import BasicProperties
 from functools import partial
 from uuid import uuid4
 from json import loads, dumps
-from datetime import datetime, timedelta
-from time import time
 
 
 class ChannelRabbitMQ:
@@ -160,14 +158,15 @@ class ChannelRabbitMQ:
             raise TimeoutError("request timeout!!!")
 
     
-    def publish(self, exchange:str, routing_key:str, message):
+    def publish(self, exchange:str, routing_key:str, message, ioloop_active):
         message = dumps({"handle": message})
         self._channel.confirm_delivery(lambda x: self.stop())
         self._channel.basic_publish(exchange,routing_key, message, properties=BasicProperties(
                 content_type='application/json'
             )
         )
-        self.start()
+        if not ioloop_active:
+            self.start()
 
     def serve_resource(self, ch: Channel, method, props, body: bytes):
         if method.routing_key in self.consumers:

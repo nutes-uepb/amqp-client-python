@@ -30,15 +30,16 @@ class ExampleEvent(IntegrationEvent):
         super().__init__(self.EVENT_NAME, event_type)
         self.message = message
 
+from time import sleep
+
 def handle(*body):
     print(body, "rpc_provider")
     return b"result"
-from time import sleep
 subscribe_event = ExampleEvent(rpc_exchange)
 publish_event = ExampleEvent(rpc_exchange, ["message"])
 subscribe_event_handle = ExampleEventHandler()
 eventbus.provide_resource(rpc_routing_key+"2", handle)
-eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key+"2")
+eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
 count = 0
 running =True
 while running:

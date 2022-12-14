@@ -26,6 +26,7 @@ class EventbusRabbitMQ:
         def add_publish():
             def after_channel_openned():
                 self.pub_connection.declare_exchange(event.event_type, exchange_type, durable=exchange_durable, ioloop_active=True)
+                self.pub_connection.publish(event.event_type, routing_key=routing_key, message=event.message)
             self.pub_connection.open(self.config.url, ioloop=self.event_loop, ioloop_active=True)
             self.pub_connection.add_callback(after_channel_openned)
         self.event_loop.add_callback_threadsafe(add_publish)
@@ -36,11 +37,11 @@ class EventbusRabbitMQ:
                 self.sub_connection.declare_exchange(event.event_type, exchange_type, durable=exchange_durable, ioloop_active=True)
                 self.sub_connection.declare_queue(self.config.options.queue_name, durable=queue_durable, auto_delete=queue_auto_delete)
                 self.sub_connection.subscribe(self.config.options.queue_name, event.event_type, routing_key, callback=handler.handle, auto_ack=True)
-                
+
             self.sub_connection.open(self.config.url, ioloop=self.event_loop, ioloop_active=True)
             self.sub_connection.add_callback(after_channel_openned)
         self.event_loop.add_callback_threadsafe(add_subscribe)
-        
+
     def provide_resource(self, name: str, callback):
         self.initialize_rpc_server()
         def add_provider():
@@ -48,12 +49,6 @@ class EventbusRabbitMQ:
                 self.rpc_server_connection.rpc_subscribe(self.config.options.rpc_queue_name, self.config.options.rpc_queue_name, name, callback=callback)
             self.rpc_server_connection.add_callback(after_channel_oppened)            
         self.event_loop.add_callback_threadsafe(add_provider)
-
-    def start_consume(self):
-        self.sub_connection.start()
-    
-    def start_rpc_server(self):
-        self.rpc_server_connection.start()
 
     def initialize_rpc_server(self):
         if not self._rpc_server_initialized:
@@ -67,7 +62,7 @@ class EventbusRabbitMQ:
             self.event_loop.add_callback_threadsafe(rpc_server_setup)
 
     def dispose(self):
-        if isinstance(self.pub_connection, ConnectionRabbitMQ): self.sub_connection.close()
+        if isinstance(self.pub_connection, ConnectionRabbitMQ): self.pub_connection.close()
         if isinstance(self.sub_connection, ConnectionRabbitMQ): self.sub_connection.close()
         if isinstance(self.rpc_client_connection, ConnectionRabbitMQ): self.rpc_client_connection.close()
         if isinstance(self.rpc_server_connection, ConnectionRabbitMQ): self.rpc_server_connection.close()
