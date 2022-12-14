@@ -19,7 +19,7 @@ class ChannelRabbitMQ:
         self.consumers = {}
         self._stopping=False
     
-    def open(self, connection, ioloop_active = False):
+    def open(self, connection, ioloop_active = False, callback=None):
         self._channel = None
         self.consumers = {}
         self._callback_queue = f"amqp.{uuid4()}"
@@ -29,12 +29,12 @@ class ChannelRabbitMQ:
         self.stop = self._connection.pause
         self.reconnect = self._connection.reconnect
         self._stopping = self._connection._stopping
-        callback=partial(self.on_channel_open, ioloop_actor= None if ioloop_active else self.stop)
+        callback=partial(self.on_channel_open, ioloop_actor= None if ioloop_active else self.stop, callback=callback)
         self.channel_factory.create_channel(connection._connection, callback)
         if not ioloop_active:
             self.start()
     
-    def on_channel_open(self,channel, ioloop_actor=None):
+    def on_channel_open(self,channel, ioloop_actor=None, callback=None):
         """This method is invoked by pika when the channel has been opened.
         The channel object is passed in so we can make use of it.
         Since the channel is now open, we'll declare the exchange to use.
@@ -43,6 +43,8 @@ class ChannelRabbitMQ:
         self.logger.debug('Channel opened')
         self._channel:Channel = channel
         self.add_on_channel_close_callback()
+        if callback:
+            callback('')
         if ioloop_actor:
             ioloop_actor()
 

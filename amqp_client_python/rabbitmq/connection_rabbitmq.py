@@ -25,11 +25,13 @@ class ConnectionRabbitMQ:
             "subscribe": {},
         }
 
-    def open(self, uri: URLParameters, ioloop_active = False):
+    def open(self, uri: URLParameters, ioloop_active = False, ioloop=None):
         if not self._connection or self._connection.is_closed:
             self._uri = uri
-            self._connection = self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed)
-            if not self.is_open() and not ioloop_active:
+            self._connection = self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed, custum_ioloop=ioloop)
+            if ioloop:
+                self.ioloop = ioloop
+            elif not self.is_open() and not ioloop_active:
                 self.start()
                 self.ioloop: IOLoop = self._connection.ioloop
             
@@ -75,7 +77,7 @@ class ConnectionRabbitMQ:
             self.ioloop_is_open=False
             self._connection.ioloop.stop()
 
-    def declare_exchange(self, exchange, exchange_type, durable=True, callback=None):
+    def declare_exchange(self, exchange, exchange_type, durable=True, callback=None, ioloop_active=False):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
         command. When it is complete, the on_exchange_declareok method will
         be invoked by pika.
@@ -89,7 +91,8 @@ class ConnectionRabbitMQ:
                 exchange=exchange, durable=durable,
                 exchange_type=exchange_type,
                 callback=callback)
-            self.start()
+            if not ioloop_active:
+                self.start()
 
     def declare_queue(self, queue_name, durable=False, auto_delete=False, callback=lambda x:x):
         self.backup["queue"][queue_name] = { "durable": durable, "auto_delete": auto_delete, "callback": callback }
@@ -105,6 +108,8 @@ class ConnectionRabbitMQ:
         :param pika.SelectConnection _unused_connection: The connection
         """
         self.logger.debug('Connection opened')
+        if not self.channel_is_open():
+            self.channel_open(ioloop_active=True)
         self.pause()
     
     def on_connection_open_error(self, _unused_connection, err):
@@ -135,11 +140,21 @@ class ConnectionRabbitMQ:
             else:
                 self.logger.warning('Connection closed, reopening in 5 seconds: %s', reason)
                 self._connection.ioloop.call_later(5, self.pause)
+
+    def add_callback(self, callback, event: str = "channel_open"):
+        if event == "channel_open":
+            def channel_openned():
+                if self.channel_is_open():
+                    callback()
+                else:
+                    self.ioloop.call_later(1, channel_openned)
+            self.ioloop.add_callback_threadsafe(channel_openned)
+
         
-    def channel_open(self, ioloop_active = False):
+    def channel_open(self, ioloop_active = False, callback=lambda x:x):
         if not self.is_open(): return EventBusException('No connection open!')
         if self.channel_is_open(): return EventBusException('channel already open!')
-        self._channel.open(self, ioloop_active)
+        self._channel.open(self, ioloop_active, callback)
 
     def is_open(self)->bool:
         return self._connection and self._connection.is_open

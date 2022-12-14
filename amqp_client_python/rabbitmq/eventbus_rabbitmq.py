@@ -2,6 +2,8 @@ from .connection_rabbitmq import ConnectionRabbitMQ
 from ..event import IntegrationEvent, IntegrationEventHandler
 from amqp_client_python.domain.models import Config
 from typing import Any, List
+from pika.adapters.select_connection import IOLoop
+from threading import Thread
 
 class EventbusRabbitMQ:
 
@@ -12,28 +14,40 @@ class EventbusRabbitMQ:
         self.rpc_server_connection = ConnectionRabbitMQ()
         self.config = config.build()
         self._rpc_server_initialized = False
-    
+        self.event_loop = IOLoop()
+        self.thread = Thread(target=self.event_loop.start).start()
+
     def rpc_client(self, exchange: str, routing_key: str, body: List[Any], content_type="application/json", timeout=5):
         self.rpc_client_connection.open(self.config.url)
         self.rpc_client_connection.channel_open()
         return self.rpc_client_connection.rpc_client(exchange, routing_key, body, content_type=content_type, timeout=timeout)
 
     def publish(self, event: IntegrationEvent, routing_key: str, exchange_type: str = "direct", exchange_durable=True, ioloop_active = False):
-        self.pub_connection.open(self.config.url)
-        self.pub_connection.channel_open()
-        self.pub_connection.declare_exchange(event.event_type, exchange_type, durable=exchange_durable)
-        return self.pub_connection.publish(event.event_type, routing_key, event.message)
-    
-    def subscribe(self, event: IntegrationEvent, handler: IntegrationEventHandler, routing_key: str, exchange_type: str = "direct", exchange_durable=True, queue_durable=True, queue_auto_delete=False):
-        self.sub_connection.open(self.config.url)
-        self.sub_connection.channel_open()
-        self.sub_connection.declare_exchange(event.event_type, exchange_type, durable=exchange_durable)
-        self.sub_connection.declare_queue(self.config.options.queue_name, durable=queue_durable, auto_delete=queue_auto_delete)
-        self.sub_connection.subscribe(self.config.options.queue_name, event.event_type, routing_key, callback=handler.handle, auto_ack=True)
+        def add_publish():
+            def after_channel_openned():
+                self.pub_connection.declare_exchange(event.event_type, exchange_type, durable=exchange_durable, ioloop_active=True)
+            self.pub_connection.open(self.config.url, ioloop=self.event_loop, ioloop_active=True)
+            self.pub_connection.add_callback(after_channel_openned)
+        self.event_loop.add_callback_threadsafe(add_publish)
 
+    def subscribe(self, event: IntegrationEvent, handler: IntegrationEventHandler, routing_key: str, exchange_type: str = "direct", exchange_durable=True, queue_durable=True, queue_auto_delete=False):
+        def add_subscribe():
+            def after_channel_openned():
+                self.sub_connection.declare_exchange(event.event_type, exchange_type, durable=exchange_durable, ioloop_active=True)
+                self.sub_connection.declare_queue(self.config.options.queue_name, durable=queue_durable, auto_delete=queue_auto_delete)
+                self.sub_connection.subscribe(self.config.options.queue_name, event.event_type, routing_key, callback=handler.handle, auto_ack=True)
+                
+            self.sub_connection.open(self.config.url, ioloop=self.event_loop, ioloop_active=True)
+            self.sub_connection.add_callback(after_channel_openned)
+        self.event_loop.add_callback_threadsafe(add_subscribe)
+        
     def provide_resource(self, name: str, callback):
         self.initialize_rpc_server()
-        self.rpc_server_connection.rpc_subscribe(self.config.options.rpc_queue_name, self.config.options.rpc_queue_name, name, callback=callback)
+        def add_provider():
+            def after_channel_oppened():
+                self.rpc_server_connection.rpc_subscribe(self.config.options.rpc_queue_name, self.config.options.rpc_queue_name, name, callback=callback)
+            self.rpc_server_connection.add_callback(after_channel_oppened)            
+        self.event_loop.add_callback_threadsafe(add_provider)
 
     def start_consume(self):
         self.sub_connection.start()
@@ -42,12 +56,15 @@ class EventbusRabbitMQ:
         self.rpc_server_connection.start()
 
     def initialize_rpc_server(self):
-        self.rpc_server_connection.open(self.config.url)
-        self.rpc_server_connection.channel_open()
         if not self._rpc_server_initialized:
-            self.rpc_server_connection.declare_exchange(self.config.options.rpc_exchange_name, "direct")
-            self.rpc_server_connection.declare_queue(self.config.options.rpc_queue_name, durable=False)
-            self._rpc_server_initialized=True
+            def rpc_server_setup():
+                def after_channel_openned():
+                    self.rpc_server_connection.declare_exchange(self.config.options.rpc_exchange_name, "direct", ioloop_active=True)
+                    self.rpc_server_connection.declare_queue(self.config.options.rpc_queue_name, durable=False)
+                    self._rpc_server_initialized=True
+                self.rpc_server_connection.open(self.config.url, ioloop=self.event_loop, ioloop_active=True)
+                self.rpc_server_connection.add_callback(after_channel_openned)
+            self.event_loop.add_callback_threadsafe(rpc_server_setup)
 
     def dispose(self):
         if isinstance(self.pub_connection, ConnectionRabbitMQ): self.sub_connection.close()
