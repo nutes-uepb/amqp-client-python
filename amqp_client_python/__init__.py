@@ -1,2 +1,2 @@
-from .rabbitmq import ChannelRabbitMQ, ChannelFactoryRabbitMQ, ConnectionRabbitMQ, ConnectionFactoryRabbitMQ, EventbusRabbitMQ
-from .domain.models import Config
+from .rabbitmq import EventbusRabbitMQ
+from .domain.models import Config, Options, SSLOptions

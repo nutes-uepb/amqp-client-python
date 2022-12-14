@@ -2,21 +2,23 @@ from .connection_factory_rabbitmq import ConnectionFactoryRabbitMQ
 from .channel_rabbitmq import ChannelRabbitMQ
 from amqp_client_python.exceptions import EventBusException
 from .channel_rabbitmq import ChannelRabbitMQ
-from pika import SelectConnection , URLParameters
-
+from pika import SelectConnection, URLParameters
+from amqp_client_python.utils import Logger
+from pika.adapters.select_connection import IOLoop
 
 class ConnectionRabbitMQ:
     _connection:SelectConnection
     _channel:ChannelRabbitMQ
-    _ioloop_is_open=False
+    ioloop_is_open=False
 
-    def __init__(self, connection_factory:ConnectionFactoryRabbitMQ, channel:ChannelRabbitMQ, logger) -> None:
-        self._connectionFactory = connection_factory
+    def __init__(self) -> None:
+        self._connectionFactory = ConnectionFactoryRabbitMQ()
         self._connection = None
+        self.ioloop: IOLoop = None
         self._stopping = False
-        self._channel = channel
+        self._channel = ChannelRabbitMQ(Logger.error_logger)
         self._uri = None
-        self.logger = logger
+        self.logger = Logger.error_logger
         self.backup = {
             "exchange": {},
             "queue": {},
@@ -26,21 +28,22 @@ class ConnectionRabbitMQ:
     def open(self, uri: URLParameters, ioloop_active = False):
         if not self._connection or self._connection.is_closed:
             self._uri = uri
-            self._connection=self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed)
+            self._connection = self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed)
             if not self.is_open() and not ioloop_active:
                 self.start()
+                self.ioloop: IOLoop = self._connection.ioloop
             
 
     def reconnect(self):
-        self.logger.debug('reconnect %s',self._ioloop_is_open)
+        self.logger.debug('reconnect %s',self.ioloop_is_open)
         self._stopping=False
-        self._ioloop_is_open=False
+        self.ioloop_is_open=False
         def connection_open(unused_connection):
             self.logger.debug("connection reopened  %s",unused_connection)
             self.stop()
         self._connection=self._connectionFactory.create_connection(self._uri, connection_open, self.on_connection_open_error, self.on_connection_closed)
         self.start()
-        self._channel.open(self, self._ioloop_is_open)
+        self._channel.open(self, self.ioloop_is_open)
         self.restore()
     
     def restore(self):
@@ -57,19 +60,19 @@ class ConnectionRabbitMQ:
 
     def start(self, force = False):
         self._stopping=False
-        if not self._ioloop_is_open or force:
-            self._ioloop_is_open=True
+        if not self.ioloop_is_open or force:
+            self.ioloop_is_open=True
             self._connection.ioloop.start()
     
     def pause(self):
-        if self._ioloop_is_open:
-            self._ioloop_is_open=False
+        if self.ioloop_is_open:
+            self.ioloop_is_open=False
             self._connection.ioloop.stop()
 
     def stop(self):
         self._stopping=True
-        if self._ioloop_is_open:
-            self._ioloop_is_open=False
+        if self.ioloop_is_open:
+            self.ioloop_is_open=False
             self._connection.ioloop.stop()
 
     def declare_exchange(self, exchange, exchange_type, durable=True, callback=None):
@@ -87,13 +90,10 @@ class ConnectionRabbitMQ:
                 exchange_type=exchange_type,
                 callback=callback)
             self.start()
-        else:
-            pass
-            #self.reconnect()
 
     def declare_queue(self, queue_name, durable=False, auto_delete=False, callback=lambda x:x):
         self.backup["queue"][queue_name] = { "durable": durable, "auto_delete": auto_delete, "callback": callback }
-        self._channel.queue_declare(queue_name, durable=True, auto_delete=False, callback=callback)
+        self._channel.queue_declare(queue_name, durable=durable, auto_delete=auto_delete, callback=callback)
 
     def register_channel_return_callback(self):
         self._channel.register_return_callback(self.pause)
@@ -158,15 +158,15 @@ class ConnectionRabbitMQ:
         self.backup["subscribe"][routing_key] = { "exchange": exchange_name, "queue": queue_name, "callback": callback, "auto_ack": auto_ack }
         return self._channel.subscribe(queue_name, exchange_name, routing_key, callback=callback, auto_ack=auto_ack)
 
-    def rpc_client(self, exchange_name: str, routing_key: str, message:str):
+    def rpc_client(self, exchange_name: str, routing_key: str, message:str, content_type, timeout):
         if not self.is_open(): self.reconnect()
         if not self._channel.is_open(): self.channel_open()
-        return self._channel.rpc_client(exchange_name, routing_key, message, self.start)
+        return self._channel.rpc_client(exchange_name, routing_key, message, content_type=content_type, timeout=timeout, ioloop_actor=self.start)
     
-    def rpc_subscribe(self, queue: str, exchange_name: str, routing_key: str):
+    def rpc_subscribe(self, queue: str, exchange_name: str, routing_key: str, callback):
         if not self.is_open(): raise EventBusException('No connection open!')
         if not self._channel.is_open(): raise EventBusException("No channel open!")
-        return self._channel.subscribe(queue, exchange_name, routing_key)
+        return self._channel.rpc_subscribe(queue, exchange_name, routing_key, callback, auto_ack=False)
 
     def close(self):
         self._channel.close()
