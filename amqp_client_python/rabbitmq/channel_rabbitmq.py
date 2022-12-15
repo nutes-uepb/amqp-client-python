@@ -1,9 +1,11 @@
+from typing import Dict
 from .channel_factory_rabbitmq import ChannelFactoryRabbitMQ
 from pika.channel import Channel
 from pika import BasicProperties
 from functools import partial
 from uuid import uuid4
 from json import loads, dumps
+from concurrent.futures import Future, TimeoutError
 
 
 class ChannelRabbitMQ:
@@ -12,12 +14,12 @@ class ChannelRabbitMQ:
         self.consumer_tag = None
         self.logger = logger
         self._channel = None
-        self.corr_id = None
         self._callback_queue = None
         self.consumers = {}
+        self.futures: Dict[str,Future] = {}
         self._stopping=False
     
-    def open(self, connection, ioloop_active = False, callback=None):
+    def open(self, connection, callback=None):
         self._channel = None
         self.consumers = {}
         self._callback_queue = f"amqp.{uuid4()}"
@@ -25,14 +27,12 @@ class ChannelRabbitMQ:
         self._connection = connection
         self.start = self._connection.start
         self.stop = self._connection.pause
-        self.reconnect = self._connection.reconnect
+        self.reconnect = self._connection.reset
         self._stopping = self._connection._stopping
-        callback=partial(self.on_channel_open, ioloop_actor= None if ioloop_active else self.stop, callback=callback)
+        callback=partial(self.on_channel_open, callback=callback)
         self.channel_factory.create_channel(connection._connection, callback)
-        if not ioloop_active:
-            self.start()
     
-    def on_channel_open(self,channel, ioloop_actor=None, callback=None):
+    def on_channel_open(self,channel, callback=None):
         """This method is invoked by pika when the channel has been opened.
         The channel object is passed in so we can make use of it.
         Since the channel is now open, we'll declare the exchange to use.
@@ -43,8 +43,6 @@ class ChannelRabbitMQ:
         self.add_on_channel_close_callback()
         if callback:
             callback('')
-        if ioloop_actor:
-            ioloop_actor()
 
     def declare_exchange(self, exchange, exchange_type, durable=True, callback=None):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
@@ -71,7 +69,6 @@ class ChannelRabbitMQ:
         self.logger.debug('Exchange declared: %s', userdata)
         if callback:
             callback()
-        self.stop()
 
     def queue_declare(self, queue_name: str, durable=False, auto_delete=False, callback=None):
         """Setup the queue on RabbitMQ by invoking the Queue.Declare RPC
@@ -111,7 +108,8 @@ class ChannelRabbitMQ:
         self._channel = None
         if not self._stopping:
             if not self._connection.is_open():
-                self.reconnect()
+                if self._connection.ioloop_is_open:
+                    self._connection.ioloop.call_later(5, self.reconnect)
                 #self._connection._connection.ioloop.call_later(5, self._connection.pause)
             else:
                 self._connection.close()
@@ -127,13 +125,14 @@ class ChannelRabbitMQ:
             self.logger.debug('Closing the channel')
             self._channel.close()
 
-    def rpc_client(self, exchange, routing_key, message, content_type, timeout, ioloop_actor = None):
+    def rpc_client(self, exchange, routing_key, message, content_type, future, timeout):
         message = dumps({"handle": message})
-        self.corr_id = str(uuid4())
+        last_id = str(uuid4())
+        self.futures[last_id] = future
         self.response=None
         self._channel.basic_publish(exchange, routing_key, message, properties=BasicProperties(
                 reply_to=self._callback_queue,
-                correlation_id=self.corr_id,
+                correlation_id=last_id,
                 content_type=content_type,
             ))
         if not self.consumer_tag:
@@ -145,28 +144,19 @@ class ChannelRabbitMQ:
                     consumer_tag=None
                 )
             self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result:on_declare())
-        if not self._connection.ioloop_is_open:
-            last_id = self.corr_id
-            def prevent_infinite_loop():
-                if self.corr_id == last_id:
-                    self._connection.ioloop_is_open = False
-                    self._connection.ioloop.stop()
-            self._connection._connection.ioloop.call_later(timeout, prevent_infinite_loop)
-            self.start(force=True)
-            if self.response:
-                return self.response
-            raise TimeoutError("request timeout!!!")
+        def prevent_infinite_loop(last_id):
+            if last_id in self.futures:
+                self.futures[last_id].set_exception(TimeoutError("request timeout!!!"))
+                del self.futures[last_id]
+        func = partial(prevent_infinite_loop, str(last_id))
+        self._connection._connection.ioloop.call_later(timeout, func)
 
-    
-    def publish(self, exchange:str, routing_key:str, message, ioloop_active):
+    def publish(self, exchange:str, routing_key:str, message):
         message = dumps({"handle": message})
-        self._channel.confirm_delivery(lambda x: self.stop())
         self._channel.basic_publish(exchange,routing_key, message, properties=BasicProperties(
                 content_type='application/json'
             )
         )
-        if not ioloop_active:
-            self.start()
 
     def serve_resource(self, ch: Channel, method, props, body: bytes):
         if method.routing_key in self.consumers:
@@ -214,21 +204,21 @@ class ChannelRabbitMQ:
             self._channel.queue_bind(exchange=exchange,
                 queue=queue_name, routing_key=routing_key)
     
-    def subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=False):
+    def subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True):
         if self.is_open():
             if not self.consumer_tag:
                 self.consumer_tag = self._channel.basic_consume(
                 queue = queue_name,
                 on_message_callback = self.serve_subscribe,
                 auto_ack=auto_ack,
-                consumer_tag=consumer_tag
+                consumer_tag=self.consumer_tag
             )
             self.addResource(routing_key, callback)
             self._channel.queue_bind(exchange=exchange,
                 queue=queue_name, routing_key=routing_key)
     
     def unsubscribe(self, consumer_tag:str):
-        self._channel.basic_cancel(consumer_tag, callback=lambda x: self.stop())
+        self._channel.basic_cancel(consumer_tag)
     
     def serve_subscribe(self, ch:Channel, method, props, body):
         if method.routing_key in self.consumers:
@@ -238,16 +228,15 @@ class ChannelRabbitMQ:
             except BaseException as err:
                 self.logger.error(err)
 
-    def __on_response(self, ch:Channel, method, props, body):
-        if self.corr_id == props.correlation_id:
+    def __on_response(self, ch:Channel, method, props, body, future=None):
+        if props.correlation_id in self.futures:
+            future = self.futures[props.correlation_id]
+            del self.futures[props.correlation_id]
             if props.type=="error":
-                raise Exception(f"Internal Server Error: {body.decode('utf-8')}")
-            self.response = body
-            # ch.basic_ack(delivery_tag=method.delivery_tag)
-        else:
-            self.response = None
-            # ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-        self.stop()
+                future.set_exception(Exception(f"Internal Server Error: {body.decode('utf-8')}"))
+            future.set_result(body)
+            
+        #self.stop()
 
     def close(self):
         if self.is_open():

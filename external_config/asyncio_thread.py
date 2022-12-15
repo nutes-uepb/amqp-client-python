@@ -41,19 +41,30 @@ publish_event = ExampleEvent(rpc_exchange, ["message"])
 subscribe_event_handle = ExampleEventHandler()
 eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
 eventbus.provide_resource(rpc_routing_key+"2", handle)
-count = 0
-running = True
+
 from concurrent.futures import TimeoutError
-while running:
-    try:
-        count += 1
-        if str(count) != eventbus.rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"]).decode("utf-8"):
-            running = False
-        #eventbus.publish(publish_event, rpc_routing_key, "direct")
-        #running = False
-    except TimeoutError as err:
-        print("timeout!!!: ", str(err))
-    except KeyboardInterrupt:
-        running=False
-    except BaseException as err:
-        print("Err:", err)
+import asyncio
+loop = asyncio.new_event_loop()
+def create_tasks(st, end):
+    return [eventbus.async_rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"], loop=loop) for count in range(st,end)]
+
+async def start():
+    count = 0
+    running = True
+    while running:
+        try:
+            count += 1
+            result = await eventbus.async_rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"], loop=loop)
+            if str(count) != result.result().decode("utf-8"):
+                running = False
+            #eventbus.publish(publish_event, rpc_routing_key, "direct")
+            #running = False
+        except TimeoutError as err:
+            print("timeout!!!: ", str(err))
+        except KeyboardInterrupt:
+            running=False
+        except BaseException as err:
+            print("Err:", err)
+
+loop.create_task(start())
+loop.run_forever()
