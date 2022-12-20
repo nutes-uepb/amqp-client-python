@@ -1,181 +1,153 @@
+from typing import MutableMapping, Dict
 from .connection_factory_rabbitmq import ConnectionFactoryRabbitMQ
-from .channel_rabbitmq import ChannelRabbitMQ
-from amqp_client_python.exceptions import EventBusException
-from .channel_rabbitmq import ChannelRabbitMQ
-from pika import SelectConnection, URLParameters
-from amqp_client_python.utils import Logger
-from .ioloop_factory import IOLoopFactory
+from amqp_client_python.domain.models import Options, SSLOptions
+from aio_pika.abc import (
+    AbstractRobustChannel,
+    AbstractIncomingMessage,
+    AbstractRobustExchange,
+)
+from aio_pika import Message
+from asyncio import Future, AbstractEventLoop, get_running_loop, sleep
+from uuid import uuid4
+from json import dumps, loads
+from functools import partial
+
 
 class ConnectionRabbitMQ:
-    _connection:SelectConnection
-    _channel:ChannelRabbitMQ
-
     def __init__(self) -> None:
-        self._connectionFactory = ConnectionFactoryRabbitMQ()
-        self._connection = None
-        self.ioloop_factory = IOLoopFactory
-        self.ioloop_factory.add_reconnection(self.reconnect)
-        self._stopping = False
-        self._channel = ChannelRabbitMQ(Logger.error_logger)
-        self._uri = None
-        self.logger = Logger.error_logger
-        self.backup = {
-            "exchange": {},
-            "queue": {},
-            "subscribe": {},
-            "rpc_subscribe": {},
-        }
-
-    @property
-    def ioloop(self):
-        return IOLoopFactory.get_ioloop()
+        self.connection_factory = ConnectionFactoryRabbitMQ()
+        self.connection = None
+        self.channels: Dict[str, AbstractRobustChannel] = {}
+        self.futures: MutableMapping[str, Future] = {}
+        self.callback_queue = None
+        self.callback_queue_name = f"amqp.{uuid4()}"
+        self.subscribes = {}
+        self.loop = None
+        self.resorces = {}
+        self.consumers = {}
     
-    @property
-    def ioloop_is_open(self):
-        return IOLoopFactory.running
+    async def open(self, options: Options, ssl_options: SSLOptions, loop: AbstractEventLoop):
+        if not self.connection:
+            self.loop = loop or get_running_loop()
+            self.connection = await self.connection_factory.create_connection(options, ssl_options, loop=loop)
+        
+    async def create_channel(self, name, publisher_confirms=True, on_return_raises=False):
+        if name not in self.channels:
+            self.channels[name] = await self.connection.channel(
+                publisher_confirms=publisher_confirms,
+                on_return_raises=on_return_raises
+            )
 
-    def open(self, uri: URLParameters, ioloop=None):
-        if not self._connection or self._connection.is_closed:
-            self._uri = uri
-            self._connection = self._connectionFactory.create_connection(uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed, custum_ioloop=ioloop)
+    def get_channel(self, name):
+        if name not in self.channels:
+            return self.channels[name]
 
-    def reset(self):
-        self.ioloop.call_later(2,self.ioloop_factory.reset)
+    async def rpc_client(self, exchange_name: str, routing_key: str, message: str, content_type="text/plain", channel_name="rpc_client", timeout=5):
+        exchange = await self.channels[channel_name].declare_exchange(exchange_name)
+        if self.connection.is_closed or self.channels[channel_name].is_closed:
+            await sleep(timeout)
+        if not self.callback_queue:
+            self.callback_queue = await self.channels[channel_name].declare_queue(self.callback_queue_name, auto_delete=True)
+            await self.callback_queue.bind(exchange_name)
+            await self.callback_queue.consume(self.on_response)
+        correlation_id = str(uuid4())
+        future = self.loop.create_future()
+        self.futures[correlation_id] = future
+        body = dumps({"handle": message})
+        await exchange.publish(
+            Message(
+                body.encode(),
+                content_type=content_type,
+                correlation_id=correlation_id,
+                reply_to=self.callback_queue.name,
+            ),
+            routing_key=routing_key,
+        )
+        def not_loop():
+            if correlation_id in self.futures:
+                self.futures.pop(correlation_id).set_exception(TimeoutError("timeout limit ranched!!!"))
+        self.loop.call_later(timeout, not_loop)
 
-    def reconnect(self):
-        self.logger.debug('reconnect %s', self.ioloop_is_open)
-        if not self.is_open():
-            self._connection = self._connectionFactory.create_connection(self._uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed, custum_ioloop=self.ioloop)
-            self.add_callback(self.restore)
-
-    def restore(self):
-        for exchange_name in self.backup["exchange"]:
-            params = self.backup["exchange"][exchange_name]
-            self.declare_exchange(exchange_name, params["type"], params["durable"], params["callback"])
-        for queue_name in self.backup["queue"]:
-            params = self.backup["queue"][queue_name]
-            self.declare_queue(queue_name, params["durable"], params["auto_delete"], params["callback"])
-        for routing_key in self.backup["subscribe"]:
-            params = self.backup["subscribe"][routing_key]
-            self.subscribe(params["queue"], params["exchange"], routing_key, params["callback"], params["auto_ack"])
-        for routing_key in self.backup["rpc_subscribe"]:
-            params = self.backup["rpc_subscribe"][routing_key]
-            self.rpc_subscribe(params["queue"], params["exchange"], routing_key, params["callback"])
-
-    def start(self, force = False):
-        self._stopping=False
-        if not self.ioloop_is_open or force:
-            self.ioloop_factory.start()
+        return await future
     
-    def pause(self):
-        if self.ioloop_is_open:
-            self._connection.ioloop.stop()
 
-    def stop(self):
-        self._stopping=True
-        if self.ioloop_is_open:
-            self._connection.ioloop.stop()
-
-    def declare_exchange(self, exchange, exchange_type, durable=True, callback=None):
-        """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
-        command. When it is complete, the on_exchange_declareok method will
-        be invoked by pika.
-        :param str|unicode exchange_name: The name of the exchange to declare
-        """
-        # Note: using functools.partial is not required, it is demonstrating
-        # how arbitrary data can be passed to the callback when it is called
-        self.backup["exchange"][exchange] = { "type": exchange_type, "durable": durable, "callback": callback }
-        if self.is_open():
-            self._channel.declare_exchange(
-                exchange=exchange, durable=durable,
-                exchange_type=exchange_type,
-                callback=callback)
-
-    def declare_queue(self, queue_name, durable=False, auto_delete=False, callback=lambda x:x):
-        self.backup["queue"][queue_name] = { "durable": durable, "auto_delete": auto_delete, "callback": callback }
-        self._channel.queue_declare(queue_name, durable=durable, auto_delete=auto_delete, callback=callback)
-
-    def register_channel_return_callback(self):
-        self._channel.register_return_callback(self.pause)
-
-    def on_connection_open(self, _unused_connection):
-        """This method is called by pika once the connection to RabbitMQ has
-        been established. It passes the handle to the connection object in
-        case we need it, but in this case, we'll just mark it unused.
-        :param pika.SelectConnection _unused_connection: The connection
-        """
-        self.logger.debug('Connection opened')
-        if not self.channel_is_open():
-            self.channel_open()
-        #self.pause()
+    async def publish(self,  exchange_name, routing_key, message: str, channel_name="publish", content_type="text/plain"):
+        exchange = await self.channels[channel_name].declare_exchange(exchange_name)
+        correlation_id = str(uuid4())
+        body = dumps({"handle": message})
+        await exchange.publish(
+            Message(
+                body.encode(),
+                content_type=content_type,
+                correlation_id=correlation_id,
+            ),
+            routing_key=routing_key
+        )
     
-    def on_connection_open_error(self, _unused_connection, err):
-        """This method is called by pika if the connection to RabbitMQ
-        can't be established.
-        :param pika.SelectConnection _unused_connection: The connection
-        :param Exception err: The error
-        """
-        self.logger.error('Connection open failed, reopening in 5 seconds: %s', err)
-        if self.ioloop_factory.running:
-            self.reset()
-        #else:
-        #    self._connection.ioloop.call_later(5, self.pause)
-
-    def on_connection_closed(self, _unused_connection, reason):
-        """This method is invoked by pika when the connection to RabbitMQ is
-        closed unexpectedly. Since it is unexpected, we will reconnect to
-        RabbitMQ if it disconnects.
-        :param pika.connection.Connection connection: The closed connection obj
-        :param Exception reason: exception representing reason for loss of
-            connection.
-        """
-        if self._connection.is_closed:
-            self.logger.warning('Connection closed: %s', reason)
-            self.reset()
-
-    def add_callback(self, callback, event: str = "channel_open"):
-        if event == "channel_open":
-            def channel_openned():
-                if self.channel_is_open():
-                    callback()
-                else:
-                    self.ioloop.call_later(1, channel_openned)
-            self.ioloop.add_callback_threadsafe(channel_openned)
-
-    def channel_open(self, callback=lambda x:x):
-        if not self.is_open(): raise EventBusException('No connection open!')
-        if not self.channel_is_open():
-            self._channel.open(self, callback)
-
-    def is_open(self)->bool:
-        return self._connection and self._connection.is_open
-
-    def channel_is_open(self):
-        return self._channel and self._channel.is_open()
-
-    def publish(self, exchange_name: str, routing_key: str, message:str):
-        if not self.is_open(): raise EventBusException('No connection open!')
-        if not self._channel.is_open(): raise EventBusException("No channel open!")
-        return self._channel.publish(exchange_name, routing_key, message)
-
-    def subscribe(self, queue_name: str, exchange_name: str, routing_key: str, callback, auto_ack=True):
-        if not self.is_open(): raise EventBusException('No connection open!')
-        if not self._channel.is_open(): raise EventBusException("No channel open!")
-        self.backup["subscribe"][routing_key] = { "exchange": exchange_name, "queue": queue_name, "callback": callback, "auto_ack": auto_ack }
-        return self._channel.subscribe(queue_name, exchange_name, routing_key, callback=callback, auto_ack=auto_ack)
-
-    def rpc_client(self, exchange_name: str, routing_key: str, message:str, content_type, future, timeout):
-        if not self.is_open(): self.reset()
-        if not self._channel.is_open(): self.channel_open()
-        return self._channel.rpc_client(exchange_name, routing_key, message, content_type=content_type, future=future, timeout=timeout)
+    async def on_response(self, message: AbstractIncomingMessage) -> None:
+        if message.correlation_id in self.futures:
+            future: Future = self.futures.pop(message.correlation_id)
+            if message.type == "error":
+                future.set_exception(Exception(f"Internal Server Error: {message.body.decode()}"))
+            else:
+                future.set_result(message.body)
+            await message.ack()
     
-    def rpc_subscribe(self, queue_name: str, exchange_name: str, routing_key: str, callback):
-        if not self.is_open(): raise EventBusException('No connection open!')
-        if not self._channel.is_open(): raise EventBusException("No channel open!")
-        self.backup["rpc_subscribe"][routing_key] = { "exchange": exchange_name, "queue": queue_name, "callback": callback }
-        return self._channel.rpc_subscribe(queue_name, exchange_name, routing_key, callback, auto_ack=False)
+    async def rpc_subscribe(self, exchange_name, routing_key: str, queue_name: str, callback, content_type, channel_name="provide_resource"):
+        await self.add_subscribe(queue_name, routing_key, callback, content_type=content_type)
+        exchange = await self.channels[channel_name].declare_exchange(exchange_name)
+        queue = await self.channels[channel_name].declare_queue(queue_name)
+        await queue.bind(exchange_name, routing_key)
+        if queue_name not in self.consumers:
+            self.consumers[queue_name] = True
+            queue = await self.channels[channel_name].get_queue(queue_name)
+            func = partial(self.handle_message, exchange, queue_name)
+            await queue.consume(func, no_ack=True)
+    
+    async def handle_message(self, exchange: AbstractRobustExchange, queue_name: str, message: AbstractIncomingMessage):
+        try:
+            if queue_name in self.subscribes and message.routing_key in self.subscribes[queue_name]:
+                body = loads(message.body)
+                response = await self.subscribes[queue_name][message.routing_key]["handle"](*body["handle"])
+                if message.reply_to:
+                    await exchange.publish(
+                        Message(
+                            body=response or b"",
+                            correlation_id=message.correlation_id,
+                            content_type=self.subscribes[queue_name][message.routing_key]["content_type"],
+                            type="normal",
+                        ),
+                        routing_key=message.reply_to
+                    )
+        except BaseException as err:
+            if message.reply_to:
+                await exchange.publish(
+                    Message(
+                        body=str(err).encode(),
+                        correlation_id=message.correlation_id,
+                        type="error",
+                    ),
+                    routing_key=message.reply_to
+                )
 
-    def close(self):
-        self._channel.close()
-        if self.is_open():
-            self._connection.close()
+    async def subscribe(self, exchange_name, routing_key: str, queue_name: str, callback, channel_name="subscribe", content_type="text/plain"):
+        await self.add_subscribe(queue_name, routing_key, callback, content_type=content_type)
+        exchange = await self.channels[channel_name].declare_exchange(exchange_name)
+        queue = await self.channels[channel_name].declare_queue(queue_name)
+        await queue.bind(exchange_name, routing_key)
+        if queue_name not in self.consumers:
+            self.consumers[queue_name] = True
+            queue = await self.channels[channel_name].get_queue(queue_name)
+            func = partial(self.handle_message, exchange, queue_name)
+            await queue.consume(func, no_ack=True)
+
+    async def add_subscribe(self, queue_name, routing_key, resource, content_type):
+        if queue_name not in self.subscribes:
+            if not len(self.subscribes):
+                self.subscribes[queue_name] = {}
+        if routing_key not in self.subscribes[queue_name]:
+            self.subscribes[queue_name][routing_key] = { "handle": resource, "content_type": content_type }
+
+    async def close(self):
+        if self.connection.is_closed:
+            await self.connection.close()

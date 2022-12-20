@@ -13,6 +13,7 @@ class Options:
         port: int = 5672,
         vhost: str = "/",
         heartbeat: Optional[int] = 0,
+        timeout: Optional[int] = None,
         **kwargs: Dict[str, Any]
     ) -> None:
         self.queue_name = queue_name
@@ -24,4 +25,5 @@ class Options:
         self.port = port
         self.vhost = vhost
         self.heartbeat = heartbeat
+        self.timeout = timeout
         self.kwargs = kwargs
