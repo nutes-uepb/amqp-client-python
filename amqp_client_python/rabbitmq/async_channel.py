@@ -235,26 +235,28 @@ class asyncChannel:
                 correlation_id=corr_id,
                 content_type=content_type,
             ))
-        if self.publisher_confirms:
-            future_publish = loop.create_future()
-            self._message_number += 1
-            self.futures[self._message_number] = future
-            self._deliveries[self._message_number] = self._message_number
-            await future_publish
         if not self.consumer_tag:
             def on_declare():
                 self.consumer_tag = self._channel.basic_consume(
                     queue=self._callback_queue,
                     on_message_callback=self.on_response,
-                    auto_ack=True,
+                    auto_ack=False,
                     consumer_tag=None
                 )
             self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result:on_declare())
+            print("declare_consumer")
+        if self.publisher_confirms:
+            publish_future = loop.create_future()
+            self._message_number += 1
+            self.futures[self._message_number] = publish_future
+            self._deliveries[self._message_number] = int(self._message_number)
+            print("publish confirms:", await publish_future)
         def not_loop(id):
             if id in self.futures:
+                print(id, self.futures)
                 self.futures.pop(id).set_exception(TimeoutException("Timeout: time limit reached"))
         func = partial(not_loop, corr_id)
-        loop.call_later(timeout, func)
+        loop.call_later(10, func)
         return await future
     
     async def publish(self, exchange_name: str, routing_key: str, body, content_type: str, loop: AbstractEventLoop=None):      
@@ -307,15 +309,19 @@ class asyncChannel:
             if queue_name in self.subscribes and basic_deliver.routing_key in self.subscribes[queue_name]:
                 body = loads(body)
                 response = self.subscribes[queue_name][basic_deliver.routing_key]["handle"](*body["handle"])
+                print("publish response", props.reply_to, self.subscribes[queue_name][basic_deliver.routing_key]["rpc"])
                 if props.reply_to and self.subscribes[queue_name][basic_deliver.routing_key]["rpc"]:
+                    print("will publish", response, type(response))
                     self._channel.basic_publish("", props.reply_to, response, properties=BasicProperties(
                         correlation_id=props.correlation_id,
                         content_type=self.subscribes[queue_name][basic_deliver.routing_key]["content_type"],
                         type="normal",
                     ))
-                self._channel.basic_nack(basic_deliver.delivery_tag)
+                print("ack")
+                self._channel.basic_ack(basic_deliver.delivery_tag)
             else:
-                self._channel.basic_nack(basic_deliver.delivery_tag)
+                print("nack")
+                self._channel.basic_nack(basic_deliver.delivery_tag, requeue=False)
         except BaseException as err:
             if props.reply_to and self.subscribes[queue_name][basic_deliver.routing_key]["rpc"]:
                 self._channel.basic_publish("", props.reply_to, str(err), properties=BasicProperties(
@@ -323,7 +329,8 @@ class asyncChannel:
                     content_type=self.subscribes[queue_name][basic_deliver.routing_key]["content_type"],
                     type="error",
                 ))
-            self._channel.basic_nack(basic_deliver.delivery_tag)
+            print("nack:", err)
+            self._channel.basic_nack(basic_deliver.delivery_tag, requeue=False)
          
 
     def add_subscribe(self, queue_name, routing_key, resource, content_type, rpc=True):
