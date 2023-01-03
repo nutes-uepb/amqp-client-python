@@ -1,0 +1,6 @@
+__pycache__/
+node_modules/
+dist/*
+.certs/
+.config/
+*_env/

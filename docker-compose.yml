@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: amqp-rabbitmq
+    restart: always
+    ports:
+      - 15672:15672 # Management UI
+      - 5672:5672 # AMQP Protocol
+      - 5671:5671 # AMQPS Protocol
+    volumes:
+      - ./.certs/rabbitmq:/etc/ssl:ro
+      - ./external_config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks: 
+      - amqp-network
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+
+networks:
+  amqp-network:
+    name: amqp-network
+    driver: bridge
