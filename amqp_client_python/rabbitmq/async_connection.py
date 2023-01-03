@@ -2,6 +2,7 @@ from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioCon
 from .async_channel import asyncChannel
 from asyncio import AbstractEventLoop
 from asyncio import sleep
+from amqp_client_python.utils import Logger
 
 
 class AsyncConnection:
@@ -9,6 +10,7 @@ class AsyncConnection:
     def __init__(self, ioloop: AbstractEventLoop, publisher_confirms=False) -> None:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
+        self.logger = Logger.error_logger
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
         self._connection: AsyncioConnection = None
         self._channel = None
@@ -39,13 +41,13 @@ class AsyncConnection:
             self._connection.close()
     
     def on_connection_open(self, _unused_connection):
-        print("connection openned", self._channel)
-        self._channel = asyncChannel()
+        self.logger.info("connection openned", self._channel)
+        self._channel = asyncChannel(Logger.error_logger)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection)
     
     def on_connection_open_error(self, _unused_connection, err):
-        print(f"connection open error: {err}")
+        self.logger.info(f"connection open error: {err}")
         self.reconnect()
     
     def on_connection_closed(self, _unused_connection, reason):
@@ -56,12 +58,12 @@ class AsyncConnection:
         :param Exception reason: exception representing reason for loss of
             connection.
         """
-        print("connection closed")
+        self.logger.info("connection closed")
         self._channel = None
         if self._closing:
             self._connection.ioloop.stop()
         else:
-            print(f"Connection closed, reconnect necessary: {reason}")
+            self.logger.info(f"Connection closed, reconnect necessary: {reason}")
             self.reconnect()
 
     def reconnect(self):
@@ -113,13 +115,13 @@ class AsyncConnection:
         """
         if not self._closing:
             self._closing = True
-            print('Stopping')
+            self.logger.info('Stopping')
             if self._consuming:
                 self.stop_consuming()
                 self._connection.ioloop.run_forever()
             else:
                 self.ioloop.stop()
-            print('Stopped')
+            self.logger.info('Stopped')
 
 
     def set_qos(self):

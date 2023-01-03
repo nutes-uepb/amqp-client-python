@@ -10,8 +10,15 @@ loop = new_event_loop()
 
 config = Config(Options(queue, rpc_queue, rpc_exchange))
 
+eventbus = AsyncEventbusRabbitMQ(config, loop, rpc_client_publisher_confirms=True, rpc_server_publisher_confirms=False)
 
-def handle(*body):
+async def handle(*body):
+    print(f"body: {body}")
+    await eventbus.rpc_client(rpc_exchange, "user.find2", ["content_message"])
+    print("...")
+    return b"here"
+
+async def handle2(*body):
     print(f"body: {body}")
     return b"here"
 
@@ -29,16 +36,21 @@ from asyncio import sleep
 async def run():
     publish_event = ExampleEvent(rpc_exchange, ["message"])
     event_handle = ExampleEventHandler()
-    eventbus = AsyncEventbusRabbitMQ(config, loop, rpc_client_publisher_confirms=False)
     await eventbus.provide_resource("user.find", handle)
+    await eventbus.provide_resource("user.find2", handle2)
+    count = 0
+    running = True
     #await eventbus.subscribe(publish_event, event_handle, "user.find1")
-    while True:
+    while running:
         try:
-            print("returned:", await eventbus.rpc_client(rpc_exchange, "user.find", ["content_message"]))
+            count += 1
+            print("send rpc")
+            result = await eventbus.rpc_client(rpc_exchange, "user.find", ["content_message"])
+            print("returned:", result)
             #print("returned:", await eventbus.publish(publish_event, "user.find1", ["content_message"]))
         except BaseException as err:
             print(f"err: {err}")
-            await sleep(3)
+            #exit()#await sleep(3)
 
 
 loop.create_task(run())
