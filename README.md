@@ -45,7 +45,6 @@ Client with high level of abstraction for manipulation of messages in the event 
         Config, Options
     )
     from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-
     config = Config(Options("queue", "rpc_queue", "rpc_exchange"))
     eventbus = AsyncEventbusRabbitMQ(config)
     # publish
