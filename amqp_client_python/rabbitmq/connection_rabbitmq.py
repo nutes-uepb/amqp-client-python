@@ -16,9 +16,9 @@ class ConnectionRabbitMQ:
         self.ioloop_factory = IOLoopFactory
         self.ioloop_factory.add_reconnection(self.reconnect)
         self._stopping = False
-        self._channel = ChannelRabbitMQ(Logger.error_logger)
+        self._channel = ChannelRabbitMQ(Logger.lib_logger)
         self._uri = None
-        self.logger = Logger.error_logger
+        self.logger = Logger.lib_logger
         self.backup = {
             "exchange": {},
             "queue": {},
