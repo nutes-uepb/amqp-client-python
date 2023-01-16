@@ -13,7 +13,7 @@ class AsyncConnection:
         self.logger = Logger.lib_logger
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
         self._connection: AsyncioConnection = None
-        self._channel = None
+        self._channel = asyncChannel(self.logger)
         self._closing = False
         self._consuming = False
         self.reconnecting = False
@@ -44,7 +44,7 @@ class AsyncConnection:
     
     def on_connection_open(self, _unused_connection):
         self.logger.debug(f"connection openned {self._channel}")
-        self._channel = asyncChannel(Logger.lib_logger)
+        self._channel = asyncChannel(self.logger)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection)
     
