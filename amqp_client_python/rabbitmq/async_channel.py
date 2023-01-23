@@ -1,4 +1,4 @@
-from typing import MutableMapping
+from typing import MutableMapping, Mapping
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import NackException, RpcProviderException, TimeoutException
 from pika.adapters.asyncio_connection import AsyncioConnection
@@ -36,8 +36,9 @@ class asyncChannel:
         self._channel: Channel = None
         self._connection:AsyncioConnection = None
         self._callback_queue = f"amqp.{uuid4()}"
-        self.futures: MutableMapping[str, Future] = {}
+        self.futures: MutableMapping[str, Mapping[str, Future]] = {}
         self.consumer_tag = None
+        self._prefetch_count = 4
         self.subscribes = {}
         self.consumers = {}
         self.publisher_confirms = False
@@ -62,6 +63,7 @@ class asyncChannel:
         self._channel = channel
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
+        self.set_qos(self._prefetch_count)
 
     def add_on_channel_close_callback(self):
         """This method tells pika to call the on_channel_closed method if
@@ -102,11 +104,13 @@ class asyncChannel:
         if confirmation_type == "ack":
             self._acked += 1
             if self._deliveries[delivery_tag] == delivery_tag:
-                self.futures.pop(delivery_tag).set_result(True)
+                future = self.futures.pop(delivery_tag)
+                not future.done() and future.set_result(True)
         elif confirmation_type == "nack":
             self._nacked += 1
             if self._deliveries[delivery_tag] in self.futures:
-                self.futures.pop(self._deliveries[delivery_tag]).set_exception(NackException(f"Publish confirmation: nack of {delivery_tag} publish"))
+                future = self.futures.pop(self._deliveries[delivery_tag])["published"]
+                not future.done() and future.set_exception(NackException(f"Publish confirmation: nack of {delivery_tag} publish"))
 
     def setup_exchange(self, exchange_name, exchange_type, durable=True):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
@@ -188,20 +192,22 @@ class asyncChannel:
         :param bytes body: The message body
         """
         if properties.correlation_id in self.futures:
-            future: Future = self.futures.pop(properties.correlation_id)
-            if properties.type == "error":
-                future.set_exception(RpcProviderException(f"Provider Error: {body.decode()}"))
-            else:
-                future.set_result(body)
+            future: Future = self.futures.pop(properties.correlation_id)["response"]
+            if not future.done():
+                if properties.type == "error":
+                    future.set_exception(RpcProviderException(f"Provider Error: {body.decode()}"))
+                else:
+                    future.set_result(body)
             self._channel.basic_ack(basic_deliver.delivery_tag)
             return
         self._channel.basic_nack(basic_deliver.delivery_tag, requeue=False)
 
     async def rpc_client(self, exchange_name: str, routing_key: str, body, loop: AbstractEventLoop, content_type, timeout):
         future = loop.create_future()
+        publish_future = loop.create_future()
         message = dumps({"handle": body})
         corr_id = str(uuid4())
-        self.futures[corr_id] = future
+        self.futures[corr_id] = {"response": future, "published": publish_future}
         
         self._channel.basic_publish(exchange_name, routing_key, message, properties=BasicProperties(
                 reply_to=self._callback_queue,
@@ -217,13 +223,17 @@ class asyncChannel:
                     consumer_tag=None
                 )
             self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result: on_declare())
+        
         def not_loop(id):
             if id in self.futures:
-                self.futures.pop(id).set_exception(TimeoutException("Timeout: time limit reached"))
+                future = self.futures.pop(id)
+                (self.publisher_confirms and not future["published"].done()) and future["published"].set_result(True)
+                (not future["response"].done()) and \
+                    future["response"].set_exception(TimeoutException("Timeout: time limit reached"))        
         func = partial(not_loop, corr_id)
         loop.call_later(timeout, func)
+        
         if self.publisher_confirms:
-            publish_future = loop.create_future()
             self._message_number += 1
             self.futures[self._message_number] = publish_future
             self._deliveries[self._message_number] = int(self._message_number)

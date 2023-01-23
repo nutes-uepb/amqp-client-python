@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "amqp-client-python"
-version = "0.1.2"
+version = "0.1.3"
 description = ""
 license = "Apache-2.0"
 authors = ["NUTES UEPB <dev.seniorsaudemovel@gmail.com>"]
