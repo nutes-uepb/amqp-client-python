@@ -7,6 +7,7 @@ class Options:
         queue_name: str,
         rpc_queue_name: str,
         rpc_exchange_name: str,
+        uri: str = None,
         login: str = "guest",
         passwd: str = "guest",
         domain: str = "localhost",
@@ -19,6 +20,7 @@ class Options:
         self.queue_name = queue_name
         self.rpc_queue_name = rpc_queue_name
         self.rpc_exchange_name = rpc_exchange_name
+        self.uri = uri
         self.login = login
         self.passwd = passwd
         self.domain = domain

@@ -1,11 +1,14 @@
 [tool.poetry]
 name = "amqp-client-python"
-version = "0.1.3"
+version = "0.1.4"
 description = ""
 license = "Apache-2.0"
 authors = ["NUTES UEPB <dev.seniorsaudemovel@gmail.com>"]
 readme = "README.md"
 packages = [{include = "amqp_client_python"}]
+
+[project.urls]
+Source = "https://github.com/nutes-uepb/amqp-client-python"
 
 [tool.poetry.dependencies]
 python = "^3.7"

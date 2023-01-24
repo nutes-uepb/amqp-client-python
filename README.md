@@ -6,6 +6,7 @@
 </a><a href="https://pypi.org/project/amqp-client-python" target="_blank">
     <img src="https://img.shields.io/pypi/pyversions/amqp-client-python.svg?color=%2334D058" alt="Supported Python versions">
 </a>
+[![Downloads](https://static.pepy.tech/personalized-badge/amqp-client-python?period=month&units=international_system&left_color=black&right_color=orange&left_text=PyPI%20downloads%20per%20month)](https://pepy.tech/project/amqp-client-python)
 [![Vulnerabilities][known-vulnerabilities-image]][known-vulnerabilities-url]  [![Releases][releases-image]][releases-url] 
 
 
@@ -31,8 +32,8 @@ Client with high level of abstraction for manipulation of messages in the event 
 [travis-url]: https://travis-ci.org/nutes-uepb/amqp-client-python
 [coverage-image]: https://coveralls.io/repos/github/nutes-uepb/amqp-client-python/badge.svg
 [coverage-url]: https://coveralls.io/github/nutes-uepb/amqp-client-python?branch=master
-[known-vulnerabilities-image]: https://snyk.io/test/github/nutes-uepb/amqp-client-python/badge.svg?targetFile=package.json
-[known-vulnerabilities-url]: https://snyk.io/test/github/nutes-uepb/amqp-client-python?targetFile=package.json
+[known-vulnerabilities-image]: https://snyk.io/test/github/nutes-uepb/amqp-client-python/badge.svg?targetFile=requirements.txt
+[known-vulnerabilities-url]: https://snyk.io/test/github/nutes-uepb/amqp-client-python?targetFile=requirements.txt
 [releases-image]: https://img.shields.io/github/release-date/nutes-uepb/amqp-client-python.svg
 [releases-url]: https://github.com/nutes-uepb/amqp-client-python/releases
 
