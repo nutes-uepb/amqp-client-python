@@ -25,16 +25,20 @@ class Config:
                 'ca_certs': self.ssl_options.ca_certs_path
             }
         protocol = "amqps" if bool(self.ssl_options) else "amqp"
-        url = '{}://{}:{}@{}:{}{}?{} '.format(
-            protocol,
-            self.options.login,
-            self.options.passwd,
-            self.options.domain,
-            self.options.port,
-            self.options.vhost,
-            urlencode(opt)
-        )
+        if self.options.uri:
+            url = '{}?{} '.format(
+                self.options.uri,
+                urlencode(opt)
+            )
+        else:
+            url = '{}://{}:{}@{}:{}{}?{} '.format(
+                protocol,
+                self.options.login,
+                self.options.passwd,
+                self.options.domain,
+                self.options.port,
+                self.options.vhost,
+                urlencode(opt)
+            )
         self.url = URLParameters(url)
         return self
-
-

@@ -1,4 +1,4 @@
-from external_config.async_case import config, AsyncEventbusRabbitMQ, rpc_exchange
+from examples.async_case import config, AsyncEventbusRabbitMQ, rpc_exchange
 from sanic import Sanic, response
 
 eventbus = None
@@ -29,4 +29,4 @@ async def get(request):
     return response.json({"message": str(result)})
 
 if __name__ == "__main__":
-    app.run("0.0.0.0", port=5000)
+    app.run()

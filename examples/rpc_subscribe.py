@@ -2,7 +2,7 @@ from amqp_client_python import (
     EventbusRabbitMQ,
     Config, Options
 )
-from external_config.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
+from examples.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
 
 
 config = Config(Options(queue, rpc_queue, rpc_exchange))
@@ -13,4 +13,4 @@ def handle(*body):
     return b"result"
     
 eventbus.provide_resource(rpc_routing_key, handle)
-eventbus.start_rpc_server()
+# run this example with rpc_publish.py to see the complete cicle of sending and receiving messages.

@@ -3,7 +3,7 @@ from amqp_client_python import (
     Config, Options
 )
 from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-from external_config.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
+from examples.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
 
 
 class ExampleEvent(IntegrationEvent):

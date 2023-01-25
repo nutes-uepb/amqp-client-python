@@ -3,7 +3,7 @@ from amqp_client_python import (
     Config, Options
 )
 from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-from external_config.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
+from examples.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
 
 
 class ExampleEvent(IntegrationEvent):
@@ -55,7 +55,8 @@ async def start():
         try:
             count += 1
             result = await eventbus.async_rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"], loop=loop)
-            if str(count) != result.result().decode("utf-8"):
+            print(result, type(result))
+            if str(count) != result.decode("utf-8"):
                 running = False
             #eventbus.publish(publish_event, rpc_routing_key, "direct")
             #running = False

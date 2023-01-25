@@ -4,7 +4,8 @@ from amqp_client_python import (
 )
 from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
 from default import queue, rpc_queue, rpc_exchange
-from asyncio import new_event_loop
+from uvloop import new_event_loop # better performance, no windows-OS support
+#from asyncio import new_event_loop # great performance, great OS compatibility
 
 loop = new_event_loop()
 
@@ -35,6 +36,7 @@ class ExampleEvent(IntegrationEvent):
 publish_event = ExampleEvent(rpc_exchange, ["message"])
 event_handle = ExampleEventHandler()
 
+# rpc_client call inside rpc_provider
 if __name__ == "__main__":
     eventbus = AsyncEventbusRabbitMQ(config, loop, rpc_client_publisher_confirms=True, rpc_server_publisher_confirms=False)
 
@@ -50,7 +52,6 @@ if __name__ == "__main__":
                 print("send rpc")
                 result = await eventbus.rpc_client(rpc_exchange, "user.find", ["content_message"])
                 print("returned:", result)
-                running = False
                 #print("returned:", await eventbus.publish(publish_event, "user.find1", ["content_message"]))
             except BaseException as err:
                 print(f"err: {err}")
