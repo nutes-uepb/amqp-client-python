@@ -37,6 +37,7 @@ Client with high level of abstraction for manipulation of messages in the event 
 [releases-url]: https://github.com/nutes-uepb/amqp-client-python/releases
 
 ### Examples:
+- basic usage
     ```Python
     # basic configuration
     from amqp_client_python import (
@@ -44,7 +45,6 @@ Client with high level of abstraction for manipulation of messages in the event 
         Config, Options
     )
     from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-    
     config = Config(Options("queue", "rpc_queue", "rpc_exchange"))
     eventbus = AsyncEventbusRabbitMQ(config)
     # publish
