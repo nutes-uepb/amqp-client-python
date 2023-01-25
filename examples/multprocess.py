@@ -3,7 +3,7 @@ from amqp_client_python import (
     Config, Options,
     SSLOptions
 )
-from external_config.default import (queue, rpc_queue, rpc_exchange, rpc_routing_key,
+from examples.default import (queue, rpc_queue, rpc_exchange, rpc_routing_key,
     certfile_path, keyfile_path, ca_certs_path, port
 )
 from dependency_injector import containers, providers
@@ -48,7 +48,6 @@ class Manager:
 
     def start(self):
         self.eventbus.provide_resource(rpc_routing_key, self.handle)
-        self.eventbus.start_rpc_server()
 
 class ManagerContainer(containers.DeclarativeContainer):
     eventbus = providers.Container(EventBusContainer)

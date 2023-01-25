@@ -3,7 +3,7 @@ from amqp_client_python import (
     Config, Options
 )
 from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-from external_config.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
+from examples.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
 
 
 class ExampleEvent(IntegrationEvent):
@@ -31,4 +31,4 @@ def handle(*body):
 subscribe_event = ExampleEvent(rpc_exchange)
 subscribe_event_handle = ExampleEventHandler()
 eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
-eventbus.start_consume()
+# run this example with publish.py to see the complete cicle of sending and receiving messages.

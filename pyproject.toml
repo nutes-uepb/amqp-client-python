@@ -1,9 +1,12 @@
 [tool.poetry]
 name = "amqp-client-python"
 version = "0.1.4"
-description = ""
+description = "Python AMQP Client Library"
 license = "Apache-2.0"
 authors = ["NUTES UEPB <dev.seniorsaudemovel@gmail.com>"]
+maintainers = [
+    {name = "João Pedro M. Cariry", email = "berrytern@gmail.com"}
+]
 readme = "README.md"
 packages = [{include = "amqp_client_python"}]
 

@@ -34,7 +34,6 @@ class EventbusRabbitMQ:
         return promise.result(timeout)
     
     async def async_rpc_client(self, exchange: str, routing_key: str, body: List[Any], content_type="application/json", timeout=5, loop: AbstractEventLoop=None):
-        
         promise = loop.create_future()
         def on_channel_openned():
             self.rpc_client_connection.rpc_client(exchange, routing_key, body, content_type=content_type, future=promise, timeout=timeout)
@@ -43,6 +42,7 @@ class EventbusRabbitMQ:
         while not promise.done():
             await asyncio.sleep(0.002)
         return promise.result()
+
     def publish(self, event: IntegrationEvent, routing_key: str, exchange_type: str = "direct", exchange_durable=True):
         def add_publish():
             def after_channel_openned():

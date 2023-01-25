@@ -1,4 +1,4 @@
-from external_config.async_case import config, AsyncEventbusRabbitMQ, rpc_exchange
+from examples.async_case import config, AsyncEventbusRabbitMQ, rpc_exchange
 from sanic import Sanic, response
 
 eventbus = None
