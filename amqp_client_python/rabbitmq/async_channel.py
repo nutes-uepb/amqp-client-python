@@ -12,22 +12,7 @@ from asyncio import AbstractEventLoop
 import asyncio
 
 
-class Message(object):
-    """ messaggio ricevuto o di conferma usato nella classe 
-    amqpConsumerProducer
-    body è il payload del messaggio
-    delivery_tag il tag amqp del messaggio
-    se il messaggio è usato per conferma/disconferma
-    il payload dovrà contenere rispettivamente Treue for "acked"
-    and False for "nacked"
-    """
-
-    def __init__(self,body,delivery_tag=None):
-        self.delivery_tag=delivery_tag
-        self.body=body
-
-
-class asyncChannel:
+class AsyncChannel:
 
     def __init__(self, logger) -> None:
         self.logger = logger
@@ -37,8 +22,10 @@ class asyncChannel:
         self._connection:AsyncioConnection = None
         self._callback_queue = f"amqp.{uuid4()}"
         self.futures: MutableMapping[str, Mapping[str, Future]] = {}
+        self.rpc_consumer = False
+        self.rpc_publisher = False
         self.consumer_tag = None
-        self._prefetch_count = 4
+        #self._prefetch_count = 0
         self.subscribes = {}
         self.consumers = {}
         self.publisher_confirms = False
@@ -53,7 +40,7 @@ class asyncChannel:
             self.ioloop: AbstractEventLoop = connection.ioloop
             self._channel: Channel = self.channel_factory.create_channel(connection, on_channel_open=self.on_channel_open)
 
-    def on_channel_open(self, channel):
+    def on_channel_open(self, channel: Channel):
         """This method is invoked by pika when the channel has been opened.
         The channel object is passed in so we can make use of it.
         Since the channel is now open, we"ll declare the exchange to use.
@@ -63,7 +50,12 @@ class asyncChannel:
         self._channel = channel
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
-        self.set_qos(self._prefetch_count)
+        #self.set_qos(self._prefetch_count)
+    
+    def rpc_channel_open(self, channel: Channel):
+        self.logger.info("Channel opened")
+        self._channel_rpc = channel
+        self._channel_rpc.add_on_close_callback(self.on_channel_closed)
 
     def add_on_channel_close_callback(self):
         """This method tells pika to call the on_channel_closed method if
@@ -198,9 +190,32 @@ class asyncChannel:
                     future.set_exception(RpcProviderException(f"Provider Error: {body.decode()}"))
                 else:
                     future.set_result(body)
-            self._channel.basic_ack(basic_deliver.delivery_tag)
-            return
+            return self._channel.basic_ack(basic_deliver.delivery_tag)
         self._channel.basic_nack(basic_deliver.delivery_tag, requeue=False)
+
+    def start_rpc_consumer(self):
+        self.rpc_consumer = True
+        print("starting_rpc_consumer")
+        def on_open(channel: Channel):
+            print("channel opened - consumer")
+            self._channel_rpc.add_on_close_callback(self.on_channel_closed)
+            def on_declare(channel):
+                self.consumer_tag = self._channel.basic_consume(
+                    queue=self._callback_queue,
+                    on_message_callback=self.on_response,
+                    auto_ack=False,
+                    consumer_tag=None
+                )
+            self.logger.info(f"Declaring queue {self._callback_queue}")
+            self._channel_rpc.queue_declare(queue=self._callback_queue, durable=False,
+                auto_delete=True, callback=on_declare)
+        self._channel_rpc: Channel = self.channel_factory.create_channel(self._connection, on_channel_open=on_open)
+    
+    def start_rpc_publisher(self):
+        self.rpc_publisher = True
+        def on_open(channel: Channel):
+            self._channel_rpc.add_on_close_callback(self.on_channel_closed)
+        self._channel_rpc: Channel = self.channel_factory.create_channel(self._connection, on_channel_open=on_open)
 
     async def rpc_client(self, exchange_name: str, routing_key: str, body, loop: AbstractEventLoop, content_type, timeout):
         future = loop.create_future()
@@ -214,15 +229,8 @@ class asyncChannel:
                 correlation_id=corr_id,
                 content_type=content_type,
             ))
-        if not self.consumer_tag:
-            def on_declare():
-                self.consumer_tag = self._channel.basic_consume(
-                    queue=self._callback_queue,
-                    on_message_callback=self.on_response,
-                    auto_ack=False,
-                    consumer_tag=None
-                )
-            self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result: on_declare())
+        if not self.rpc_consumer:
+            self.start_rpc_consumer()
         
         def not_loop(id):
             if id in self.futures:
@@ -255,6 +263,8 @@ class asyncChannel:
             return await future
 
     async def rpc_subscribe(self, exchange_name, routing_key: str, queue_name: str, callback, content_type="application/json", exchange_type="direct", auto_ack=True):
+        if not self.rpc_publisher:
+            self.start_rpc_publisher()
         self.add_subscribe(queue_name, routing_key, callback, content_type=content_type)
         self.setup_exchange(exchange_name, exchange_type)
         self.queue_declare(queue_name)
@@ -292,7 +302,7 @@ class asyncChannel:
                     body = loads(body)
                     response = await self.subscribes[queue_name][basic_deliver.routing_key]["handle"](*body["handle"])
                     if props.reply_to and self.subscribes[queue_name][basic_deliver.routing_key]["rpc"]:
-                        self._channel.basic_publish("", props.reply_to, response, properties=BasicProperties(
+                        self._channel_rpc.basic_publish("", props.reply_to, response, properties=BasicProperties(
                             correlation_id=props.correlation_id,
                             content_type=self.subscribes[queue_name][basic_deliver.routing_key]["content_type"],
                             type="normal",
@@ -302,7 +312,7 @@ class asyncChannel:
                     self._channel.basic_nack(basic_deliver.delivery_tag, requeue=False)
             except BaseException as err:
                 if props.reply_to and self.subscribes[queue_name][basic_deliver.routing_key]["rpc"]:
-                    self._channel.basic_publish("", props.reply_to, str(err), properties=BasicProperties(
+                    self._channel_rpc.basic_publish("", props.reply_to, str(err), properties=BasicProperties(
                         correlation_id=props.correlation_id,
                         content_type=self.subscribes[queue_name][basic_deliver.routing_key]["content_type"],
                         type="error",

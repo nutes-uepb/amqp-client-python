@@ -1,5 +1,5 @@
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
-from .async_channel import asyncChannel
+from .async_channel import AsyncChannel
 from asyncio import AbstractEventLoop
 from asyncio import sleep, get_event_loop
 from amqp_client_python.utils import Logger
@@ -13,7 +13,7 @@ class AsyncConnection:
         self.logger = Logger.lib_logger
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
         self._connection: AsyncioConnection = None
-        self._channel = asyncChannel(self.logger)
+        self._channel = AsyncChannel(self.logger)
         self._closing = False
         self._consuming = False
         self.reconnecting = False
@@ -44,7 +44,7 @@ class AsyncConnection:
     
     def on_connection_open(self, _unused_connection):
         self.logger.debug(f"connection openned {self._channel}")
-        self._channel = asyncChannel(self.logger)
+        self._channel = AsyncChannel(self.logger)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection)
     
