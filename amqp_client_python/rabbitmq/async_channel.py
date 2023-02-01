@@ -220,7 +220,7 @@ class AsyncChannel:
     async def rpc_client(self, exchange_name: str, routing_key: str, body, loop: AbstractEventLoop, content_type, timeout):
         future = loop.create_future()
         publish_future = loop.create_future()
-        message = dumps({"handle": body})
+        message = dumps({"resource_name": routing_key, "handle": body})
         corr_id = str(uuid4())
         self.futures[corr_id] = {"response": future, "published": publish_future}
         
