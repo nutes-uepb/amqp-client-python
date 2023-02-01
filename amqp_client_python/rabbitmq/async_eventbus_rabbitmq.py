@@ -7,15 +7,14 @@ from asyncio import AbstractEventLoop
 
 class AsyncEventbusRabbitMQ:
 
-    def __init__(self, config: Config, loop=None, pub_publisher_confirms=True, rpc_client_publisher_confirms=True, rpc_server_publisher_confirms=False) -> None:
+    def __init__(self, config: Config, loop=None, pub_publisher_confirms=True, rpc_client_publisher_confirms=True, rpc_server_publisher_confirms=False, sub_prefetch_count=0, rpc_prefetch_count=0) -> None:
         self.loop: AbstractEventLoop = loop
         self._pub_connection = AsyncConnection(self.loop, pub_publisher_confirms)
-        self._sub_connection = AsyncConnection(self.loop)
+        self._sub_connection = AsyncConnection(self.loop, False, sub_prefetch_count)
         self._rpc_client_connection = AsyncConnection(self.loop, rpc_client_publisher_confirms)
-        self._rpc_server_connection = AsyncConnection(self.loop, rpc_server_publisher_confirms)
+        self._rpc_server_connection = AsyncConnection(self.loop, rpc_server_publisher_confirms, rpc_prefetch_count)
         self.config = config.build()
         self._rpc_server_initialized = False
-
 
     async def rpc_client(self, exchange: str, routing_key: str, body: List[Any], content_type="application/json", timeout=5):
         async def add_rpc_client():

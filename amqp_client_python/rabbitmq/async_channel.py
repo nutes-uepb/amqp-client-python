@@ -14,7 +14,7 @@ import asyncio
 
 class AsyncChannel:
 
-    def __init__(self, logger) -> None:
+    def __init__(self, logger, prefetch_count) -> None:
         self.logger = logger
         self.ioloop: AbstractEventLoop = None
         self.channel_factory = AsyncChannelFactoryRabbitMQ()
@@ -25,7 +25,7 @@ class AsyncChannel:
         self.rpc_consumer = False
         self.rpc_publisher = False
         self.consumer_tag = None
-        #self._prefetch_count = 0
+        self._prefetch_count = prefetch_count
         self.subscribes = {}
         self.consumers = {}
         self.publisher_confirms = False
@@ -50,7 +50,7 @@ class AsyncChannel:
         self._channel = channel
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
-        #self.set_qos(self._prefetch_count)
+        self.set_qos(self._prefetch_count)
     
     def rpc_channel_open(self, channel: Channel):
         self.logger.info("Channel opened")

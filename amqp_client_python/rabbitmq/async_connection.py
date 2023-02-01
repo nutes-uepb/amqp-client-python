@@ -7,13 +7,14 @@ from amqp_client_python.utils import Logger
 
 class AsyncConnection:
 
-    def __init__(self, ioloop: AbstractEventLoop, publisher_confirms=False) -> None:
+    def __init__(self, ioloop: AbstractEventLoop, publisher_confirms=False, prefetch_count=0) -> None:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
         self.logger = Logger.lib_logger
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
         self._connection: AsyncioConnection = None
-        self._channel = AsyncChannel(self.logger)
+        self._prefetch_count = prefetch_count
+        self._channel = AsyncChannel(self.logger, self._prefetch_count)
         self._closing = False
         self._consuming = False
         self.reconnecting = False
@@ -44,7 +45,7 @@ class AsyncConnection:
     
     def on_connection_open(self, _unused_connection):
         self.logger.debug(f"connection openned {self._channel}")
-        self._channel = AsyncChannel(self.logger)
+        self._channel = AsyncChannel(self.logger, self._prefetch_count)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection)
     
