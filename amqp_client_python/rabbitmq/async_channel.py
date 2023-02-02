@@ -4,18 +4,19 @@ from amqp_client_python.exceptions import NackException, RpcProviderException, T
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.channel import Channel
 from pika import BasicProperties
+from asyncio import AbstractEventLoop, Future
 from functools import partial
-from asyncio import Future
 from json import dumps, loads
 from uuid import uuid4
-from asyncio import AbstractEventLoop
-import asyncio
+import logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AsyncChannel:
 
-    def __init__(self, logger, prefetch_count) -> None:
-        self.logger = logger
+    def __init__(self, prefetch_count=0) -> None:
         self.ioloop: AbstractEventLoop = None
         self.channel_factory = AsyncChannelFactoryRabbitMQ()
         self._channel: Channel = None
@@ -46,14 +47,14 @@ class AsyncChannel:
         Since the channel is now open, we"ll declare the exchange to use.
         :param pika.channel.Channel channel: The channel object
         """
-        self.logger.info("Channel opened")
+        LOGGER.info("Channel opened")
         self._channel = channel
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
         self.set_qos(self._prefetch_count)
     
     def rpc_channel_open(self, channel: Channel):
-        self.logger.info("Channel opened")
+        LOGGER.info("Channel opened")
         self._channel_rpc = channel
         self._channel_rpc.add_on_close_callback(self.on_channel_closed)
 
@@ -61,7 +62,7 @@ class AsyncChannel:
         """This method tells pika to call the on_channel_closed method if
         RabbitMQ unexpectedly closes the channel.
         """
-        self.logger.debug("Adding channel close callback")
+        LOGGER.debug("Adding channel close callback")
         self._channel.add_on_close_callback(self.on_channel_closed)
 
     def on_channel_closed(self, channel, reason):
@@ -73,12 +74,12 @@ class AsyncChannel:
         :param pika.channel.Channel: The closed channel
         :param Exception reason: why the channel was closed
         """
-        self.logger.info(f"Channel {channel} was closed: {reason}")
+        LOGGER.info(f"Channel {channel} was closed: {reason}")
         self._consuming = False
         if self._connection.is_closing or self._connection.is_closed:
-            self.logger.info("Connection is closing or already closed")
+            LOGGER.info("Connection is closing or already closed")
         else:
-            self.logger.info("Closing connection")
+            LOGGER.info("Closing connection")
             self._connection.close()
 
     def add_publish_confirms(self):
@@ -87,7 +88,7 @@ class AsyncChannel:
         self._deliveries = {}
         self._message_number = 0
         self._channel.confirm_delivery(self.on_delivery_confirmation)
-        self.logger.info("Adding Publish Confirmation")
+        LOGGER.info("Adding Publish Confirmation")
     
     def on_delivery_confirmation(self, method_frame):
         confirmation_type = method_frame.method.NAME.split(".")[1].lower()
@@ -110,7 +111,7 @@ class AsyncChannel:
         be invoked by pika.
         :param str|unicode exchange_name: The name of the exchange to declare
         """
-        self.logger.info(f"Declaring exchange: {exchange_name}")
+        LOGGER.info(f"Declaring exchange: {exchange_name}")
         # Note: using functools.partial is not required, it is demonstrating
         # how arbitrary data can be passed to the callback when it is called
         cb = partial(
@@ -127,7 +128,7 @@ class AsyncChannel:
         :param pika.Frame.Method unused_frame: Exchange.DeclareOk response frame
         :param str|unicode userdata: Extra user data (exchange name)
         """
-        self.logger.info(f"Exchange declared: {userdata}")
+        LOGGER.info(f"Exchange declared: {userdata}")
     
     def queue_declare(self, queue_name: str, durable=False, auto_delete=False, callback=None):
         self.setup_queue(queue_name, durable=durable, auto_delete=auto_delete, callback=callback)
@@ -138,7 +139,7 @@ class AsyncChannel:
         be invoked by pika.
         :param str|unicode queue_name: The name of the queue to declare.
         """
-        self.logger.info(f"Declaring queue {queue_name}")
+        LOGGER.info(f"Declaring queue {queue_name}")
         cb = callback or partial(self.on_queue_declareok, userdata=queue_name)
         self._channel.queue_declare(queue=queue_name, durable=durable,
             auto_delete=auto_delete, callback=cb)
@@ -152,10 +153,10 @@ class AsyncChannel:
         :param pika.frame.Method _unused_frame: The Queue.DeclareOk frame
         :param str|unicode userdata: Extra user data (queue name)
         """
-        self.logger.info(f"Queue {userdata} declared")
+        LOGGER.info(f"Queue {userdata} declared")
     
     def queue_bind(self, queue_name: str, exchange_name: str, routing_key: str,  callback=None):
-        self.logger.info(f"Binding {exchange_name} to {queue_name} with {routing_key}")
+        LOGGER.info(f"Binding {exchange_name} to {queue_name} with {routing_key}")
         self._channel.queue_bind(
             queue_name,
             exchange=exchange_name,
@@ -195,9 +196,9 @@ class AsyncChannel:
 
     def start_rpc_consumer(self):
         self.rpc_consumer = True
-        print("starting_rpc_consumer")
+        LOGGER.info("Starting rpc consumer")
         def on_open(channel: Channel):
-            print("channel opened - consumer")
+            LOGGER.info("Channel opened - consumer")
             self._channel_rpc.add_on_close_callback(self.on_channel_closed)
             def on_declare(channel):
                 self.consumer_tag = self._channel.basic_consume(
@@ -206,7 +207,7 @@ class AsyncChannel:
                     auto_ack=False,
                     consumer_tag=None
                 )
-            self.logger.info(f"Declaring queue {self._callback_queue}")
+            LOGGER.info(f"Declaring queue {self._callback_queue}")
             self._channel_rpc.queue_declare(queue=self._callback_queue, durable=False,
                 auto_delete=True, callback=on_declare)
         self._channel_rpc: Channel = self.channel_factory.create_channel(self._connection, on_channel_open=on_open)

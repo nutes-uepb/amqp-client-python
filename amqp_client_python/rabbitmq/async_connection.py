@@ -2,7 +2,10 @@ from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioCon
 from .async_channel import AsyncChannel
 from asyncio import AbstractEventLoop
 from asyncio import sleep, get_event_loop
-from amqp_client_python.utils import Logger
+import logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AsyncConnection:
@@ -10,11 +13,10 @@ class AsyncConnection:
     def __init__(self, ioloop: AbstractEventLoop, publisher_confirms=False, prefetch_count=0) -> None:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
-        self.logger = Logger.lib_logger
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
         self._connection: AsyncioConnection = None
         self._prefetch_count = prefetch_count
-        self._channel = AsyncChannel(self.logger, self._prefetch_count)
+        self._channel = AsyncChannel(self._prefetch_count)
         self._closing = False
         self._consuming = False
         self.reconnecting = False
@@ -44,13 +46,13 @@ class AsyncConnection:
             self._connection.close()
     
     def on_connection_open(self, _unused_connection):
-        self.logger.debug(f"connection openned {self._channel}")
-        self._channel = AsyncChannel(self.logger, self._prefetch_count)
+        LOGGER.debug(f"connection openned {self._channel}")
+        self._channel = AsyncChannel(self._prefetch_count)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection)
     
     def on_connection_open_error(self, _unused_connection, err):
-        self.logger.warn(f"connection open error: {err}, will attempt a connection")
+        LOGGER.warn(f"connection open error: {err}, will attempt a connection")
         self.reconnect()
     
     def on_connection_closed(self, _unused_connection, reason):
@@ -63,10 +65,10 @@ class AsyncConnection:
         """
         self._channel = None
         if self._closing:
-            self.logger.warn("connection closed intentionally")
+            LOGGER.warn("connection closed intentionally")
             self._connection.ioloop.stop()
         else:
-            self.logger.warn(f"Connection closed, reason: {reason}, will attempt a connection")
+            LOGGER.warn(f"Connection closed, reason: {reason}, will attempt a connection")
             self.reconnect()
 
     def reconnect(self):
@@ -118,13 +120,13 @@ class AsyncConnection:
         """
         if not self._closing:
             self._closing = True
-            self.logger.warn('Stopping intentionally')
+            LOGGER.warn('Stopping intentionally')
             if self._consuming:
                 self.stop_consuming()
                 self._connection.ioloop.run_forever()
             else:
                 self.ioloop.stop()
-            self.logger.warn('Stopped')
+            LOGGER.warn('Stopped')
 
 
     def set_qos(self):

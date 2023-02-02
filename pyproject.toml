@@ -4,11 +4,13 @@ version = "0.1.5"
 description = "Python AMQP Client Library"
 license = "Apache-2.0"
 authors = ["NUTES UEPB <dev.seniorsaudemovel@gmail.com>"]
+readme = "README.md"
+packages = [{include = "amqp_client_python"}]
+
+[project]
 maintainers = [
     {name = "João Pedro M. Cariry", email = "berrytern@gmail.com"}
 ]
-readme = "README.md"
-packages = [{include = "amqp_client_python"}]
 
 [project.urls]
 Source = "https://github.com/nutes-uepb/amqp-client-python"

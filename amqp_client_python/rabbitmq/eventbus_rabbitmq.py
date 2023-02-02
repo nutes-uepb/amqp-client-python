@@ -8,6 +8,7 @@ from concurrent.futures import Future as syncFuture
 from asyncio import AbstractEventLoop
 import asyncio
 
+
 class EventbusRabbitMQ:
 
     def __init__(self, config: Config) -> None:

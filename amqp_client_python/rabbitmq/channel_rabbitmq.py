@@ -6,13 +6,16 @@ from functools import partial
 from uuid import uuid4
 from json import loads, dumps
 from concurrent.futures import Future, TimeoutError
+import logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class ChannelRabbitMQ:
-    def __init__(self, logger) -> None:
+    def __init__(self) -> None:
         self.channel_factory = ChannelFactoryRabbitMQ()
         self.consumer_tag = None
-        self.logger = logger
         self._channel = None
         self._callback_queue = None
         self.consumers = {}
@@ -38,7 +41,7 @@ class ChannelRabbitMQ:
         Since the channel is now open, we'll declare the exchange to use.
         :param pika.channel.Channel channel: The channel object
         """
-        self.logger.debug('Channel opened')
+        LOGGER.debug('Channel opened')
         self._channel:Channel = channel
         self.add_on_channel_close_callback()
         if callback:
@@ -50,7 +53,7 @@ class ChannelRabbitMQ:
         be invoked by pika.
         :param str|unicode exchange_name: The name of the exchange to declare
         """
-        self.logger.debug('Declaring exchange %s', exchange)
+        LOGGER.debug('Declaring exchange %s', exchange)
         # Note: using functools.partial is not required, it is demonstrating
         # how arbitrary data can be passed to the callback when it is called
         cb = partial(
@@ -66,7 +69,7 @@ class ChannelRabbitMQ:
         :param pika.Frame.Method unused_frame: Exchange.DeclareOk response frame
         :param str|unicode userdata: Extra user data (exchange name)
         """
-        self.logger.debug('Exchange declared: %s', userdata)
+        LOGGER.debug('Exchange declared: %s', userdata)
         if callback:
             callback()
 
@@ -76,12 +79,12 @@ class ChannelRabbitMQ:
         be invoked by pika.
         :param str|unicode queue_name: The name of the queue to declare.
         """
-        self.logger.debug('Declaring queue %s', queue_name)
+        LOGGER.debug('Declaring queue %s', queue_name)
         self._channel.queue_declare(
             queue=queue_name, durable=durable, auto_delete=auto_delete, callback=callback)
 
     def add_on_return_callback(self, callback):
-        self.logger.debug('Adding channel return callback')
+        LOGGER.debug('Adding channel return callback')
         self._channel.add_on_return_callback(callback)
 
 
@@ -89,7 +92,7 @@ class ChannelRabbitMQ:
         """This method tells pika to call the on_channel_closed method if
         RabbitMQ unexpectedly closes the channel.
         """
-        self.logger.debug('Adding channel close callback')
+        LOGGER.debug('Adding channel close callback')
         self._channel.add_on_close_callback(self.on_channel_closed)
 
     def on_channel_closed(self, channel, reason):
@@ -101,7 +104,7 @@ class ChannelRabbitMQ:
         :param pika.channel.Channel channel: The closed channel
         :param Exception reason: why the channel was closed
         """
-        self.logger.warning('Channel %i was closed: %s', channel, reason)
+        LOGGER.warning('Channel %i was closed: %s', channel, reason)
         if(isinstance(reason, tuple) and reason[0]==406):
             self.open(self._connection, False)
 
@@ -122,7 +125,7 @@ class ChannelRabbitMQ:
         the Channel.Close RPC command.
         """
         if self._channel is not None:
-            self.logger.debug('Closing the channel')
+            LOGGER.debug('Closing the channel')
             self._channel.close()
 
     def rpc_client(self, exchange, routing_key, message, content_type, future, timeout):
@@ -226,7 +229,7 @@ class ChannelRabbitMQ:
                 body = loads(body)
                 self.consumers[method.routing_key]["handle"](*body["handle"])
             except BaseException as err:
-                self.logger.error(err)
+                LOGGER.error(err)
 
     def __on_response(self, ch:Channel, method, props, body, future=None):
         if props.correlation_id in self.futures:
