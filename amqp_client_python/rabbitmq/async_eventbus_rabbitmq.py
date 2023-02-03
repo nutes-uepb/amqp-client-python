@@ -7,12 +7,15 @@ from asyncio import AbstractEventLoop
 
 class AsyncEventbusRabbitMQ:
 
-    def __init__(self, config: Config, loop=None, pub_publisher_confirms=True, rpc_client_publisher_confirms=True, rpc_server_publisher_confirms=False, sub_prefetch_count=0, rpc_prefetch_count=0) -> None:
+    def __init__(self, config: Config, loop=None, pub_publisher_confirms=True, rpc_client_publisher_confirms=True, rpc_server_publisher_confirms=False,
+                sub_prefetch_count=0, rpc_client_prefetch_count=0,rpc_server_prefetch_count=0,
+                sub_auto_ack=False, rpc_client_auto_ack=False, rpc_server_auto_ack=False,
+                ) -> None:
         self.loop: AbstractEventLoop = loop
         self._pub_connection = AsyncConnection(self.loop, pub_publisher_confirms)
-        self._sub_connection = AsyncConnection(self.loop, False, sub_prefetch_count)
-        self._rpc_client_connection = AsyncConnection(self.loop, rpc_client_publisher_confirms)
-        self._rpc_server_connection = AsyncConnection(self.loop, rpc_server_publisher_confirms, rpc_prefetch_count)
+        self._sub_connection = AsyncConnection(self.loop, False, sub_prefetch_count, sub_auto_ack)
+        self._rpc_client_connection = AsyncConnection(self.loop, rpc_client_publisher_confirms, rpc_client_prefetch_count, rpc_client_auto_ack)
+        self._rpc_server_connection = AsyncConnection(self.loop, rpc_server_publisher_confirms, rpc_server_prefetch_count, rpc_server_auto_ack)
         self.config = config.build()
         self._rpc_server_initialized = False
 
@@ -28,17 +31,17 @@ class AsyncEventbusRabbitMQ:
         self._pub_connection.open(self.config.url)
         return await self._pub_connection.add_callback(add_publish)
 
-    async def provide_resource(self, name: str, callback, auto_ack=False):
+    async def provide_resource(self, name: str, callback):
         async def add_resource():
             await self._rpc_server_connection.rpc_subscribe(self.config.options.rpc_queue_name, self.config.options.rpc_exchange_name,
-                    name, callback, auto_ack)
+                    name, callback)
         self._rpc_server_connection.open(self.config.url)
         await self._rpc_server_connection.add_callback(add_resource)
     
-    async def subscribe(self, event: IntegrationEvent, handler: IntegrationEventHandler, routing_key: str, auto_ack=False):
+    async def subscribe(self, event: IntegrationEvent, handler: IntegrationEventHandler, routing_key: str):
         async def add_subscribe():
             await self._sub_connection.subscribe(self.config.options.queue_name, event.event_type,
-                    routing_key, handler.handle, auto_ack)
+                    routing_key, handler.handle)
         self._sub_connection.open(self.config.url)
         await self._sub_connection.add_callback(add_subscribe)
 
