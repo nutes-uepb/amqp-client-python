@@ -1,10 +1,13 @@
 from .connection_factory_rabbitmq import ConnectionFactoryRabbitMQ
 from .channel_rabbitmq import ChannelRabbitMQ
 from amqp_client_python.exceptions import EventBusException
-from .channel_rabbitmq import ChannelRabbitMQ
 from pika import SelectConnection, URLParameters
-from amqp_client_python.utils import Logger
 from .ioloop_factory import IOLoopFactory
+import logging
+
+
+LOGGER = logging.getLogger(__name__)
+
 
 class ConnectionRabbitMQ:
     _connection:SelectConnection
@@ -16,9 +19,8 @@ class ConnectionRabbitMQ:
         self.ioloop_factory = IOLoopFactory
         self.ioloop_factory.add_reconnection(self.reconnect)
         self._stopping = False
-        self._channel = ChannelRabbitMQ(Logger.lib_logger)
+        self._channel = ChannelRabbitMQ()
         self._uri = None
-        self.logger = Logger.lib_logger
         self.backup = {
             "exchange": {},
             "queue": {},
@@ -43,7 +45,7 @@ class ConnectionRabbitMQ:
         self.ioloop.call_later(2,self.ioloop_factory.reset)
 
     def reconnect(self):
-        self.logger.debug('reconnect %s', self.ioloop_is_open)
+        LOGGER.debug('reconnect %s', self.ioloop_is_open)
         if not self.is_open():
             self._connection = self._connectionFactory.create_connection(self._uri, self.on_connection_open, self.on_connection_open_error, self.on_connection_closed, custum_ioloop=self.ioloop)
             self.add_callback(self.restore)
@@ -104,7 +106,7 @@ class ConnectionRabbitMQ:
         case we need it, but in this case, we'll just mark it unused.
         :param pika.SelectConnection _unused_connection: The connection
         """
-        self.logger.debug('Connection opened')
+        LOGGER.debug('Connection opened')
         if not self.channel_is_open():
             self.channel_open()
         #self.pause()
@@ -115,7 +117,7 @@ class ConnectionRabbitMQ:
         :param pika.SelectConnection _unused_connection: The connection
         :param Exception err: The error
         """
-        self.logger.error('Connection open failed, reopening in 5 seconds: %s', err)
+        LOGGER.error('Connection open failed, reopening in 5 seconds: %s', err)
         if self.ioloop_factory.running:
             self.reset()
         #else:
@@ -130,7 +132,7 @@ class ConnectionRabbitMQ:
             connection.
         """
         if self._connection.is_closed:
-            self.logger.warning('Connection closed: %s', reason)
+            LOGGER.warning('Connection closed: %s', reason)
             self.reset()
 
     def add_callback(self, callback, event: str = "channel_open"):
