@@ -13,7 +13,7 @@ class Options:
         domain: str = "localhost",
         port: int = 5672,
         vhost: str = "/",
-        heartbeat: Optional[int] = 0,
+        heartbeat: Optional[int] = 60,
         publisher_confirms = False,
         **kwargs: Dict[str, Any]
     ) -> None:

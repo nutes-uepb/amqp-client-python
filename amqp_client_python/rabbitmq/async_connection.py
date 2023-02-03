@@ -10,13 +10,14 @@ LOGGER = logging.getLogger(__name__)
 
 class AsyncConnection:
 
-    def __init__(self, ioloop: AbstractEventLoop, publisher_confirms=False, prefetch_count=0) -> None:
+    def __init__(self, ioloop: AbstractEventLoop, publisher_confirms=False, prefetch_count=0, auto_ack=True) -> None:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
         self._connection: AsyncioConnection = None
         self._prefetch_count = prefetch_count
-        self._channel = AsyncChannel(self._prefetch_count)
+        self._auto_ack = auto_ack
+        self._channel = AsyncChannel(self._prefetch_count, self._auto_ack)
         self._closing = False
         self._consuming = False
         self.reconnecting = False
@@ -47,7 +48,7 @@ class AsyncConnection:
     
     def on_connection_open(self, _unused_connection):
         LOGGER.debug(f"connection openned {self._channel}")
-        self._channel = AsyncChannel(self._prefetch_count)
+        self._channel = AsyncChannel(self._prefetch_count, self._auto_ack)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection)
     
@@ -152,21 +153,21 @@ class AsyncConnection:
     async def publish(self, exchange_name: str, routing_key: str, body, content_type):
         return await self._channel.publish(exchange_name, routing_key, body, content_type, loop=self.ioloop)
     
-    async def rpc_subscribe(self, queue_name, exchange_name, routing_key, callback, auto_ack):
+    async def rpc_subscribe(self, queue_name, exchange_name, routing_key, callback):
         self.backup["rpc_subscribe"][routing_key] = {
             "queue_name": queue_name, "exchange_name": exchange_name,
-            "routing_key": routing_key, "callback": callback, "auto_ack": auto_ack
+            "routing_key": routing_key, "callback": callback
         }
         await self._channel.rpc_subscribe(queue_name=queue_name, exchange_name=exchange_name,
-            routing_key=routing_key, callback=callback, auto_ack=auto_ack)
+            routing_key=routing_key, callback=callback)
     
-    async def subscribe(self, queue_name, exchange_name, routing_key, callback, auto_ack):
+    async def subscribe(self, queue_name, exchange_name, routing_key, callback):
         self.backup["subscribe"][routing_key] = {
             "queue_name": queue_name, "exchange_name": exchange_name,
-            "routing_key": routing_key, "callback": callback, "auto_ack": auto_ack
+            "routing_key": routing_key, "callback": callback
         }
-        await self._channel.subscribe(queue_name=queue_name, exchange_name=exchange_name,
-            routing_key=routing_key, callback=callback, auto_ack=auto_ack)
+        await self._channel.subscribe(exchange_name=exchange_name, queue_name=queue_name,
+            routing_key=routing_key, callback=callback)
     
     async def add_callback(self, callback, retry=3, delay=2):
         while retry:
