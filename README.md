@@ -188,3 +188,10 @@ while running:
 ```
 </details>
 <br />
+
+### Know Limitations:
+#### sync eventbus
+```sh
+Cannot use rpc call when inside of rpc provider and subscribe handlers
+#/obs: works on sync eventbus wrapper
+```
