@@ -13,11 +13,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ChannelRabbitMQ:
-    def __init__(self) -> None:
+    def __init__(self, auto_ack=True) -> None:
         self.channel_factory = ChannelFactoryRabbitMQ()
-        self.consumer_tag = None
+        self.rpc_consumer = False
+        self.rpc_publisher = False
         self._channel = None
         self._callback_queue = None
+        self.auto_ack = auto_ack
         self.consumers = {}
         self.futures: Dict[str,Future] = {}
         self._stopping=False
@@ -107,8 +109,10 @@ class ChannelRabbitMQ:
         LOGGER.warning('Channel %i was closed: %s', channel, reason)
         if(isinstance(reason, tuple) and reason[0]==406):
             self.open(self._connection, False)
-
         self._channel = None
+        self._channel_rpc = None
+        self.rpc_publisher =False
+        self.rpc_consumer = False
         if not self._stopping:
             if not self._connection.is_open():
                 if self._connection.ioloop_is_open:
@@ -128,6 +132,30 @@ class ChannelRabbitMQ:
             LOGGER.debug('Closing the channel')
             self._channel.close()
 
+    def start_rpc_consumer(self):
+        self.rpc_consumer = True
+        LOGGER.info("Starting rpc consumer")
+        def on_open(channel: Channel):
+            LOGGER.info("Channel opened - consumer")
+            self._channel_rpc.add_on_close_callback(self.on_channel_closed)
+            def on_declare(channel):
+                self.consumer_tag = self._channel_rpc.basic_consume(
+                    queue=self._callback_queue,
+                    on_message_callback = self.__on_response,
+                    auto_ack=True,
+                    consumer_tag=None
+                )
+            LOGGER.info(f"Declaring queue {self._callback_queue}")
+            self._channel_rpc.queue_declare(queue=self._callback_queue, durable=False,
+                auto_delete=True, callback=on_declare)
+        self._channel_rpc: Channel = self.channel_factory.create_channel(self._connection._connection, on_channel_open=on_open)
+
+    def start_rpc_publisher(self):
+        self.rpc_publisher = True
+        def on_open(channel: Channel):
+            self._channel_rpc.add_on_close_callback(self.on_channel_closed)
+        self._channel_rpc: Channel = self.channel_factory.create_channel(self._connection._connection, on_channel_open=on_open)
+
     def rpc_client(self, exchange, routing_key, message, content_type, future, timeout):
         message = dumps({"handle": message})
         last_id = str(uuid4())
@@ -138,15 +166,8 @@ class ChannelRabbitMQ:
                 correlation_id=last_id,
                 content_type=content_type,
             ))
-        if not self.consumer_tag:
-            def on_declare():
-                self.consumer_tag = self._channel.basic_consume(
-                    queue=self._callback_queue,
-                    on_message_callback = self.__on_response,
-                    auto_ack=True,
-                    consumer_tag=None
-                )
-            self.queue_declare(self._callback_queue, durable=False, auto_delete=True, callback=lambda result:on_declare())
+        if not self.rpc_consumer:
+            self.start_rpc_consumer()
         def prevent_infinite_loop(last_id):
             if last_id in self.futures:
                 self.futures[last_id].set_exception(TimeoutError("request timeout!!!"))
@@ -170,7 +191,7 @@ class ChannelRabbitMQ:
                 response = self.consumers[method.routing_key]["handle"](*body["handle"])
                 type_message = 'normal'
                 if props.reply_to:
-                    ch.basic_publish('', props.reply_to, response, properties=BasicProperties(
+                    self._channel_rpc.basic_publish('', props.reply_to, response, properties=BasicProperties(
                         correlation_id=props.correlation_id,
                         content_type=self.consumers[method.routing_key]["content_type"],
                         type=type_message
@@ -180,7 +201,7 @@ class ChannelRabbitMQ:
                 type_message = 'error'
                 response = str(err)
                 if props.reply_to:
-                    ch.basic_publish('', props.reply_to, response, properties=BasicProperties(
+                    self._channel_rpc.basic_publish('', props.reply_to, response, properties=BasicProperties(
                         correlation_id=props.correlation_id,
                         content_type="plain/text",
                         type=type_message,
@@ -195,6 +216,8 @@ class ChannelRabbitMQ:
 
 
     def rpc_subscribe(self, queue_name:str, exchange:str, routing_key:str, callback=None, auto_ack=True, consumer_tag=None, auto_delete=True):
+        if not self.rpc_publisher:
+            self.start_rpc_publisher()
         if self.is_open():
             if not self.consumer_tag:
                 self.consumer_tag = self._channel.basic_consume(

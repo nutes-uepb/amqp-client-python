@@ -68,7 +68,7 @@ class EventbusRabbitMQ:
         self.initialize_rpc_server()
         def add_provider():
             def after_channel_oppened():
-                self.rpc_server_connection.rpc_subscribe(self.config.options.rpc_queue_name, self.config.options.rpc_queue_name, name, callback=callback)
+                self.rpc_server_connection.rpc_subscribe(self.config.options.rpc_queue_name, self.config.options.rpc_exchange_name, name, callback=callback)
             self.rpc_server_connection.add_callback(after_channel_oppened)            
         self.event_loop.add_callback_threadsafe(add_provider)
 

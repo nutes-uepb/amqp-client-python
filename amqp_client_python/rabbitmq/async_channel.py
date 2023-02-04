@@ -195,6 +195,10 @@ class AsyncChannel:
             return not self.auto_ack and self._channel.basic_ack(basic_deliver.delivery_tag)
         not self.auto_ack and self._channel.basic_nack(basic_deliver.delivery_tag, requeue=False)
 
+    def unsubscribe(self, consumer_tag: str):
+        self.rpc_consumer = False
+        self._channel.basic_cancel(consumer_tag)
+
     def start_rpc_consumer(self):
         self.rpc_consumer = True
         LOGGER.info("Starting rpc consumer")
@@ -268,10 +272,10 @@ class AsyncChannel:
             self.futures[self._message_number] = future
             self._deliveries[self._message_number] = self._message_number
             clean = partial(self.clean_publish_confirmation, self._message_number)
-            future.add_done_callback(clean)    
+            future.add_done_callback(clean)
             def not_arrived(id):
                 if id in self.futures:
-                    self.futures[id].set_exception(PublishTimeoutException())
+                    self.futures[id].set_exception(PublishTimeoutException("Timeout: time limit reached"))
             func = partial(not_arrived, self._message_number)
             loop.call_later(timeout, func)
             return await future

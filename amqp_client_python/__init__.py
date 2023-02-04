@@ -1,2 +1,2 @@
-from .rabbitmq import EventbusRabbitMQ, AsyncEventbusRabbitMQ
+from .rabbitmq import EventbusRabbitMQ, AsyncEventbusRabbitMQ, EventbusWrapperRabbitMQ
 from .domain.models import Config, Options, SSLOptions

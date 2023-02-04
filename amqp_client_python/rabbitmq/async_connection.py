@@ -1,5 +1,6 @@
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
 from .async_channel import AsyncChannel
+from ..exceptions import AutoReconnectException
 from asyncio import AbstractEventLoop
 from asyncio import sleep, get_event_loop
 import logging
@@ -106,10 +107,10 @@ class AsyncConnection:
         
 
     @property
-    def is_open(self):
+    def is_open(self) -> bool:
         return self._connection and self._connection.is_open
     
-    def stop(self):
+    def stop(self) -> None:
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
         with RabbitMQ. When RabbitMQ confirms the cancellation, on_cancelok
         will be invoked by pika, which will then closing the channel and
@@ -130,7 +131,7 @@ class AsyncConnection:
             LOGGER.warn('Stopped')
 
 
-    def set_qos(self):
+    def set_qos(self) -> None:
         """This method sets up the consumer prefetch to only be delivered
         one message at a time. The consumer must acknowledge this message
         before RabbitMQ will deliver another one. You should experiment
@@ -139,7 +140,7 @@ class AsyncConnection:
         self._channel.basic_qos(
             prefetch_count=self._prefetch_count, callback=self.on_basic_qos_ok)
 
-    def run(self):
+    def run(self) -> None:
         """Run the example consumer by connecting to RabbitMQ and then
         starting the IOLoop to block and allow the AsyncioConnection to operate.
         """
@@ -150,8 +151,8 @@ class AsyncConnection:
         return await self._channel.rpc_client(exchange_name, routing_key, body, self.ioloop, content_type, timeout)
 
 
-    async def publish(self, exchange_name: str, routing_key: str, body, content_type):
-        return await self._channel.publish(exchange_name, routing_key, body, content_type, loop=self.ioloop)
+    async def publish(self, exchange_name: str, routing_key: str, body, content_type, timeout):
+        return await self._channel.publish(exchange_name, routing_key, body, content_type, timeout, loop=self.ioloop)
     
     async def rpc_subscribe(self, queue_name, exchange_name, routing_key, callback):
         self.backup["rpc_subscribe"][routing_key] = {
@@ -169,10 +170,12 @@ class AsyncConnection:
         await self._channel.subscribe(exchange_name=exchange_name, queue_name=queue_name,
             routing_key=routing_key, callback=callback)
     
-    async def add_callback(self, callback, retry=3, delay=2):
-        while retry:
+    async def add_callback(self, callback, retry=4, delay=1):
+        while retry>0:
             retry-=1
-            if self.is_open and self._channel.is_open:
+            if self.is_open and self._channel and self._channel.is_open:
                 return await callback()
             else:
+                delay*=2
                 await sleep(delay)
+        raise AutoReconnectException("Timeout: failed to connect, order rejected...")

@@ -39,8 +39,10 @@ Client with high level of abstraction for manipulation of messages in the event 
 [releases-url]: https://github.com/nutes-uepb/amqp-client-python/releases
 
 ### Examples:
-#### you can use [sync](amqp_client_python/rabbitmq/eventbus_rabbitmq.py) and [async eventbus](amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py)
+#### you can use [sync](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_rabbitmq.py) , [async eventbus](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py) and [sync wrapper](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_wrapper_rabbitmq.py) of async eventbus
 <details><summary>async usage </summary>
+
+<br>
 
 ```Python
 # basic configuration
@@ -74,8 +76,6 @@ async def handle2(*body) -> bytes:
 await eventbus.provide_resource("user.find", handle)
 ```
 </details>
-
-
 
 <details><summary>sync usage</summary>
 
@@ -141,3 +141,50 @@ while running:
         print("Err:", err)
 ```
 </details>
+
+<details><summary>sync wrapper usage</summary>
+
+```Python
+from amqp_client_python import EventbusWrapperRabbitMQ, Config, Options
+from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
+
+config = Config(Options(queue, rpc_queue, rpc_exchange))
+eventbus = EventbusWrapperRabbitMQ(config=config)
+
+class ExampleEvent(IntegrationEvent):
+    EVENT_NAME: str = "ExampleEvent"
+    def __init__(self, event_type: str, message = []) -> None:
+        super().__init__(self.EVENT_NAME, event_type)
+        self.message = message
+class ExampleEventHandler(IntegrationEventHandler):
+    async def handle(self, body) -> None:
+        print(body,"subscribe")
+
+async def handle(*body):
+    print(body[0], "rpc_provider")
+    return f"{body[0]}".encode("utf-8")
+
+subscribe_event = ExampleEvent(rpc_exchange)
+publish_event = ExampleEvent(rpc_exchange, ["message"])
+subscribe_event_handle = ExampleEventHandler()
+# rpc_provider
+eventbus.provide_resource(rpc_routing_key+"2", handle).result()
+# subscribe
+eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key).result()
+count = 0
+running = True
+while running:
+    try:
+        count += 1
+        # rpc_client call
+        eventbus.rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"]).result().decode("utf-8")
+        # publish
+        eventbus.publish(publish_event, rpc_routing_key, "direct").result()
+        #running = False
+    except KeyboardInterrupt:
+        running=False
+    except BaseException as err:
+        print("Err:", err)
+```
+</details>
+<br />
