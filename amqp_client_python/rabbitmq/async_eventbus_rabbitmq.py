@@ -25,9 +25,9 @@ class AsyncEventbusRabbitMQ:
         self._rpc_client_connection.open(self.config.url)
         return await self._rpc_client_connection.add_callback(add_rpc_client)
     
-    async def publish(self, event: IntegrationEvent, routing_key: str, body: List[Any], content_type="application/json", exchange_type: str = "direct", exchange_durable=True):
+    async def publish(self, event: IntegrationEvent, routing_key: str, body: List[Any], content_type="application/json", exchange_type: str = "direct", exchange_durable=True, timeout=5):
         async def add_publish():
-            return await self._pub_connection.publish(event.event_type, routing_key, body, content_type=content_type)
+            return await self._pub_connection.publish(event.event_type, routing_key, body, content_type=content_type, timeout=timeout)
         self._pub_connection.open(self.config.url)
         return await self._pub_connection.add_callback(add_publish)
 
