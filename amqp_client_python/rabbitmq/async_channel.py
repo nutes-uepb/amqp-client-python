@@ -68,11 +68,6 @@ class AsyncChannel:
         self.publisher_confirms and self.add_publish_confirms()
         self.set_qos(self._prefetch_count)
 
-    def rpc_channel_open(self, channel: Channel):
-        LOGGER.info("Channel opened")
-        self._channel_rpc = channel
-        self._channel_rpc.add_on_close_callback(self.on_channel_closed)
-
     def add_on_channel_close_callback(self):
         """This method tells pika to call the on_channel_closed method if
         RabbitMQ unexpectedly closes the channel.
@@ -271,15 +266,28 @@ class AsyncChannel:
         self.ioloop.call_later(2, func)
         await consumer_future
 
-    def start_rpc_publisher(self):
+    async def start_rpc_publisher(self):
         self.rpc_publisher = True
+        publish_future = self.ioloop.create_future()
 
         def on_open(channel: Channel):
             self._channel_rpc.add_on_close_callback(self.on_channel_closed)
+            publish_future.set_result(True)
 
         self._channel_rpc: Channel = self.channel_factory.create_channel(
             self._connection, on_channel_open=on_open
         )
+
+        def attemp_failed(future: Future):
+            if not future.done():
+                self.rpc_publisher = False
+                future.set_exception(
+                    EventBusException("Error: cannot set rpc_publisher")
+                )
+
+        func = partial(attemp_failed, publish_future)
+        self.ioloop.call_later(2, func)
+        await publish_future
 
     async def rpc_client(
         self,
@@ -390,7 +398,7 @@ class AsyncChannel:
         exchange_type="direct",
     ):
         if not self.rpc_publisher:
-            self.start_rpc_publisher()
+            await self.start_rpc_publisher()
         self.add_subscribe(queue_name, routing_key, callback, content_type=content_type)
         self.setup_exchange(exchange_name, exchange_type)
         self.queue_declare(queue_name)
