@@ -5,6 +5,7 @@ from amqp_client_python.exceptions import (
     RpcProviderException,
     PublishTimeoutException,
     ResponseTimeoutException,
+    EventBusException,
 )
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.channel import Channel
@@ -229,8 +230,9 @@ class AsyncChannel:
         self.rpc_consumer = False
         self._channel.basic_cancel(consumer_tag)
 
-    def start_rpc_consumer(self):
+    async def start_rpc_consumer(self):
         self.rpc_consumer = True
+        consumer_future = self.ioloop.create_future()
         LOGGER.info("Starting rpc consumer")
 
         def on_open(channel: Channel):
@@ -244,6 +246,7 @@ class AsyncChannel:
                     auto_ack=self.auto_ack,
                     consumer_tag=None,
                 )
+                consumer_future.set_result(True)
 
             LOGGER.info(f"Declaring queue {self._callback_queue}")
             self._channel_rpc.queue_declare(
@@ -256,6 +259,17 @@ class AsyncChannel:
         self._channel_rpc: Channel = self.channel_factory.create_channel(
             self._connection, on_channel_open=on_open
         )
+
+        def attemp_failed(future: Future):
+            if not future.done():
+                self.rpc_consumer = False
+                future.set_exception(
+                    EventBusException("Error: cannot set rpc_consumer")
+                )
+
+        func = partial(attemp_failed, consumer_future)
+        self.ioloop.call_later(2, func)
+        await consumer_future
 
     def start_rpc_publisher(self):
         self.rpc_publisher = True
@@ -284,6 +298,9 @@ class AsyncChannel:
         clean_response = partial(self.clean_rpc_response, corr_id)
         future.add_done_callback(clean_response)
 
+        if not self.rpc_consumer:
+            await self.start_rpc_consumer()
+
         self._channel.basic_publish(
             exchange_name,
             routing_key,
@@ -294,8 +311,6 @@ class AsyncChannel:
                 content_type=content_type,
             ),
         )
-        if not self.rpc_consumer:
-            self.start_rpc_consumer()
 
         def not_arrived(id):
             if id in self.futures:
