@@ -9,7 +9,8 @@ import pytest
 @pytest.mark.parametrize(
     "channel_factory", [AsyncChannelFactoryRabbitMQ, ChannelFactoryRabbitMQ]
 )
-def test_channel_factory(connection_mock, channel_factory):
+@pytest.mark.asyncio_cooperative
+async def test_channel_factory(connection_mock, channel_factory):
     def on_open(_):
         pass
 

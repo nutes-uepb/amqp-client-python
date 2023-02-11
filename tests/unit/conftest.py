@@ -1,23 +1,39 @@
-from unittest.mock import Mock
+from amqp_client_python.rabbitmq import AsyncConnection, AsyncChannelFactoryRabbitMQ
+from unittest.mock import Mock, MagicMock, AsyncMock
 import pytest
 
 
 @pytest.fixture
-def connection_mock():
+async def connection_mock():
     mock = Mock()
     yield mock
     mock.reset_mock()
 
 
 @pytest.fixture
-def channel_factory_mock():
+async def async_connection_mock():
+    mock = AsyncMock(AsyncConnection)
+    mock.ioloop = Mock()
+    yield mock
+    mock.reset_mock()
+
+
+@pytest.fixture
+async def channel_factory_mock():
     mock = Mock()
     yield mock
     mock.reset_mock()
 
 
 @pytest.fixture
-def channel_mock():
+async def channel_mock():
+    mock = Mock()
+    yield mock
+    mock.reset_mock()
+
+
+@pytest.fixture
+async def config_mock():
     mock = Mock()
     yield mock
     mock.reset_mock()

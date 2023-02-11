@@ -134,5 +134,5 @@ async def test_rpc_client_consumer_started(
         assert channel.rpc_consumer is True
     else:
         with pytest.raises(EventBusException):
-            assert result == await rpc_client
+            assert result == await wait_for(rpc_client, timeout=2.5)
         assert channel.rpc_consumer is False
