@@ -95,7 +95,7 @@ class AsyncChannel:
     def add_publish_confirms(self):
         self._acked = 0
         self._nacked = 0
-        self._deliveries = {}
+        self._deliveries: MutableMapping[int, Future] = {}
         self._message_number = 0
         self._channel.confirm_delivery(self.on_delivery_confirmation)
         LOGGER.info("Adding Publish Confirmation")
@@ -106,13 +106,13 @@ class AsyncChannel:
 
         if confirmation_type == "ack":
             self._acked += 1
-            if self._deliveries[delivery_tag] == delivery_tag:
-                future = self.futures[delivery_tag]
+            if delivery_tag in self._deliveries:
+                future = self._deliveries[delivery_tag]
                 not future.done() and future.set_result(True)
         elif confirmation_type == "nack":
             self._nacked += 1
-            if self._deliveries[delivery_tag] in self.futures:
-                future = self.futures[self._deliveries[delivery_tag]]["published"]
+            if delivery_tag in self._deliveries:
+                future = self._deliveries[delivery_tag]
                 not future.done() and future.set_exception(
                     NackException(
                         f"Publish confirmation: nack of {delivery_tag} publish"
@@ -377,7 +377,7 @@ class AsyncChannel:
     def publish_confirmation(self, future: Future):
         self._message_number += 1
         self.futures[self._message_number] = future
-        self._deliveries[self._message_number] = self._message_number
+        self._deliveries[self._message_number] = future
         clean = partial(self.clean_publish_confirmation, self._message_number)
         future.add_done_callback(clean)
 

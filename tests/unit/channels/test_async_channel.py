@@ -1,6 +1,9 @@
 from amqp_client_python.rabbitmq import AsyncChannel
+from amqp_client_python.exceptions import NackException
 from unittest.mock import Mock
+from asyncio import get_running_loop
 import pytest
+from random import randint
 
 
 @pytest.mark.asyncio_cooperative
@@ -84,3 +87,30 @@ async def test_channel_add_publish_confirms(channel_mock, channel_factory_mock):
     channel._channel.confirm_delivery.assert_called_once_with(
         channel.on_delivery_confirmation
     )
+
+
+@pytest.mark.parametrize("confimation_type", ["ack", "nack"])
+@pytest.mark.parametrize("done", [True, False])
+@pytest.mark.asyncio_cooperative
+async def test_channel_on_delivery_confirmation(confimation_type, done):
+    loop = get_running_loop()
+    delivery_tag = randint(0, 10000)
+    future = loop.create_future()
+    done and future.set_result(True)
+    channel = AsyncChannel()
+    channel._acked = delivery_tag - 1
+    channel._nacked = delivery_tag - 1
+    channel._deliveries[delivery_tag] = future
+    method_frame = Mock()
+    method_frame.method.NAME.split.return_value = ["njashdu13", confimation_type]
+    method_frame.method.delivery_tag = delivery_tag
+    channel.on_delivery_confirmation(method_frame)
+    if confimation_type == "ack":
+        assert future.done()
+        assert channel._acked == delivery_tag
+    elif confimation_type == "nack":
+        assert future.done()
+        assert channel._nacked == delivery_tag
+        if not done:
+            with pytest.raises(NackException):
+                await future
