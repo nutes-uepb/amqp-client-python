@@ -1,5 +1,6 @@
 from .eventbus_exception import EventBusException
 
+
 class NackException(EventBusException):
     message: str = None
     description: str = None

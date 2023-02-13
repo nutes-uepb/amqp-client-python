@@ -1,5 +1,6 @@
 from .timeout_exception import TimeoutException
 
+
 class ResponseTimeoutException(TimeoutException):
     message: str = None
     description: str = None
