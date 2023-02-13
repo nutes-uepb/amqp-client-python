@@ -26,6 +26,7 @@ class AsyncConnection:
         self._channel = AsyncChannel(self._prefetch_count, self._auto_ack)
         self._closing = False
         self._consuming = False
+        self.openning = False
         self.reconnecting = False
         self.reconnect_delay = 1
         self.backup = {
@@ -37,9 +38,10 @@ class AsyncConnection:
 
     def open(self, uri):
         self.url = uri
-        if not self.is_open:
+        if not self.is_open and not self.openning:
             if not self.ioloop:
                 self.ioloop = get_event_loop()
+            self.openning = True
             self._connection = self.connection_factory.create_connection(
                 uri=uri,
                 on_connection_open=self.on_connection_open,
@@ -53,13 +55,15 @@ class AsyncConnection:
             self._connection.close()
 
     def on_connection_open(self, _unused_connection):
-        LOGGER.debug(f"connection openned {self._channel}")
+        LOGGER.info(f"connection openned {_unused_connection}, {self._connection}")
+        self.openning = False
         self._channel = AsyncChannel(self._prefetch_count, self._auto_ack)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection)
 
     def on_connection_open_error(self, _unused_connection, err):
-        LOGGER.warn(f"connection open error: {err}, will attempt a connection")
+        LOGGER.info(f"connection open error: {err}, will attempt a connection")
+        self.openning = False
         self.reconnect()
 
     def on_connection_closed(self, _unused_connection, reason):
@@ -108,7 +112,6 @@ class AsyncConnection:
                         params["exchange_name"],
                         routing_key,
                         params["callback"],
-                        params["auto_ack"],
                     )
                 for routing_key in self.backup["rpc_subscribe"]:
                     params = self.backup["rpc_subscribe"][routing_key]
@@ -117,7 +120,6 @@ class AsyncConnection:
                         params["exchange_name"],
                         routing_key,
                         params["callback"],
-                        params["auto_ack"],
                     )
 
             self.ioloop.create_task(self.add_callback(recorvery))
@@ -169,7 +171,11 @@ class AsyncConnection:
         self, exchange_name: str, routing_key: str, body, content_type, timeout
     ):
         return await self._channel.rpc_client(
-            exchange_name, routing_key, body, content_type, timeout, self.ioloop
+            exchange_name,
+            routing_key,
+            body,
+            content_type,
+            timeout,
         )
 
     async def publish(
@@ -179,32 +185,38 @@ class AsyncConnection:
             exchange_name, routing_key, body, content_type, timeout, loop=self.ioloop
         )
 
-    async def rpc_subscribe(self, queue_name, exchange_name, routing_key, callback):
+    async def rpc_subscribe(
+        self, queue_name, exchange_name, routing_key, callback, response_timeout
+    ):
         self.backup["rpc_subscribe"][routing_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
-            "routing_key": routing_key,
             "callback": callback,
+            "response_timeout": response_timeout,
         }
         await self._channel.rpc_subscribe(
             queue_name=queue_name,
             exchange_name=exchange_name,
             routing_key=routing_key,
             callback=callback,
+            response_timeout=response_timeout,
         )
 
-    async def subscribe(self, queue_name, exchange_name, routing_key, callback):
+    async def subscribe(
+        self, queue_name, exchange_name, routing_key, callback, response_timeout
+    ):
         self.backup["subscribe"][routing_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
-            "routing_key": routing_key,
             "callback": callback,
+            "response_timeout": response_timeout,
         }
         await self._channel.subscribe(
             exchange_name=exchange_name,
             queue_name=queue_name,
             routing_key=routing_key,
             callback=callback,
+            response_timeout=response_timeout,
         )
 
     async def add_callback(self, callback, retry=4, delay=1):

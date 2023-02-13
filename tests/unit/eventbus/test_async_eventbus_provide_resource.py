@@ -50,4 +50,5 @@ async def test_async_eventbus_provide_resource_deep(async_connection_mock, confi
         config.options.rpc_exchange_name,
         routing_key,
         handle,
+        None,
     )

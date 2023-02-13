@@ -34,12 +34,11 @@ async def test_rpc_client(connection_mock, channel_mock, channel_factory_mock):
     channel = AsyncChannel(channel_factory=channel_factory_mock)
     channel.publisher_confirms = False
     channel.open(connection_mock)
-    rpc_client = channel.rpc_client(
-        exchange, routing_key, body, content_type, timeout, connection_mock.ioloop
-    )
+    assert channel.ioloop == connection_mock.ioloop
+    rpc_client = channel.rpc_client(exchange, routing_key, body, content_type, timeout)
     assert iscoroutine(rpc_client)
     result = await rpc_client
-    assert channel.rpc_consumer
+    assert channel.rpc_consumer_starting
     channel_mock.basic_publish.assert_called_once()
     assert channel_mock.basic_publish.call_args.args == (
         exchange,
@@ -70,23 +69,22 @@ async def test_rpc_client_publish_confirmation(
     future_consumer.set_result(True)
     connection_mock.ioloop.create_future.side_effect = [
         future_response,
-        future_publish,
         future_consumer,
+        future_publish,
     ]
     connection_mock.ioloop.call_later = loop.call_later
     channel_factory_mock.create_channel.return_value = channel_mock
     channel = AsyncChannel(channel_factory=channel_factory_mock)
     channel.publisher_confirms = True
     channel.open(connection_mock)
-    rpc_client = channel.rpc_client(
-        exchange, routing_key, body, content_type, timeout, connection_mock.ioloop
-    )
+    assert channel.ioloop == connection_mock.ioloop
+    rpc_client = channel.rpc_client(exchange, routing_key, body, content_type, timeout)
     if published:
         future_publish.set_result(True)
         if answered:
             future_response.set_result(result)
-            assert result == await rpc_client
-            assert channel.rpc_consumer
+            result = await rpc_client
+            assert channel.rpc_consumer_starting
         else:
             with pytest.raises(ResponseTimeoutException):
                 result = await wait_for(rpc_client, timeout=timeout + 1)
@@ -118,21 +116,19 @@ async def test_rpc_client_consumer_started(
         future_consumer.set_result(True)
     connection_mock.ioloop.create_future.side_effect = [
         future_response,
-        future_publish,
         future_consumer,
+        future_publish,
     ]
     connection_mock.ioloop.call_later = loop.call_later
     channel_factory_mock.create_channel.return_value = channel_mock
     channel = AsyncChannel(channel_factory=channel_factory_mock)
     channel.publisher_confirms = True
     channel.open(connection_mock)
-    rpc_client = channel.rpc_client(
-        exchange, routing_key, body, content_type, timeout, connection_mock.ioloop
-    )
+    rpc_client = channel.rpc_client(exchange, routing_key, body, content_type, timeout)
     if consumer:
         assert result == await rpc_client
-        assert channel.rpc_consumer is True
+        assert channel.rpc_consumer_starting is True
     else:
         with pytest.raises(EventBusException):
             assert result == await wait_for(rpc_client, timeout=2.5)
-        assert channel.rpc_consumer is False
+        assert channel.rpc_consumer_starting is False

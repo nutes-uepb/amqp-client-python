@@ -7,7 +7,12 @@ import pytest
 
 @pytest.mark.asyncio_cooperative
 async def test_async_eventbus_subscribe_deep(async_connection_mock, config_mock):
-    event_name, exchange, routing_key = "example_event", "ex_example", "rk_example"
+    event_name, exchange, routing_key, response_time = (
+        "example_event",
+        "ex_example",
+        "rk_example",
+        None,
+    )
     config = config_mock.build()
     eventbus = AsyncEventbusRabbitMQ(config_mock)
     eventbus._sub_connection = async_connection_mock
@@ -36,5 +41,9 @@ async def test_async_eventbus_subscribe_deep(async_connection_mock, config_mock)
     eventbus._sub_connection.open.assert_called_once_with(config.url)
     # test connection.subscribe will be called with right fields
     eventbus._sub_connection.subscribe.assert_called_once_with(
-        config.options.queue_name, event.event_type, routing_key, event_handler.handle
+        config.options.queue_name,
+        event.event_type,
+        routing_key,
+        event_handler.handle,
+        response_time,
     )

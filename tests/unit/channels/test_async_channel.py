@@ -21,15 +21,18 @@ async def test_channel_open_surface(
     assert channel._channel == channel_mock
 
 
+@pytest.mark.parametrize("prefetch", [0, 1, 2])
 @pytest.mark.parametrize("pub_confirm", [True, False])
 @pytest.mark.asyncio_cooperative
 async def test_channel_open_deep(
-    async_connection_mock, channel_mock, channel_factory_mock, pub_confirm
+    async_connection_mock, channel_mock, channel_factory_mock, pub_confirm, prefetch
 ):
     channel_factory_mock.create_channel = (
         lambda connection, on_channel_open: on_channel_open(channel_mock)
     )
-    channel = AsyncChannel(channel_factory=channel_factory_mock)
+    channel = AsyncChannel(
+        prefetch_count=prefetch, channel_factory=channel_factory_mock
+    )
     channel.publisher_confirms = pub_confirm
     channel.add_on_channel_close_callback = Mock()
     channel.add_publish_confirms = Mock()
@@ -38,7 +41,10 @@ async def test_channel_open_deep(
     channel.open(async_connection_mock)
     channel.add_on_channel_close_callback.assert_called_once()
     pub_confirm and channel.add_publish_confirms.assert_called_once()
-    channel.set_qos.assert_called_once_with(channel._prefetch_count)
+    if prefetch:
+        channel.set_qos.assert_called_once_with(channel._prefetch_count)
+    else:
+        channel.set_qos.assert_not_called()
 
 
 @pytest.mark.asyncio_cooperative

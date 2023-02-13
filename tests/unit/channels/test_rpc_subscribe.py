@@ -68,8 +68,8 @@ async def test_rpc_subscribe_publisher_started(
     )
     if consumer:
         assert await rpc_subscribe is None
-        assert channel.rpc_publisher is True
+        assert channel.rpc_publisher_starting is True
     else:
         with pytest.raises(EventBusException):
             assert await rpc_subscribe is None
-        assert channel.rpc_publisher is False
+        assert channel.rpc_publisher_started is False
