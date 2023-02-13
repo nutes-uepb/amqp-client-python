@@ -1,0 +1,20 @@
+repos:
+-   repo: https://github.com/ambv/black
+    rev: 23.1.0
+    hooks:
+    - id: black
+      language_version: python3.8
+      stages: [commit]
+-   repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+    - id: flake8
+      stages: [commit]
+-   repo: local
+    hooks:
+      - id: requirements
+        name: requirements
+        entry: bash -c 'dev_env/bin/pip3 freeze > dev_requirements.txt; git add dev_requirements.txt'
+        language: system
+        pass_filenames: false
+        stages: [commit]

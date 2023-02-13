@@ -14,7 +14,7 @@ class Options:
         port: int = 5672,
         vhost: str = "/",
         heartbeat: Optional[int] = 60,
-        publisher_confirms = False,
+        publisher_confirms=False,
         **kwargs: Dict[str, Any]
     ) -> None:
         self.queue_name = queue_name
