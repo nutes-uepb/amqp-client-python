@@ -52,6 +52,7 @@ class AsyncConnection:
 
     async def close(self):
         if self.is_open:
+            self._closing = True
             self._connection.close()
 
     def on_connection_open(self, _unused_connection):
@@ -77,7 +78,7 @@ class AsyncConnection:
         self._channel = None
         if self._closing:
             LOGGER.warn("connection closed intentionally")
-            self._connection.ioloop.stop()
+            # self._connection.ioloop.stop()
         else:
             LOGGER.warn(
                 f"Connection closed, reason: {reason}, will attempt a connection"
@@ -168,7 +169,15 @@ class AsyncConnection:
         self._connection.ioloop.run_forever()
 
     async def rpc_client(
-        self, exchange_name: str, routing_key: str, body, content_type, timeout
+        self,
+        exchange_name: str,
+        routing_key: str,
+        body,
+        content_type,
+        timeout,
+        delivery_mode,
+        expiration,
+        **kwargs,
     ):
         return await self._channel.rpc_client(
             exchange_name,
@@ -176,13 +185,31 @@ class AsyncConnection:
             body,
             content_type,
             timeout,
+            delivery_mode,
+            expiration,
+            **kwargs,
         )
 
     async def publish(
-        self, exchange_name: str, routing_key: str, body, content_type, timeout
+        self,
+        exchange_name: str,
+        routing_key: str,
+        body,
+        content_type,
+        timeout,
+        delivery_mode,
+        expiration,
+        **kwargs,
     ):
         return await self._channel.publish(
-            exchange_name, routing_key, body, content_type, timeout, loop=self.ioloop
+            exchange_name,
+            routing_key,
+            body,
+            content_type,
+            timeout,
+            delivery_mode,
+            expiration,
+            **kwargs,
         )
 
     async def rpc_subscribe(

@@ -1,4 +1,4 @@
-from typing import MutableMapping, Mapping
+from typing import MutableMapping, Mapping, Optional, Union
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -9,7 +9,7 @@ from amqp_client_python.exceptions import (
 )
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.channel import Channel
-from pika import BasicProperties
+from pika import BasicProperties, DeliveryMode
 from asyncio import AbstractEventLoop, Future, wait, wait_for, FIRST_COMPLETED
 from functools import partial
 from json import dumps, loads
@@ -314,6 +314,9 @@ class AsyncChannel:
         body,
         content_type,
         timeout,
+        delivery_mode=DeliveryMode.Transient,
+        expiration: Optional[Union[str, None]] = None,
+        **key_args,
     ):
         future = self.ioloop.create_future()
         message = dumps({"resource_name": routing_key, "handle": body})
@@ -332,7 +335,11 @@ class AsyncChannel:
                 reply_to=self._callback_queue,
                 correlation_id=corr_id,
                 content_type=content_type,
+                delivery_mode=delivery_mode,
+                expiration=expiration,
+                **key_args,
             ),
+            mandatory=False,
         )
 
         def not_arrived(id):
@@ -377,7 +384,9 @@ class AsyncChannel:
         body,
         content_type: str,
         timeout=5,
-        loop: AbstractEventLoop = None,
+        delivery_mode=DeliveryMode.Transient,
+        expiration: Optional[Union[str, None]] = None,
+        **key_args,
     ):
         message = dumps({"handle": body})
         self._channel.basic_publish(
@@ -387,7 +396,11 @@ class AsyncChannel:
             properties=BasicProperties(
                 reply_to=self._callback_queue,
                 content_type=content_type,
+                delivery_mode=delivery_mode,
+                expiration=expiration,
+                **key_args,
             ),
+            mandatory=False,
         )
         if self.publisher_confirms:
             publish_future = self.ioloop.create_future()
@@ -400,7 +413,7 @@ class AsyncChannel:
                     )
 
             func = partial(not_arrived, self._message_number)
-            loop.call_later(timeout, func)
+            self.ioloop.call_later(timeout, func)
             return await publish_future
 
     def publish_confirmation(self, future: Future):

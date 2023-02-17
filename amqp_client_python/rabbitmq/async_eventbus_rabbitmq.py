@@ -1,8 +1,9 @@
+from typing import Any, List, Optional, Union
 from .async_connection import AsyncConnection
 from ..event import IntegrationEvent, IntegrationEventHandler
 from amqp_client_python.domain.models import Config
-from typing import Any, List
 from asyncio import AbstractEventLoop
+from pika import DeliveryMode
 
 
 class AsyncEventbusRabbitMQ:
@@ -20,19 +21,19 @@ class AsyncEventbusRabbitMQ:
         rpc_client_auto_ack=False,
         rpc_server_auto_ack=False,
     ) -> None:
-        self.loop: AbstractEventLoop = loop
-        self._pub_connection = AsyncConnection(self.loop, pub_publisher_confirms)
+        self._loop: AbstractEventLoop = loop
+        self._pub_connection = AsyncConnection(self._loop, pub_publisher_confirms)
         self._sub_connection = AsyncConnection(
-            self.loop, False, sub_prefetch_count, sub_auto_ack
+            self._loop, False, sub_prefetch_count, sub_auto_ack
         )
         self._rpc_client_connection = AsyncConnection(
-            self.loop,
+            self._loop,
             rpc_client_publisher_confirms,
             rpc_client_prefetch_count,
             rpc_client_auto_ack,
         )
         self._rpc_server_connection = AsyncConnection(
-            self.loop,
+            self._loop,
             rpc_server_publisher_confirms,
             rpc_server_prefetch_count,
             rpc_server_auto_ack,
@@ -47,10 +48,20 @@ class AsyncEventbusRabbitMQ:
         body: List[Any],
         content_type="application/json",
         timeout=5,
+        delivery_mode=DeliveryMode.Transient,
+        expiration: Optional[Union[str, None]] = None,
+        **kwargs
     ):
         async def add_rpc_client():
             return await self._rpc_client_connection.rpc_client(
-                exchange, routing_key, body, content_type=content_type, timeout=timeout
+                exchange,
+                routing_key,
+                body,
+                content_type,
+                timeout,
+                delivery_mode,
+                expiration,
+                **kwargs
             )
 
         self._rpc_client_connection.open(self.config.url)
@@ -62,17 +73,21 @@ class AsyncEventbusRabbitMQ:
         routing_key: str,
         body: List[Any],
         content_type="application/json",
-        exchange_type: str = "direct",
-        exchange_durable=True,
         timeout=5,
+        delivery_mode=DeliveryMode.Transient,
+        expiration: Optional[Union[str, None]] = None,  # example: '60000' -> 60s
+        **kwargs
     ):
         async def add_publish():
             return await self._pub_connection.publish(
                 event.event_type,
                 routing_key,
                 body,
-                content_type=content_type,
-                timeout=timeout,
+                content_type,
+                timeout,
+                delivery_mode,
+                expiration,
+                **kwargs
             )
 
         self._pub_connection.open(self.config.url)
@@ -110,8 +125,10 @@ class AsyncEventbusRabbitMQ:
         self._sub_connection.open(self.config.url)
         await self._sub_connection.add_callback(add_subscribe)
 
-    async def dispose(self):
+    async def dispose(self, stop_event_loop=True):
         await self._pub_connection.close()
         await self._sub_connection.close()
         await self._rpc_client_connection.close()
         await self._rpc_server_connection.close()
+        if stop_event_loop:
+            self._loop.stop()
