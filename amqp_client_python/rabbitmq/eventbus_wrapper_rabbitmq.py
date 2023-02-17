@@ -175,12 +175,10 @@ class EventbusWrapperRabbitMQ:
 
     def dispose(self):
         run_coroutine_threadsafe(self._async_eventbus.dispose(), self._loop)
-        self._loop.stop()
 
-    async def async_dispose(self):
+    async def async_dispose(self, stop_event_loop=True):
         if self._thread.ident != current_thread().ident:
             raise ThreadUnsafeException(
                 "Cannot run async call on this thread, try to use sync thread safe methods"
             )
-        self._async_eventbus.dispose()
-        self._loop.stop()
+        await self._async_eventbus.dispose(stop_event_loop=stop_event_loop)

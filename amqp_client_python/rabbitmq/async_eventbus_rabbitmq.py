@@ -21,19 +21,19 @@ class AsyncEventbusRabbitMQ:
         rpc_client_auto_ack=False,
         rpc_server_auto_ack=False,
     ) -> None:
-        self.loop: AbstractEventLoop = loop
-        self._pub_connection = AsyncConnection(self.loop, pub_publisher_confirms)
+        self._loop: AbstractEventLoop = loop
+        self._pub_connection = AsyncConnection(self._loop, pub_publisher_confirms)
         self._sub_connection = AsyncConnection(
-            self.loop, False, sub_prefetch_count, sub_auto_ack
+            self._loop, False, sub_prefetch_count, sub_auto_ack
         )
         self._rpc_client_connection = AsyncConnection(
-            self.loop,
+            self._loop,
             rpc_client_publisher_confirms,
             rpc_client_prefetch_count,
             rpc_client_auto_ack,
         )
         self._rpc_server_connection = AsyncConnection(
-            self.loop,
+            self._loop,
             rpc_server_publisher_confirms,
             rpc_server_prefetch_count,
             rpc_server_auto_ack,
@@ -125,8 +125,10 @@ class AsyncEventbusRabbitMQ:
         self._sub_connection.open(self.config.url)
         await self._sub_connection.add_callback(add_subscribe)
 
-    async def dispose(self):
+    async def dispose(self, stop_event_loop=True):
         await self._pub_connection.close()
         await self._sub_connection.close()
         await self._rpc_client_connection.close()
         await self._rpc_server_connection.close()
+        if stop_event_loop:
+            self._loop.stop()

@@ -52,6 +52,7 @@ class AsyncConnection:
 
     async def close(self):
         if self.is_open:
+            self._closing = True
             self._connection.close()
 
     def on_connection_open(self, _unused_connection):
@@ -77,7 +78,7 @@ class AsyncConnection:
         self._channel = None
         if self._closing:
             LOGGER.warn("connection closed intentionally")
-            self._connection.ioloop.stop()
+            # self._connection.ioloop.stop()
         else:
             LOGGER.warn(
                 f"Connection closed, reason: {reason}, will attempt a connection"
