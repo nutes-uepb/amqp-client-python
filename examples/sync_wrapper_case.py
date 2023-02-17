@@ -22,7 +22,7 @@ class ExampleEventHandler(IntegrationEventHandler):
 
 async def handle(*body):
     print(body[0], "rpc_provider")
-    result: bytes = await eventbus.async_eventbus.rpc_client(
+    result: bytes = await eventbus.async_rpc_client(
         rpc_exchange, rpc_routing_key + "3", [body[0]]
     )
     print("...")
