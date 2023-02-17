@@ -1,8 +1,9 @@
+from typing import Any, List, Optional, Union
 from .async_connection import AsyncConnection
 from ..event import IntegrationEvent, IntegrationEventHandler
 from amqp_client_python.domain.models import Config
-from typing import Any, List
 from asyncio import AbstractEventLoop
+from pika import DeliveryMode
 
 
 class AsyncEventbusRabbitMQ:
@@ -47,10 +48,20 @@ class AsyncEventbusRabbitMQ:
         body: List[Any],
         content_type="application/json",
         timeout=5,
+        delivery_mode=DeliveryMode.Transient,
+        expiration: Optional[Union[str, None]] = None,
+        **kwargs
     ):
         async def add_rpc_client():
             return await self._rpc_client_connection.rpc_client(
-                exchange, routing_key, body, content_type=content_type, timeout=timeout
+                exchange,
+                routing_key,
+                body,
+                content_type,
+                timeout,
+                delivery_mode,
+                expiration,
+                **kwargs
             )
 
         self._rpc_client_connection.open(self.config.url)
@@ -62,17 +73,21 @@ class AsyncEventbusRabbitMQ:
         routing_key: str,
         body: List[Any],
         content_type="application/json",
-        exchange_type: str = "direct",
-        exchange_durable=True,
         timeout=5,
+        delivery_mode=DeliveryMode.Transient,
+        expiration: Optional[Union[str, None]] = None,  # example: '60000' -> 60s
+        **kwargs
     ):
         async def add_publish():
             return await self._pub_connection.publish(
                 event.event_type,
                 routing_key,
                 body,
-                content_type=content_type,
-                timeout=timeout,
+                content_type,
+                timeout,
+                delivery_mode,
+                expiration,
+                **kwargs
             )
 
         self._pub_connection.open(self.config.url)

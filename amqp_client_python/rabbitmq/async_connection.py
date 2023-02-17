@@ -168,7 +168,15 @@ class AsyncConnection:
         self._connection.ioloop.run_forever()
 
     async def rpc_client(
-        self, exchange_name: str, routing_key: str, body, content_type, timeout
+        self,
+        exchange_name: str,
+        routing_key: str,
+        body,
+        content_type,
+        timeout,
+        delivery_mode,
+        expiration,
+        **kwargs,
     ):
         return await self._channel.rpc_client(
             exchange_name,
@@ -176,13 +184,31 @@ class AsyncConnection:
             body,
             content_type,
             timeout,
+            delivery_mode,
+            expiration,
+            **kwargs,
         )
 
     async def publish(
-        self, exchange_name: str, routing_key: str, body, content_type, timeout
+        self,
+        exchange_name: str,
+        routing_key: str,
+        body,
+        content_type,
+        timeout,
+        delivery_mode,
+        expiration,
+        **kwargs,
     ):
         return await self._channel.publish(
-            exchange_name, routing_key, body, content_type, timeout, loop=self.ioloop
+            exchange_name,
+            routing_key,
+            body,
+            content_type,
+            timeout,
+            delivery_mode,
+            expiration,
+            **kwargs,
         )
 
     async def rpc_subscribe(

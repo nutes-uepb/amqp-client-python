@@ -1,4 +1,4 @@
-from amqp_client_python import AsyncEventbusRabbitMQ
+from amqp_client_python import AsyncEventbusRabbitMQ, DeliveryMode
 from amqp_client_python.event import IntegrationEvent
 from asyncio import iscoroutinefunction
 from tests.unit.eventbus.default import async_add_callback
@@ -35,8 +35,6 @@ async def test_async_eventbus_publish_deep(async_connection_mock, config_mock):
         exchange,
         routing_key,
         body,
-        exchange_type,
-        exchange_durable,
         content_type,
         timeout,
     ) = (
@@ -44,8 +42,6 @@ async def test_async_eventbus_publish_deep(async_connection_mock, config_mock):
         "ex_example",
         "rk_example",
         ["content"],
-        "ex_type",
-        "ex_durable",
         "text",
         4,
     )
@@ -62,8 +58,6 @@ async def test_async_eventbus_publish_deep(async_connection_mock, config_mock):
             routing_key,
             body,
             content_type,
-            exchange_type,
-            exchange_durable,
             timeout,
         )
         is not None
@@ -72,5 +66,11 @@ async def test_async_eventbus_publish_deep(async_connection_mock, config_mock):
     eventbus._pub_connection.open.assert_called_once_with(config_mock.build().url)
     # test if will try when connection and channel is open
     eventbus._pub_connection.publish.assert_called_once_with(
-        event.event_type, routing_key, body, content_type=content_type, timeout=timeout
+        event.event_type,
+        routing_key,
+        body,
+        content_type,
+        timeout,
+        DeliveryMode.Transient,
+        None,
     )

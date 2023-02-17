@@ -1,4 +1,4 @@
-from amqp_client_python import AsyncEventbusRabbitMQ
+from amqp_client_python import AsyncEventbusRabbitMQ, DeliveryMode
 from asyncio import iscoroutinefunction
 from tests.unit.eventbus.default import async_add_callback
 import pytest
@@ -55,5 +55,5 @@ async def test_async_eventbus_rpc_client_deep(async_connection_mock, config_mock
     )
     # test if will try when connection and channel is open
     eventbus._rpc_client_connection.rpc_client.assert_called_once_with(
-        exchange, routing_key, body, content_type=content_type, timeout=timeout
+        exchange, routing_key, body, content_type, timeout, DeliveryMode.Transient, None
     )
