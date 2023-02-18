@@ -56,3 +56,5 @@ while running:
     except BaseException as err:
         running = False
         print("Err:", err)
+
+eventbus.dispose()
