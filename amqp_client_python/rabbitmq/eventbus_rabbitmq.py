@@ -165,12 +165,14 @@ class EventbusRabbitMQ:
 
             self.event_loop.add_callback_threadsafe(rpc_server_setup)
 
-    def dispose(self):
-        if isinstance(self.pub_connection, ConnectionRabbitMQ):
+    def dispose(self, stop_event_loop=True):
+        if self.pub_connection.is_open():
             self.pub_connection.close()
-        if isinstance(self.sub_connection, ConnectionRabbitMQ):
+        if self.sub_connection.is_open():
             self.sub_connection.close()
-        if isinstance(self.rpc_client_connection, ConnectionRabbitMQ):
+        if self.rpc_client_connection.is_open():
             self.rpc_client_connection.close()
-        if isinstance(self.rpc_server_connection, ConnectionRabbitMQ):
+        if self.rpc_server_connection.is_open():
             self.rpc_server_connection.close()
+        if stop_event_loop:
+            self.event_loop.add_callback_threadsafe(self.event_loop.stop)
