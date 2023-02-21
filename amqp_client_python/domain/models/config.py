@@ -20,7 +20,7 @@ class Config:
         }
         if bool(self.ssl_options):
             opt["ssl_options"] = {
-                "certfile": self.ssl_options.ca_certs_path,
+                "certfile": self.ssl_options.certfile_path,
                 "keyfile": self.ssl_options.keyfile_path,
                 "ca_certs": self.ssl_options.ca_certs_path,
             }

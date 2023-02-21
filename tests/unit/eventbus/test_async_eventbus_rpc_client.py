@@ -26,7 +26,7 @@ async def test_async_eventbus_rpc_client_surface(async_connection_mock, config_m
         config_mock.build().url
     )
     # test if will try when connection and channel is open
-    eventbus._rpc_client_connection.add_callback.called_once()
+    eventbus._rpc_client_connection.add_callback.assert_called_once()
     assert len(eventbus._rpc_client_connection.add_callback.call_args.args) == 1
     iscoroutinefunction(eventbus._rpc_client_connection.add_callback.call_args.args[0])
 
