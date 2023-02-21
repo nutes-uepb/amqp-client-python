@@ -23,7 +23,7 @@ async def test_async_eventbus_publish_surface(async_connection_mock, config_mock
     # test connection will be open
     eventbus._pub_connection.open.assert_called_once_with(config_mock.build().url)
     # test if will try when connection and channel is open
-    eventbus._pub_connection.add_callback.called_once()
+    eventbus._pub_connection.add_callback.assert_called_once()
     assert len(eventbus._pub_connection.add_callback.call_args.args) == 1
     iscoroutinefunction(eventbus._pub_connection.add_callback.call_args.args[0])
 
