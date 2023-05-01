@@ -113,6 +113,7 @@ class AsyncConnection:
                         params["exchange_name"],
                         routing_key,
                         params["callback"],
+                        params["response_timeout"],
                     )
                 for routing_key in self.backup["rpc_subscribe"]:
                     params = self.backup["rpc_subscribe"][routing_key]
@@ -121,6 +122,7 @@ class AsyncConnection:
                         params["exchange_name"],
                         routing_key,
                         params["callback"],
+                        params["response_timeout"],
                     )
 
             self.ioloop.create_task(self.add_callback(recorvery))
