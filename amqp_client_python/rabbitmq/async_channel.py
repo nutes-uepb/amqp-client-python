@@ -551,9 +551,7 @@ class AsyncChannel:
                         str(err),
                         properties=BasicProperties(
                             correlation_id=props.correlation_id,
-                            content_type=self.subscribes[queue_name][
-                                basic_deliver.routing_key
-                            ]["content_type"],
+                            content_type="text/plain",
                             type="error",
                         ),
                     )
