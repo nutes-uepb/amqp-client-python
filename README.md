@@ -193,5 +193,5 @@ while running:
 #### sync eventbus
 ```sh
 Cannot use rpc call when inside of rpc provider and subscribe handlers
-#/obs: works on sync eventbus wrapper
+#/obs: works on async eventbus wrapper
 ```
