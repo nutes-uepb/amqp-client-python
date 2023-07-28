@@ -2,6 +2,7 @@ from amqp_client_python import AsyncEventbusRabbitMQ
 from asyncio import iscoroutinefunction
 from tests.unit.eventbus.default import async_add_callback
 import pytest
+from random import randint
 
 
 @pytest.mark.asyncio_cooperative
@@ -9,6 +10,7 @@ async def test_async_eventbus_provide_resource_surface(
     async_connection_mock, config_mock
 ):
     routing_key = "rk_example"
+    connection_timeout = randint(1, 16)
     eventbus = AsyncEventbusRabbitMQ(config_mock)
     eventbus._rpc_server_connection = async_connection_mock
 
@@ -16,15 +18,16 @@ async def test_async_eventbus_provide_resource_surface(
         return b"result"
 
     assert iscoroutinefunction(eventbus.provide_resource)
-    assert await eventbus.provide_resource(routing_key, handle) is None
+    assert await eventbus.provide_resource(routing_key, handle, connection_timeout=connection_timeout) is None
     # test connection will be open
     eventbus._rpc_server_connection.open.assert_called_once_with(
         config_mock.build().url
     )
     # test if will try when connection and channel is open
     eventbus._rpc_server_connection.add_callback.assert_called_once()
-    assert len(eventbus._rpc_server_connection.add_callback.call_args.args) == 1
+    assert len(eventbus._rpc_server_connection.add_callback.call_args.args) == 2
     iscoroutinefunction(eventbus._rpc_server_connection.add_callback.call_args.args[0])
+    assert eventbus._rpc_server_connection.add_callback.call_args.args[1] == connection_timeout
 
 
 @pytest.mark.asyncio_cooperative

@@ -2,7 +2,7 @@
 # Define where to store the generated certs and metadata.
 DIR="$(pwd)/.certs"
 
-SERVICES_NAMES=device-manager
+SERVICES_NAMES=amqp
 
 rm -rf $DIR
 mkdir -p $DIR
@@ -161,33 +161,13 @@ COUNT=${#SERVICES[@]}
 for service in ${SERVICES[@]}; do
   SERVICES_ALT_NAMES_MONGO+=",mongo-${service}"
   echo "$COUNT - Generating certificates for the \"${service^^}\" Service..."
-  generateCerts "server" "$service" "localhost" "server" "$DIR/$service"  # Server
   generateCerts "client" "$service" "rabbitmq" "rabbitmq" "$DIR/$service" # Client RabbitMQ
 
-  if [ "$service" = "timeseries" ]; then
-    generateCerts "client" "$service" "influxdb" "influxdb" "$DIR/$service" # Client InfluxDB
-  else
-    generateCertsMongo "client" "$service" "mongo,${service}" "mongodb" "$DIR/$service" # Client MongoDB
-  fi
-
-  if [ "$service" = "device-manager" ]; then
-    # Create JWT certs
-    ssh-keygen -t rsa -P "" -b 2048 -m PEM -f "$DIR/$service/jwt.key"
-    ssh-keygen -e -m PEM -f "$DIR/$service/jwt.key" >"$DIR/$service/jwt.key.pub"
-  fi
   COUNT=$((COUNT + 1))
 done
 
-# Generate certificates for MongoDB
-echo "$COUNT - Generating certificates for the \"MongoDB Server\"..."
-generateCertsMongo "server" "mongo" $SERVICES_ALT_NAMES_MONGO "server" "$DIR/mongodb" # Server MongoDB
-
 # Generate certificates for RabbiMQ
 generateCerts "server" "rabbitmq" "rabbitmq" "server" "$DIR/rabbitmq" # Server RabbitMQ
-
-## Generate certificates for InfluxDB
-#echo "$((COUNT + 3)) - Generating certificates for the \"InfluxDB Server\"..."
-#generateCerts "server" "influxdb" "influxdb,influxdb-timeseries" "server" "$DIR/influxdb" # Server InfluxDB
 
 # (Optional) Remove unused files at the moment
 rm -rf $DIR/ca.* $DIR/*.srl $DIR/*.csr $DIR/*.cnf

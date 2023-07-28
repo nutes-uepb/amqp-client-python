@@ -1,9 +1,10 @@
 from typing import Any, List, Optional, Union
-from .async_connection import AsyncConnection
+from .async_connection import AsyncConnection, ConnectionType
 from ..event import IntegrationEvent, IntegrationEventHandler
 from amqp_client_python.domain.models import Config
 from asyncio import AbstractEventLoop
 from pika import DeliveryMode
+from amqp_client_python.signals import Signal
 
 
 class AsyncEventbusRabbitMQ:
@@ -22,22 +23,32 @@ class AsyncEventbusRabbitMQ:
         rpc_server_auto_ack=False,
     ) -> None:
         self._loop: AbstractEventLoop = loop
-        self._pub_connection = AsyncConnection(self._loop, pub_publisher_confirms)
+        self._pub_connection = AsyncConnection(
+            self._loop,
+            pub_publisher_confirms,
+            connection_type=ConnectionType.PUBLISH
+        )
         self._sub_connection = AsyncConnection(
-            self._loop, False, sub_prefetch_count, sub_auto_ack
+            self._loop, False,
+            sub_prefetch_count,
+            sub_auto_ack,
+            connection_type=ConnectionType.SUBSCRIBE
         )
         self._rpc_client_connection = AsyncConnection(
             self._loop,
             rpc_client_publisher_confirms,
             rpc_client_prefetch_count,
             rpc_client_auto_ack,
+            connection_type=ConnectionType.RPC_CLIENT
         )
         self._rpc_server_connection = AsyncConnection(
             self._loop,
             rpc_server_publisher_confirms,
             rpc_server_prefetch_count,
             rpc_server_auto_ack,
+            connection_type=ConnectionType.RPC_SERVER
         )
+        self.on = Signal.on
         self.config = config.build()
         self._rpc_server_initialized = False
 
@@ -48,6 +59,7 @@ class AsyncEventbusRabbitMQ:
         body: List[Any],
         content_type="application/json",
         timeout=5,
+        connection_timeout: int = 16,
         delivery_mode=DeliveryMode.Transient,
         expiration: Optional[Union[str, None]] = None,
         **kwargs
@@ -65,7 +77,7 @@ class AsyncEventbusRabbitMQ:
             )
 
         self._rpc_client_connection.open(self.config.url)
-        return await self._rpc_client_connection.add_callback(add_rpc_client)
+        return await self._rpc_client_connection.add_callback(add_rpc_client, connection_timeout)
 
     async def publish(
         self,
@@ -74,6 +86,7 @@ class AsyncEventbusRabbitMQ:
         body: List[Any],
         content_type="application/json",
         timeout=5,
+        connection_timeout: int = 16,
         delivery_mode=DeliveryMode.Transient,
         expiration: Optional[Union[str, None]] = None,  # example: '60000' -> 60s
         **kwargs
@@ -91,9 +104,9 @@ class AsyncEventbusRabbitMQ:
             )
 
         self._pub_connection.open(self.config.url)
-        return await self._pub_connection.add_callback(add_publish)
+        return await self._pub_connection.add_callback(add_publish, connection_timeout)
 
-    async def provide_resource(self, name: str, callback, response_timeout: int = None):
+    async def provide_resource(self, name: str, callback, response_timeout: int = None, connection_timeout: int = 16):
         async def add_resource():
             await self._rpc_server_connection.rpc_subscribe(
                 self.config.options.rpc_queue_name,
@@ -104,7 +117,7 @@ class AsyncEventbusRabbitMQ:
             )
 
         self._rpc_server_connection.open(self.config.url)
-        await self._rpc_server_connection.add_callback(add_resource)
+        await self._rpc_server_connection.add_callback(add_resource, connection_timeout)
 
     async def subscribe(
         self,
@@ -112,6 +125,7 @@ class AsyncEventbusRabbitMQ:
         handler: IntegrationEventHandler,
         routing_key: str,
         response_timeout: int = None,
+        connection_timeout: int = 16
     ):
         async def add_subscribe():
             await self._sub_connection.subscribe(
@@ -123,7 +137,7 @@ class AsyncEventbusRabbitMQ:
             )
 
         self._sub_connection.open(self.config.url)
-        await self._sub_connection.add_callback(add_subscribe)
+        await self._sub_connection.add_callback(add_subscribe, connection_timeout)
 
     async def dispose(self, stop_event_loop=True):
         await self._pub_connection.close()
