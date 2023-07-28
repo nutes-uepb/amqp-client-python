@@ -74,7 +74,7 @@ class AsyncConnection:
 
     def on_connection_open(self, _unused_connection):
         LOGGER.info(f"connection openned {_unused_connection}, {self._connection}")
-        Signal.emmit(Event.CONNECTED.value, condiction=self.type, loop=self.ioloop)
+        Signal.emmit(Event.CONNECTED, condiction=self.type, loop=self.ioloop)
         self.openning = False
         self._channel = AsyncChannel(self._prefetch_count, self._auto_ack, channel_type=self.type)
         self._channel.publisher_confirms = self.publisher_confirms

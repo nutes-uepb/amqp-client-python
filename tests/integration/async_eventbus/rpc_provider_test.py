@@ -1,10 +1,7 @@
 import pytest
-from amqp_client_python import AsyncEventbusRabbitMQ, ConnectionType
+from amqp_client_python import AsyncEventbusRabbitMQ
 from amqp_client_python.event import IntegrationEvent
-from asyncio import Future, BaseEventLoop, wait_for
-
-
-subscribe_event = IntegrationEvent("test", "test", ["hello"])
+from asyncio import Future, BaseEventLoop
 
 
 @pytest.mark.asyncio_cooperative
