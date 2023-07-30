@@ -11,7 +11,7 @@ class Options:
         login: str = "guest",
         passwd: str = "guest",
         domain: str = "localhost",
-        port: int = 5672,
+        port: int = None,
         vhost: str = "/",
         heartbeat: Optional[int] = 60,
         publisher_confirms=False,

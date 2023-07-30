@@ -19,12 +19,18 @@ class Config:
             "heartbeat": self.options.heartbeat,
         }
         if bool(self.ssl_options):
+            protocol = "amqps"
+            if self.options.port == None:
+                self.options.port = 5671
             opt["ssl_options"] = {
-                "certfile": self.ssl_options.certfile_path,
                 "keyfile": self.ssl_options.keyfile_path,
+                "certfile": self.ssl_options.certfile_path,
                 "ca_certs": self.ssl_options.ca_certs_path,
             }
-        protocol = "amqps" if bool(self.ssl_options) else "amqp"
+        else:
+            protocol = "amqp"
+            if self.options.port == None:
+                self.options.port = 5672
         if self.options.uri:
             url = "{}?{} ".format(self.options.uri, urlencode(opt))
         else:
