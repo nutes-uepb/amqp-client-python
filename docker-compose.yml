@@ -2,7 +2,7 @@ version: "3.8"
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: amqp-rabbitmq
+    container_name: lib-rabbitmq
     restart: always
     ports:
       - 15672:15672 # Management UI

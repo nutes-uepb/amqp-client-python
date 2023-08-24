@@ -2,14 +2,17 @@ from amqp_client_python import (
     AsyncEventbusRabbitMQ,
     Config, Options
 )
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-from .default import queue, rpc_queue, rpc_exchange
-from uvloop import new_event_loop # better performance, no windows-OS support
-#from asyncio import new_event_loop # great performance, great OS compatibility
+from amqp_client_python.event import IntegrationEvent, AsyncSubscriberHandler
+from default import queue, rpc_queue, rpc_exchange
+# from uvloop import new_event_loop # better performance, no windows-OS support
+from asyncio import new_event_loop # great performance, great OS compatibility
 import asyncio
 loop = new_event_loop()
 
-config = Config(Options(queue, rpc_queue, rpc_exchange))
+config = Config(
+    Options(queue, rpc_queue, rpc_exchange),
+    # SSLOptions("../.certs/amqp/rabbitmq_cert.pem", "../.certs/amqp/rabbitmq_key.pem", "../.certs/amqp/ca.pem")
+)
 
 
 async def handle(*body):
@@ -25,7 +28,7 @@ async def handle2(*body):
 async def handle3(*body):
     print(body)
 
-class ExampleEventHandler(IntegrationEventHandler):
+class ExampleEventHandler(AsyncSubscriberHandler):
     event_type = rpc_exchange
     async def handle(self, body) -> None:
         print(body)
@@ -53,7 +56,6 @@ async def run():
     while running:
         try:
             count += 1
-            await asyncio.sleep(0.1)
             result = await eventbus.rpc_client(rpc_exchange, "user.find", ["content_message"])
             print("returned:", result)
             await eventbus.publish(publish_event, "user.find3", ["content_message"])

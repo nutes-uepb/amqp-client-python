@@ -1,5 +1,6 @@
 from typing import Dict
 from .channel_factory_rabbitmq import ChannelFactoryRabbitMQ
+from amqp_client_python.signals import Signal, Event
 from pika.channel import Channel
 from pika import BasicProperties
 from functools import partial
@@ -13,14 +14,20 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ChannelRabbitMQ:
-    def __init__(self, auto_ack=True) -> None:
+    def __init__(self,
+                 auto_ack=True,
+                 signal= Signal(),
+                 channel_type: str = None
+    ) -> None:
         self.channel_factory = ChannelFactoryRabbitMQ()
         self.rpc_consumer = False
         self.rpc_publisher = False
         self._channel = None
         self._callback_queue = None
         self.auto_ack = auto_ack
+        self.signal = signal
         self.consumers = {}
+        self.type = channel_type
         self.futures: Dict[str, Future] = {}
         self._stopping = False
 
@@ -48,6 +55,7 @@ class ChannelRabbitMQ:
         self.add_on_channel_close_callback()
         if callback:
             callback("")
+        self.signal.emmit(Event.CHANNEL_OPENNED, self.type)
 
     def declare_exchange(self, exchange, exchange_type, durable=True, callback=None):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC

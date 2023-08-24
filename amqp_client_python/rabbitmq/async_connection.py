@@ -9,15 +9,8 @@ from asyncio import (
     TimeoutError
 )
 import logging
+from ..domain.utils import ConnectionType
 from amqp_client_python.signals import Signal, Event
-from enum import Enum
-
-
-class ConnectionType(Enum):
-    PUBLISH = "publish"
-    SUBSCRIBE = "subscribe"
-    RPC_CLIENT = "rpc_client"
-    RPC_SERVER = "rpc_server"
 
 
 LOGGER = logging.getLogger(__name__)
@@ -30,7 +23,8 @@ class AsyncConnection:
         publisher_confirms=False,
         prefetch_count=0,
         auto_ack=True,
-        connection_type: ConnectionType = None
+        connection_type: ConnectionType = None,
+        signal = Signal()
     ) -> None:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
@@ -38,7 +32,7 @@ class AsyncConnection:
         self._connection: AsyncioConnection = None
         self._prefetch_count = prefetch_count
         self._auto_ack = auto_ack
-        # self._channel = AsyncChannel(self._prefetch_count, self._auto_ack)
+        self.signal = signal
         self._closing = False
         self._consuming = False
         self.openning = False
@@ -74,9 +68,9 @@ class AsyncConnection:
 
     def on_connection_open(self, _unused_connection):
         LOGGER.info(f"connection openned {_unused_connection}, {self._connection}")
-        Signal.emmit(Event.CONNECTED, condiction=self.type, loop=self.ioloop)
+        self.signal.emmit(Event.CONNECTED, condiction=self.type, loop=self.ioloop)
         self.openning = False
-        self._channel = AsyncChannel(self._prefetch_count, self._auto_ack, channel_type=self.type)
+        self._channel = AsyncChannel(self._prefetch_count, self._auto_ack, channel_type=self.type, signal=self.signal)
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection, self.callbacks)
 

@@ -1,9 +1,12 @@
-from amqp_client_python import EventbusWrapperRabbitMQ, Config, Options
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
+from amqp_client_python import EventbusWrapperRabbitMQ, Config, Options, SSLOptions
+from amqp_client_python.event import IntegrationEvent, AsyncSubscriberHandler
 from default import queue, rpc_queue, rpc_exchange, rpc_routing_key
 
 
-config = Config(Options(queue, rpc_queue, rpc_exchange))
+config = Config(
+    Options(queue, rpc_queue, rpc_exchange),
+    # SSLOptions("../.certs/amqp/rabbitmq_cert.pem", "../.certs/amqp/rabbitmq_key.pem", "../.certs/amqp/ca.pem")
+)
 eventbus = EventbusWrapperRabbitMQ(config=config)
 
 
@@ -15,7 +18,7 @@ class ExampleEvent(IntegrationEvent):
         self.message = message
 
 
-class ExampleEventHandler(IntegrationEventHandler):
+class ExampleEventHandler(AsyncSubscriberHandler):
     async def handle(self, body) -> None:
         print(body, "subscribe")
 

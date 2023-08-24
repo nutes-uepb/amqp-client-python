@@ -7,11 +7,11 @@ class Event(Enum):
 
 
 class Signal:
-    events = {}
+    def __init__(self):
+        self.events = {}
 
-    @classmethod
     def on(
-        cls,
+        self,
         event: str,
         condiction=None
     ):
@@ -19,13 +19,23 @@ class Signal:
             Event(event)
 
             def wrapper(callback: callable):
-                cls.events[event] = (callback, condiction)
+                if event in self.events:
+                    if condiction in self.events[event]:
+                        self.events[event][condiction].append(callback)
+                    else:
+                        self.events[event][condiction] = [callback]
+                else:
+                    self.events[event] = {condiction: [callback]}
             return wrapper
         except ValueError:
             raise Exception("event not listed in events")
 
-    @classmethod
-    def emmit(cls, event: str, condiction, loop):
-        if event in cls.events:
-            if cls.events[event][1] == condiction:
-                loop.create_task(cls.events[event][0]())
+    def emmit(self, event: str, condiction, loop=None):
+        if event in self.events:
+            if condiction in self.events[event]:
+                if loop is None:
+                    return [callback() for callback in self.events[event][condiction]]
+                [loop.create_task(callback()) for callback in self.events[event][condiction]]
+    
+    def dispose(self):
+        self.events = {}

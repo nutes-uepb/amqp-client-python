@@ -64,7 +64,7 @@ publish_event = ExampleEvent(rpc_exchange, ["message"])
 eventbus.publish(publish_event, rpc_routing_key, "direct")
 # subscribe
 class ExampleEventHandler(IntegrationEventHandler):
-    def handle(self, body) -> None:
+    async def handle(self, body) -> None:
         print(body) # handle messages
 await eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
 # rpc_publish
@@ -190,8 +190,10 @@ while running:
 <br />
 
 ### Know Limitations:
-#### sync eventbus
-```sh
-Cannot use rpc call when inside of rpc provider and subscribe handlers
-#/obs: works on async eventbus wrapper
-```
+#### basic eventbus
+<medium><pre>
+When using [**EventbusRabbitMQ**](https://github.com/nutes-uepb/amqp-client-python/blob/master/amqp_client_python/rabbitmq/eventbus_rabbitmq.py#L12) Should not use rpc call inside of rpc provider and subscribe handlers, it may block the ioloop
+#/obs: fixed on other kinds of eventbus, will be removed on nexts releases
+</pre></medium>
+
+
