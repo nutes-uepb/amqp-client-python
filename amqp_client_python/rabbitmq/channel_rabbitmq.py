@@ -16,9 +16,9 @@ LOGGER = logging.getLogger(__name__)
 class ChannelRabbitMQ:
     def __init__(self,
                  auto_ack=True,
-                 signal= Signal(),
+                 signal=Signal(),
                  channel_type: str = None
-    ) -> None:
+                 ) -> None:
         self.channel_factory = ChannelFactoryRabbitMQ()
         self.rpc_consumer = False
         self.rpc_publisher = False

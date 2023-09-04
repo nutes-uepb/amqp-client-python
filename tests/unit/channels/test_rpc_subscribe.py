@@ -1,5 +1,6 @@
 from amqp_client_python.rabbitmq import AsyncChannel
 from amqp_client_python.exceptions import EventBusException
+from amqp_client_python import ConnectionType
 from asyncio import iscoroutine, Future, get_running_loop
 import pytest
 
@@ -8,6 +9,7 @@ import pytest
 async def test_async_channel_subscribe(
     connection_mock, channel_mock, channel_factory_mock
 ):
+    loop = get_running_loop()
     exchange, routing_key, queue_name, content_type = (
         "ex_example",
         "rk_example",
@@ -15,13 +17,13 @@ async def test_async_channel_subscribe(
         "content_example",
     )
 
-    future_publisher = Future()
+    future_publisher = Future(loop=loop)
     future_publisher.set_result(True)
     connection_mock.ioloop.create_future.side_effect = [
         future_publisher,
     ]
     channel_factory_mock.create_channel.return_value = channel_mock
-    channel = AsyncChannel(channel_factory=channel_factory_mock)
+    channel = AsyncChannel(channel_factory=channel_factory_mock, channel_type=ConnectionType.RPC_SERVER)
     channel.open(connection_mock)
 
     async def handle(*body):
@@ -49,7 +51,7 @@ async def test_rpc_subscribe_publisher_started(
         "qn_example",
         "content_example",
     )
-    future_publisher = Future()
+    future_publisher = Future(loop=loop)
     if consumer:
         future_publisher.set_result(True)
     connection_mock.ioloop.create_future.side_effect = [

@@ -20,7 +20,7 @@ class Config:
         }
         if bool(self.ssl_options):
             protocol = "amqps"
-            if self.options.port == None:
+            if self.options.port is None:
                 self.options.port = 5671
             opt["ssl_options"] = {
                 "keyfile": self.ssl_options.keyfile_path,
@@ -29,7 +29,7 @@ class Config:
             }
         else:
             protocol = "amqp"
-            if self.options.port == None:
+            if self.options.port is None:
                 self.options.port = 5672
         if self.options.uri:
             url = "{}?{} ".format(self.options.uri, urlencode(opt))

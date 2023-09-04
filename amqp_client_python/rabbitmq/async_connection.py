@@ -24,7 +24,7 @@ class AsyncConnection:
         prefetch_count=0,
         auto_ack=True,
         connection_type: ConnectionType = None,
-        signal = Signal()
+        signal=Signal()
     ) -> None:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms

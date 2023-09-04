@@ -28,7 +28,7 @@ class AsyncChannel:
         auto_ack=True,
         channel_factory=AsyncChannelFactoryRabbitMQ(),
         channel_type: str = None,
-        signal = Signal()
+        signal=Signal()
     ) -> None:
         self.ioloop: AbstractEventLoop = None
         self.channel_factory = channel_factory

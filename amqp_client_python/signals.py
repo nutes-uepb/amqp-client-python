@@ -36,6 +36,6 @@ class Signal:
                 if loop is None:
                     return [callback() for callback in self.events[event][condiction]]
                 [loop.create_task(callback()) for callback in self.events[event][condiction]]
-    
+
     def dispose(self):
         self.events = {}

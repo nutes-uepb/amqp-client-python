@@ -165,7 +165,10 @@ class EventbusWrapperRabbitMQ:
         )
 
     def provide_resource(
-        self, name: str, callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]], response_timeout: int = None, connection_timeout: int = 16
+        self, name: str,
+        callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
+        response_timeout: int = None,
+        connection_timeout: int = 16
     ) -> Future:
         if self._thread.ident == current_thread().ident:
             raise BlockingException(
@@ -177,7 +180,11 @@ class EventbusWrapperRabbitMQ:
         )
 
     async def async_provide_resource(
-        self, name: str, callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]], response_timeout: int = None, connection_timeout: int = 16
+        self,
+        name: str,
+        callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
+        response_timeout: int = None,
+        connection_timeout: int = 16
     ):
         if self._thread.ident != current_thread().ident:
             raise ThreadUnsafeException(
