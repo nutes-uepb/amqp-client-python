@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Self
 from pika import URLParameters
 from .options import Options
 from .ssl_options import SSLOptions
@@ -9,11 +9,41 @@ class Config:
     def __init__(
         self, options: Options, ssl_options: Optional[SSLOptions] = None
     ) -> None:
+        """
+        Create an Config object thats hold and mount the connection information.
+
+        Args:
+            options: hold information for estabilish connection
+            ssl_options: hold information for estabilish SSL connections
+
+        Returns:
+
+        Raises:
+
+        Examples:
+            >>> Config(
+                    Options("example", "example.rpc", "example.rpc", "amqp://admin:admin@localhost:5672/"),
+                    SSLOptions("./.certs/cert.pem", "./.certs/privkey.pem", "./.certs/ca.pem")
+                )
+        """
         self.url = None
         self.options = options
         self.ssl_options = ssl_options
 
-    def build(self):
+    def build(self) -> Self:
+        """
+        Create an Config object thats hold and mount the connection information.
+
+        Args:
+
+        Returns:
+            Config object
+
+        Raises:
+
+        Examples:
+            >>> config.build()
+        """
         opt = {
             **self.options.kwargs,
             "heartbeat": self.options.heartbeat,

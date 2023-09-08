@@ -4,3 +4,4 @@ dist/*
 .certs/
 .config/
 *_env/
+site/

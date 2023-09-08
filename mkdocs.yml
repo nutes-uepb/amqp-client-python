@@ -1,0 +1,34 @@
+site_name: amqp-client-python
+repo_url: https://github.com/nutes-uepb/amqp-client-python
+repo_name: amqp-client-python
+edit_uri: tree/master/docs
+
+theme:
+  name: material
+  language: en
+  # logo: assets/icon2.webp
+  # favicon: assets/icon2.webp
+
+markdown_extensions:
+  - attr_list
+  - toc:
+      permalink: "#"
+      baselevel: 2
+      separator: "_"
+
+extra_css:
+  - stylesheets/extra.css
+
+watch:
+  - amqp_client_python
+
+plugins:
+  - macros
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:  [amqp_client_python]
+
+extra:
+  commands:
+    run: amqp_client_python

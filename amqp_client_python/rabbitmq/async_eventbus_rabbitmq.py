@@ -12,17 +12,54 @@ class AsyncEventbusRabbitMQ:
     def __init__(
         self,
         config: Config,
-        loop=None,
-        pub_publisher_confirms=True,
-        rpc_client_publisher_confirms=True,
-        rpc_server_publisher_confirms=False,
-        sub_prefetch_count=0,
-        rpc_client_prefetch_count=0,
-        rpc_server_prefetch_count=0,
-        sub_auto_ack=False,
-        rpc_client_auto_ack=False,
-        rpc_server_auto_ack=False,
+        loop: Optional[AbstractEventLoop] = None,
+        pub_publisher_confirms: bool = True,
+        rpc_client_publisher_confirms: bool = True,
+        rpc_server_publisher_confirms: bool = False,
+        sub_prefetch_count: int = 0,
+        rpc_client_prefetch_count: int = 0,
+        rpc_server_prefetch_count: int = 0,
+        sub_auto_ack: bool = False,
+        rpc_client_auto_ack: bool = False,
+        rpc_server_auto_ack: bool = False,
     ) -> None:
+        """
+        Create an AsyncEventbusRabbitMQ object thats interacts with Bus
+        thats provides some connection management abstractions.
+
+        Args:
+            config: the Config object
+            loop: pass an event loop object
+            pub_publisher_confirms: set True to allow publisher confirmations on pub connectio
+            rpc_client_publisher_confirms: set True to allow publisher confirmations on rpc client connection
+            rpc_server_publisher_confirms: set True to allow publisher confirmations on rpc server connection
+            sub_prefetch_count: set how many messages to prefetch on sub connection
+            rpc_client_prefetch_count: set how many messages to prefetch on rpc client connection
+            rpc_server_prefetch_count: set how many messages to prefetch on rpc server connection
+            sub_auto_ack: set to True to ack messages before processing on sub connection
+            rpc_client_auto_ack: set to True to ack messages before processing on rpc client connection
+            rpc_server_auto_ack: set to True to ack messages before processing on rpc server connection
+
+        Returns:
+            AsyncEventbusRabbitMQ object
+
+        Raises:
+
+        Examples:
+            >>> async_eventbus = AsyncEventbusRabbitMQ(
+                config, loop, rpc_client_publisher_confirms=True,
+                rpc_server_publisher_confirms=False, rpc_server_auto_ack=False)
+            ### register subscribe
+            >>> def handler(*body):
+                    print(f"do something with: {body}")
+            >>> subscribe_event = ExampleEvent("rpc_exchange")
+            >>> await eventbus.subscribe(subscribe_event, handler, "user.find")
+            ### provide resource
+            >>> def handler2(*body):
+                    print(f"do something with: {body}")
+                    return "response"
+            >>> await eventbus.provide_resource("user.find2", handle2)
+        """
         self._loop: AbstractEventLoop = loop
         self._signal = Signal()
         self._pub_connection = AsyncConnection(

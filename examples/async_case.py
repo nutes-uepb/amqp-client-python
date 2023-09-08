@@ -6,7 +6,7 @@ from amqp_client_python.event import IntegrationEvent, AsyncSubscriberHandler
 from default import queue, rpc_queue, rpc_exchange
 # from uvloop import new_event_loop # better performance, no windows-OS support
 from asyncio import new_event_loop # great performance, great OS compatibility
-import asyncio
+
 loop = new_event_loop()
 
 config = Config(
