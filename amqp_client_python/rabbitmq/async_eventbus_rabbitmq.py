@@ -100,13 +100,40 @@ class AsyncEventbusRabbitMQ:
         exchange: str,
         routing_key: str,
         body: List[Any],
-        content_type="application/json",
-        timeout=5,
-        connection_timeout: int = 16,
-        delivery_mode=DeliveryMode.Transient,
+        content_type: str = "application/json",
+        timeout: float = 5,
+        connection_timeout: float = 16,
+        delivery_mode: DeliveryMode = DeliveryMode.Transient,
         expiration: Optional[Union[str, None]] = None,
         **kwargs
-    ):
+    ) -> bytes:
+        """
+        Sends a publish message to queue of the bus and waits for a response
+
+        Args:
+            exchange: exchange name
+            routing_key:  routing key name
+            body: body that will be sent
+            content_type: content type of message
+            timeout: timeout in seconds for waiting for response
+            connection_timeout: timeout for waiting for connection restabilishment
+            delivery_mode: delivery mode
+            expiration: maximum lifetime of message to stay on the queue
+
+        Returns:
+            bytes: response message
+
+        Raises:
+            AutoReconnectException: when cannout reconnect on the gived timeout
+            PublishTimeoutException: if publish confirmation is setted to True and \
+            does not receive confirmation on the gived timeout
+            NackException: if publish confirmation is setted to True and receives a nack
+            ResponseTimeoutException: if response timeout is reached
+            RpcProviderException: if the rpc provider responded with an error
+
+        Examples:
+            >>> await eventbus.rpc_client("example.rpc", "user.find", [{"name": "example"}], "application/json")
+        """
         async def add_rpc_client():
             return await self._rpc_client_connection.rpc_client(
                 exchange,
@@ -127,13 +154,41 @@ class AsyncEventbusRabbitMQ:
         event: IntegrationEvent,
         routing_key: str,
         body: List[Any],
-        content_type="application/json",
-        timeout=5,
-        connection_timeout: int = 16,
-        delivery_mode=DeliveryMode.Transient,
+        content_type: str = "application/json",
+        timeout: float = 5,
+        connection_timeout: float = 16,
+        delivery_mode: DeliveryMode = DeliveryMode.Transient,
         expiration: Optional[Union[str, None]] = None,  # example: '60000' -> 60s
         **kwargs
-    ):
+    ) -> Optional[True]:
+        """
+        Sends a publish message to the bus following parameters passed
+
+        Args:
+            exchange: exchange name
+            routing_key:  routing key name
+            body: body that will be sent
+            content_type: content type of message
+            timeout: timeout in seconds for waiting for response
+            connection_timeout: timeout for waiting for connection restabilishment
+            delivery_mode: delivery mode
+            expiration: maximum lifetime of message to stay on the queue
+
+        Returns:
+            None: if publish confirmation is setted to False
+            True: if successful when publish confirmation is setted to True
+
+        Raises:
+            AutoReconnectException: when cannout reconnect on the gived timeout
+            PublishTimeoutException: if publish confirmation is setted to True and \
+            does not receive confirmation on the gived timeout
+            NackException: if publish confirmation is setted to True and receives a nack
+
+
+        Examples:
+            >>> publish_event = ExampleEvent("example.rpc")
+            >>> await eventbus.publish(publish_event, "user.find3", ["content_message"])
+        """
         async def add_publish():
             return await self._pub_connection.publish(
                 event.event_type,
@@ -155,7 +210,28 @@ class AsyncEventbusRabbitMQ:
         callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
         response_timeout: int = None,
         connection_timeout: int = 16
-    ):
+    ) -> None:
+        """
+        Register a provider to listen on queue of bus
+
+        Args:
+            name: routing_key name
+            callback: message handler
+            response_timeout: timeout in seconds for waiting for process the received message
+            connection_timeout: timeout for waiting for connection restabilishment
+
+        Returns:
+            None: None
+
+        Raises:
+            AutoReconnectException: when cannout reconnect on the gived timeout
+
+        Examples:
+            >>> async def handle(*body) -> Union[bytes, str]:
+                    print(f"received message: {body}")
+                    return b"[]"
+            >>> await eventbus.provide_resource("user.find", handle)
+        """
         async def add_resource():
             await self._rpc_server_connection.rpc_subscribe(
                 self.config.options.rpc_queue_name,
@@ -175,7 +251,28 @@ class AsyncEventbusRabbitMQ:
         routing_key: str,
         response_timeout: int = None,
         connection_timeout: int = 16
-    ):
+    ) -> None:
+        """
+        Register a provider to listen on queue of bus
+
+        Args:
+            name: routing_key name
+            callback: message handler
+            response_timeout: timeout in seconds for waiting for process the received message
+            connection_timeout: timeout for waiting for connection restabilishment
+
+        Returns:
+            None: None
+
+        Raises:
+            AutoReconnectException: when cannout reconnect on the gived timeout
+
+        Examples:
+            >>> async def handle(*body) -> None:
+                    print(f"received message: {body}")
+            >>> subscribe_event = ExampleEvent("example.rpc")
+            >>> await eventbus.subscribe(subscribe_event, event_handle, "user.find3")
+        """
         async def add_subscribe():
             await self._sub_connection.subscribe(
                 self.config.options.queue_name,
@@ -188,7 +285,7 @@ class AsyncEventbusRabbitMQ:
         self._sub_connection.open(self.config.url)
         await self._sub_connection.add_callback(add_subscribe, connection_timeout)
 
-    async def dispose(self, stop_event_loop=True):
+    async def dispose(self, stop_event_loop=True) -> None:
         await self._pub_connection.close()
         await self._sub_connection.close()
         await self._rpc_client_connection.close()

@@ -1,4 +1,4 @@
-from typing import Optional, Self
+from typing import Optional
 from pika import URLParameters
 from .options import Options
 from .ssl_options import SSLOptions
@@ -30,7 +30,7 @@ class Config:
         self.options = options
         self.ssl_options = ssl_options
 
-    def build(self) -> Self:
+    def build(self) -> "Config":
         """
         Create an Config object thats hold and mount the connection information.
 
