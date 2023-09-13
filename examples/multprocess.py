@@ -1,10 +1,11 @@
+# DEPRECATED EVENTBUS
 from amqp_client_python import (
     EventbusRabbitMQ,
     Config, Options,
     SSLOptions
 )
 from examples.default import (queue, rpc_queue, rpc_exchange, rpc_routing_key,
-    certfile_path, keyfile_path, ca_certs_path, port
+    certfile_path, keyfile_path, ca_certs_path
 )
 from dependency_injector import containers, providers
 from multiprocessing import Process
@@ -23,14 +24,13 @@ class EventBusContainer(containers.DeclarativeContainer):
         Options,
         queue_name=queue,
         rpc_queue_name=rpc_queue,
-        rpc_exchange_name=rpc_exchange,
-        port=port
+        rpc_exchange_name=rpc_exchange
     )
 
     eventbus_config = providers.Singleton(
         Config,
         options=eventbus_options,
-        #ssl_options=eventbus_ssl_options
+        # ssl_options=eventbus_ssl_options
     )
     eventbus = providers.Singleton(
         EventbusRabbitMQ,

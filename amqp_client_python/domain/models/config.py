@@ -9,22 +9,58 @@ class Config:
     def __init__(
         self, options: Options, ssl_options: Optional[SSLOptions] = None
     ) -> None:
+        """
+        Create an Config object thats hold and mount the connection information.
+
+        Args:
+            options: hold information for estabilish connection
+            ssl_options: hold information for estabilish SSL connections
+
+        Returns:
+
+        Raises:
+
+        Examples:
+            >>> Config(
+                    Options("example", "example.rpc", "example.rpc", "amqp://admin:admin@localhost:5672/"),
+                    SSLOptions("./.certs/cert.pem", "./.certs/privkey.pem", "./.certs/ca.pem")
+                )
+        """
         self.url = None
         self.options = options
         self.ssl_options = ssl_options
 
-    def build(self):
+    def build(self) -> "Config":
+        """
+        Create an Config object thats hold and mount the connection information.
+
+        Args:
+
+        Returns:
+            Config object
+
+        Raises:
+
+        Examples:
+            >>> config.build()
+        """
         opt = {
             **self.options.kwargs,
             "heartbeat": self.options.heartbeat,
         }
         if bool(self.ssl_options):
+            protocol = "amqps"
+            if self.options.port is None:
+                self.options.port = 5671
             opt["ssl_options"] = {
-                "certfile": self.ssl_options.certfile_path,
                 "keyfile": self.ssl_options.keyfile_path,
+                "certfile": self.ssl_options.certfile_path,
                 "ca_certs": self.ssl_options.ca_certs_path,
             }
-        protocol = "amqps" if bool(self.ssl_options) else "amqp"
+        else:
+            protocol = "amqp"
+            if self.options.port is None:
+                self.options.port = 5672
         if self.options.uri:
             url = "{}?{} ".format(self.options.uri, urlencode(opt))
         else:

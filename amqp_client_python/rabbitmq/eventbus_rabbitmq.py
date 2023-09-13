@@ -1,7 +1,9 @@
+from typing import Callable, Union, Any, List
 from .connection_rabbitmq import ConnectionRabbitMQ
-from ..event import IntegrationEvent, IntegrationEventHandler
+from ..event import IntegrationEvent, SubscriberHandler
 from amqp_client_python.domain.models import Config
-from typing import Any, List
+from amqp_client_python.signals import Signal
+from ..domain.utils import ConnectionType
 from threading import Thread
 from .ioloop_factory import IOLoopFactory
 from concurrent.futures import Future as syncFuture
@@ -11,13 +13,16 @@ import asyncio
 
 class EventbusRabbitMQ:
     def __init__(self, config: Config) -> None:
-        self.pub_connection = ConnectionRabbitMQ()
-        self.sub_connection = ConnectionRabbitMQ()
-        self.rpc_client_connection = ConnectionRabbitMQ()
-        self.rpc_server_connection = ConnectionRabbitMQ()
+        self.pub_connection = ConnectionRabbitMQ(connection_type=ConnectionType.PUBLISH)
+        self.sub_connection = ConnectionRabbitMQ(connection_type=ConnectionType.SUBSCRIBE)
+        self.rpc_client_connection = ConnectionRabbitMQ(connection_type=ConnectionType.RPC_CLIENT)
+        self.rpc_server_connection = ConnectionRabbitMQ(connection_type=ConnectionType.RPC_SERVER)
         self.config = config.build()
+        self._signal = Signal()
+        self.on = self._signal.on
         self._rpc_server_initialized = False
-        self.thread = Thread(target=IOLoopFactory.start).start()
+        self.thread = Thread(target=self.event_loop.start)
+        self.thread.start()
 
     @property
     def event_loop(self):
@@ -101,7 +106,7 @@ class EventbusRabbitMQ:
     def subscribe(
         self,
         event: IntegrationEvent,
-        handler: IntegrationEventHandler,
+        handler: SubscriberHandler,
         routing_key: str,
         exchange_type: str = "direct",
         exchange_durable=True,
@@ -131,7 +136,7 @@ class EventbusRabbitMQ:
 
         self.event_loop.add_callback_threadsafe(add_subscribe)
 
-    def provide_resource(self, name: str, callback):
+    def provide_resource(self, name: str, callback: Callable[[List[Any]], Union[bytes, str]]):
         self.initialize_rpc_server()
 
         def add_provider():
@@ -176,3 +181,4 @@ class EventbusRabbitMQ:
             self.rpc_server_connection.close()
         if stop_event_loop:
             self.event_loop.add_callback_threadsafe(self.event_loop.stop)
+        self._signal.dispose()

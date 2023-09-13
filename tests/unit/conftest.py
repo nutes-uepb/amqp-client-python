@@ -1,5 +1,5 @@
 from amqp_client_python.rabbitmq import AsyncConnection, AsyncChannelFactoryRabbitMQ
-from unittest.mock import Mock, MagicMock, AsyncMock
+from unittest.mock import Mock, AsyncMock
 import pytest
 
 

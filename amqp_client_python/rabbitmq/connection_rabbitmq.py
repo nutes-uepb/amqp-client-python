@@ -2,6 +2,7 @@ from .connection_factory_rabbitmq import ConnectionFactoryRabbitMQ
 from .channel_rabbitmq import ChannelRabbitMQ
 from amqp_client_python.exceptions import EventBusException
 from pika import SelectConnection, URLParameters
+from amqp_client_python.signals import Signal, Event
 from .ioloop_factory import IOLoopFactory
 import logging
 
@@ -13,13 +14,15 @@ class ConnectionRabbitMQ:
     _connection: SelectConnection
     _channel: ChannelRabbitMQ
 
-    def __init__(self) -> None:
+    def __init__(self, connection_type) -> None:
         self._connectionFactory = ConnectionFactoryRabbitMQ()
         self._connection = None
+        self.type = connection_type
+        self.signal = Signal()
         self.ioloop_factory = IOLoopFactory
         self.ioloop_factory.add_reconnection(self.reconnect)
         self._stopping = False
-        self._channel = ChannelRabbitMQ()
+        self._channel = ChannelRabbitMQ(channel_type=self.type)
         self._uri = None
         self.backup = {
             "exchange": {},
@@ -145,6 +148,7 @@ class ConnectionRabbitMQ:
         :param pika.SelectConnection _unused_connection: The connection
         """
         LOGGER.debug("Connection opened")
+        self.signal.emmit(Event.CONNECTED, condiction=self.type)
         if not self.channel_is_open():
             self.channel_open()
         # self.pause()

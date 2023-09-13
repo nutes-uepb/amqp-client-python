@@ -7,6 +7,7 @@ from amqp_client_python.exceptions import (
     ResponseTimeoutException,
     EventBusException,
 )
+from amqp_client_python.signals import Signal, Event
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.channel import Channel
 from pika import BasicProperties, DeliveryMode
@@ -26,11 +27,15 @@ class AsyncChannel:
         prefetch_count=0,
         auto_ack=True,
         channel_factory=AsyncChannelFactoryRabbitMQ(),
+        channel_type: str = None,
+        signal=Signal()
     ) -> None:
         self.ioloop: AbstractEventLoop = None
         self.channel_factory = channel_factory
         self._channel: Channel = None
         self._connection: AsyncioConnection = None
+        self.type = channel_type
+        self.signal = signal
         self._callback_queue = f"amqp.{uuid4()}"
         self.futures: MutableMapping[str, Mapping[str, Future]] = {}
         self.rpc_consumer = False
@@ -52,8 +57,9 @@ class AsyncChannel:
     def is_open(self):
         return self._channel and self._channel.is_open
 
-    def open(self, connection: AsyncioConnection):
+    def open(self, connection: AsyncioConnection, callbacks=[]):
         if not self.is_open:
+            self.callbacks = callbacks
             self._connection = connection
             self.ioloop: AbstractEventLoop = connection.ioloop
             self._channel: Channel = self.channel_factory.create_channel(
@@ -71,6 +77,14 @@ class AsyncChannel:
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
         self._prefetch_count and self.set_qos(self._prefetch_count)
+        self.signal.emmit(Event.CHANNEL_OPENNED, self.type, self.ioloop)
+        self.ioloop.create_task(self.process_callbacks())
+
+    async def process_callbacks(self):
+        for callback, future in self.callbacks:
+            result = await callback()
+            if not future.done():
+                future.set_result(result)
 
     def add_on_channel_close_callback(self):
         """This method tells pika to call the on_channel_closed method if
@@ -452,11 +466,13 @@ class AsyncChannel:
         self.queue_declare(queue_name)
         self.queue_bind(queue_name, exchange_name, routing_key)
         if queue_name not in self.consumers:
+            registered = Future(loop=self.ioloop)
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
             self._channel.basic_consume(
-                queue_name, on_message_callback=func, auto_ack=self.auto_ack
+                queue_name, on_message_callback=func, auto_ack=self.auto_ack, callback=lambda _: registered.set_result(True)
             )
+            await registered
 
     async def subscribe(
         self,

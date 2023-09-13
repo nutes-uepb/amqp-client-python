@@ -1,15 +1,15 @@
-from amqp_client_python import EventbusRabbitMQ, Config, Options
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-from examples.default import queue, rpc_queue, rpc_exchange
+from amqp_client_python import EventbusRabbitMQ, Config, Options, SSLOptions
+from amqp_client_python.event import IntegrationEvent, SubscriberHandler
+from default import queue, rpc_queue, rpc_exchange
 
 
-# rpc_client call inside rpc_provider
-# if __name__ == "__main__":
-
+# do not use if you need use a rpc_client call inside a rpc_provider
+config = Config(
+    Options(queue, rpc_queue, rpc_exchange),
+    # SSLOptions("../.certs/amqp/rabbitmq_cert.pem", "../.certs/amqp/rabbitmq_key.pem", "../.certs/amqp/ca.pem")
+)
+eventbus = EventbusRabbitMQ(config)
 try:
-    config = Config(Options(queue, rpc_queue, rpc_exchange))
-    eventbus = EventbusRabbitMQ(config)
-
     def handle(*body):
         print(f"body1: {body}")
         return b"response"
@@ -17,7 +17,7 @@ try:
     def handle3(*body):
         print(body)
 
-    class ExampleEventHandler(IntegrationEventHandler):
+    class ExampleEventHandler(SubscriberHandler):
         event_type = rpc_exchange
 
         def handle(self, *body) -> None:
@@ -48,5 +48,5 @@ try:
             print(f"err: {err}")
 except (KeyboardInterrupt, BaseException) as err:
     print("err", err)
-
+from time import sleep
 eventbus.dispose()

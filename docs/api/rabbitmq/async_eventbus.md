@@ -1,0 +1,1 @@
+::: rabbitmq.async_eventbus_rabbitmq

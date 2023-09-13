@@ -1,3 +1,4 @@
+# DEPRECATED
 from amqp_client_python import (
     EventbusRabbitMQ,
     Config, Options
