@@ -405,6 +405,34 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.provide_resource" class="md-nav__link">
+    provide_resource()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.publish" class="md-nav__link">
+    publish()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.rpc_client" class="md-nav__link">
+    rpc_client()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.subscribe" class="md-nav__link">
+    subscribe()
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -474,6 +502,34 @@
           <li class="md-nav__item">
   <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.__init__" class="md-nav__link">
     __init__()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.provide_resource" class="md-nav__link">
+    provide_resource()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.publish" class="md-nav__link">
+    publish()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.rpc_client" class="md-nav__link">
+    rpc_client()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.subscribe" class="md-nav__link">
+    subscribe()
   </a>
   
 </li>
@@ -724,7 +780,104 @@
 <span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
-<span class="normal">198</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">AsyncEventbusRabbitMQ</span><span class="p">:</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">AsyncEventbusRabbitMQ</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span>
@@ -816,13 +969,40 @@
         <span class="n">exchange</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
-        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-        <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
-        <span class="n">delivery_mode</span><span class="o">=</span><span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+        <span class="n">delivery_mode</span><span class="p">:</span> <span class="n">DeliveryMode</span> <span class="o">=</span> <span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span>
         <span class="n">expiration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">):</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sends a publish message to queue of the bus and waits for a response</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            exchange: exchange name</span>
+<span class="sd">            routing_key:  routing key name</span>
+<span class="sd">            body: body that will be sent</span>
+<span class="sd">            content_type: content type of message</span>
+<span class="sd">            timeout: timeout in seconds for waiting for response</span>
+<span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
+<span class="sd">            delivery_mode: delivery mode</span>
+<span class="sd">            expiration: maximum lifetime of message to stay on the queue</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bytes: response message</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
+<span class="sd">            PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">            does not receive confirmation on the gived timeout</span>
+<span class="sd">            NackException: if publish confirmation is setted to True and receives a nack</span>
+<span class="sd">            ResponseTimeoutException: if response timeout is reached</span>
+<span class="sd">            RpcProviderException: if the rpc provider responded with an error</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.rpc_client(&quot;example.rpc&quot;, &quot;user.find&quot;, [{&quot;name&quot;: &quot;example&quot;}], &quot;application/json&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_rpc_client</span><span class="p">():</span>
             <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">rpc_client</span><span class="p">(</span>
                 <span class="n">exchange</span><span class="p">,</span>
@@ -843,13 +1023,41 @@
         <span class="n">event</span><span class="p">:</span> <span class="n">IntegrationEvent</span><span class="p">,</span>
         <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
-        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-        <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
-        <span class="n">delivery_mode</span><span class="o">=</span><span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+        <span class="n">delivery_mode</span><span class="p">:</span> <span class="n">DeliveryMode</span> <span class="o">=</span> <span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span>
         <span class="n">expiration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># example: &#39;60000&#39; -&gt; 60s</span>
         <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">):</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sends a publish message to the bus following parameters passed</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            exchange: exchange name</span>
+<span class="sd">            routing_key:  routing key name</span>
+<span class="sd">            body: body that will be sent</span>
+<span class="sd">            content_type: content type of message</span>
+<span class="sd">            timeout: timeout in seconds for waiting for response</span>
+<span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
+<span class="sd">            delivery_mode: delivery mode</span>
+<span class="sd">            expiration: maximum lifetime of message to stay on the queue</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None: if publish confirmation is setted to False</span>
+<span class="sd">            True: if successful when publish confirmation is setted to True</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
+<span class="sd">            PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">            does not receive confirmation on the gived timeout</span>
+<span class="sd">            NackException: if publish confirmation is setted to True and receives a nack</span>
+
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; publish_event = ExampleEvent(&quot;example.rpc&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.publish(publish_event, &quot;user.find3&quot;, [&quot;content_message&quot;])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_publish</span><span class="p">():</span>
             <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
                 <span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
@@ -871,7 +1079,28 @@
         <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
         <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
-    <span class="p">):</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a provider to listen on queue of bus</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: routing_key name</span>
+<span class="sd">            callback: message handler</span>
+<span class="sd">            response_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None: None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; async def handle(*body) -&gt; Union[bytes, str]:</span>
+<span class="sd">                    print(f&quot;received message: {body}&quot;)</span>
+<span class="sd">                    return b&quot;[]&quot;</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find&quot;, handle)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_resource</span><span class="p">():</span>
             <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">rpc_subscribe</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_queue_name</span><span class="p">,</span>
@@ -891,7 +1120,28 @@
         <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
-    <span class="p">):</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a provider to listen on queue of bus</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: routing_key name</span>
+<span class="sd">            callback: message handler</span>
+<span class="sd">            response_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None: None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; async def handle(*body) -&gt; None:</span>
+<span class="sd">                    print(f&quot;received message: {body}&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; subscribe_event = ExampleEvent(&quot;example.rpc&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.subscribe(subscribe_event, event_handle, &quot;user.find3&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_subscribe</span><span class="p">():</span>
             <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">queue_name</span><span class="p">,</span>
@@ -904,7 +1154,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_subscribe</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 
-    <span class="k">async</span> <span class="k">def</span> <span class="nf">dispose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stop_event_loop</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">dispose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stop_event_loop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
@@ -1319,6 +1569,1136 @@ thats provides some connection management abstractions.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">on</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="o">.</span><span class="n">on</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.provide_resource" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">provide_resource</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">response_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.provide_resource" class="headerlink" title="Permanent link">#</a></h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Register a provider to listen on queue of bus</p>
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>name</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>routing_key name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>callback</code></td>
+          <td>
+                <code><span title="typing.Callable">Callable</span>[[<span title="typing.List">List</span>[<span title="typing.Any">Any</span>]], <span title="typing.Awaitable">Awaitable</span>[<span title="typing.Union">Union</span>[bytes, str]]]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>message handler</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>response_timeout</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout in seconds for waiting for process the received message</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>connection_timeout</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout for waiting for connection restabilishment</p>
+            </div>
+          </td>
+          <td>
+                <code>16</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>None</code></td>          <td>
+                <code>None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>None</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Raises:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>AutoReconnectException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>when cannout reconnect on the gived timeout</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+<p><strong>Examples:</strong></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">async</span> <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="o">*</span><span class="n">body</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="go">        print(f&quot;received message: {body}&quot;)</span>
+<span class="go">        return b&quot;[]&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">provide_resource</span><span class="p">(</span><span class="s2">&quot;user.find&quot;</span><span class="p">,</span> <span class="n">handle</span><span class="p">)</span>
+</code></pre></div>
+
+      <details class="quote">
+        <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">provide_resource</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
+    <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Register a provider to listen on queue of bus</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: routing_key name</span>
+<span class="sd">        callback: message handler</span>
+<span class="sd">        response_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        None: None</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; async def handle(*body) -&gt; Union[bytes, str]:</span>
+<span class="sd">                print(f&quot;received message: {body}&quot;)</span>
+<span class="sd">                return b&quot;[]&quot;</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find&quot;, handle)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">add_resource</span><span class="p">():</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">rpc_subscribe</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_queue_name</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_exchange_name</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="n">callback</span><span class="p">,</span>
+            <span class="n">response_timeout</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_resource</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.publish" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">publish</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;application/json&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">delivery_mode</span><span class="o">=</span><span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span> <span class="n">expiration</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.publish" class="headerlink" title="Permanent link">#</a></h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Sends a publish message to the bus following parameters passed</p>
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>exchange</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>exchange name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>routing_key</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>routing key name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>body</code></td>
+          <td>
+                <code><span title="typing.List">List</span>[<span title="typing.Any">Any</span>]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>body that will be sent</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>content_type</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>content type of message</p>
+            </div>
+          </td>
+          <td>
+                <code>&#39;application/json&#39;</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>timeout</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout in seconds for waiting for response</p>
+            </div>
+          </td>
+          <td>
+                <code>5</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>connection_timeout</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout for waiting for connection restabilishment</p>
+            </div>
+          </td>
+          <td>
+                <code>16</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>delivery_mode</code></td>
+          <td>
+                <code><span title="pika.DeliveryMode">DeliveryMode</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>delivery mode</p>
+            </div>
+          </td>
+          <td>
+                <code>DeliveryMode.Transient</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>expiration</code></td>
+          <td>
+                <code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[str, None]]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>maximum lifetime of message to stay on the queue</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>None</code></td>          <td>
+                <code><span title="typing.Optional">Optional</span>[bool]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if publish confirmation is setted to False</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+<td><code>True</code></td>          <td>
+                <code><span title="typing.Optional">Optional</span>[bool]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if successful when publish confirmation is setted to True</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Raises:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>AutoReconnectException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>when cannout reconnect on the gived timeout</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+                <code>PublishTimeoutException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if publish confirmation is setted to True and             does not receive confirmation on the gived timeout</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+                <code>NackException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if publish confirmation is setted to True and receives a nack</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+<p><strong>Examples:</strong></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">publish_event</span> <span class="o">=</span> <span class="n">ExampleEvent</span><span class="p">(</span><span class="s2">&quot;example.rpc&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">publish_event</span><span class="p">,</span> <span class="s2">&quot;user.find3&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;content_message&quot;</span><span class="p">])</span>
+</code></pre></div>
+
+      <details class="quote">
+        <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">publish</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">event</span><span class="p">:</span> <span class="n">IntegrationEvent</span><span class="p">,</span>
+    <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+    <span class="n">delivery_mode</span><span class="p">:</span> <span class="n">DeliveryMode</span> <span class="o">=</span> <span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span>
+    <span class="n">expiration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># example: &#39;60000&#39; -&gt; 60s</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sends a publish message to the bus following parameters passed</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        exchange: exchange name</span>
+<span class="sd">        routing_key:  routing key name</span>
+<span class="sd">        body: body that will be sent</span>
+<span class="sd">        content_type: content type of message</span>
+<span class="sd">        timeout: timeout in seconds for waiting for response</span>
+<span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
+<span class="sd">        delivery_mode: delivery mode</span>
+<span class="sd">        expiration: maximum lifetime of message to stay on the queue</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        None: if publish confirmation is setted to False</span>
+<span class="sd">        True: if successful when publish confirmation is setted to True</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
+<span class="sd">        PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">        does not receive confirmation on the gived timeout</span>
+<span class="sd">        NackException: if publish confirmation is setted to True and receives a nack</span>
+
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; publish_event = ExampleEvent(&quot;example.rpc&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.publish(publish_event, &quot;user.find3&quot;, [&quot;content_message&quot;])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">add_publish</span><span class="p">():</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+            <span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+            <span class="n">routing_key</span><span class="p">,</span>
+            <span class="n">body</span><span class="p">,</span>
+            <span class="n">content_type</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="p">,</span>
+            <span class="n">delivery_mode</span><span class="p">,</span>
+            <span class="n">expiration</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_publish</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.rpc_client" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">rpc_client</span><span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;application/json&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">delivery_mode</span><span class="o">=</span><span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span> <span class="n">expiration</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.rpc_client" class="headerlink" title="Permanent link">#</a></h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Sends a publish message to queue of the bus and waits for a response</p>
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>exchange</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>exchange name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>routing_key</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>routing key name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>body</code></td>
+          <td>
+                <code><span title="typing.List">List</span>[<span title="typing.Any">Any</span>]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>body that will be sent</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>content_type</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>content type of message</p>
+            </div>
+          </td>
+          <td>
+                <code>&#39;application/json&#39;</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>timeout</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout in seconds for waiting for response</p>
+            </div>
+          </td>
+          <td>
+                <code>5</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>connection_timeout</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout for waiting for connection restabilishment</p>
+            </div>
+          </td>
+          <td>
+                <code>16</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>delivery_mode</code></td>
+          <td>
+                <code><span title="pika.DeliveryMode">DeliveryMode</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>delivery mode</p>
+            </div>
+          </td>
+          <td>
+                <code>DeliveryMode.Transient</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>expiration</code></td>
+          <td>
+                <code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[str, None]]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>maximum lifetime of message to stay on the queue</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>bytes</code></td>          <td>
+                <code>bytes</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>response message</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Raises:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>AutoReconnectException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>when cannout reconnect on the gived timeout</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+                <code>PublishTimeoutException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if publish confirmation is setted to True and             does not receive confirmation on the gived timeout</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+                <code>NackException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if publish confirmation is setted to True and receives a nack</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+                <code>ResponseTimeoutException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if response timeout is reached</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+                <code>RpcProviderException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>if the rpc provider responded with an error</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+<p><strong>Examples:</strong></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">rpc_client</span><span class="p">(</span><span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;user.find&quot;</span><span class="p">,</span> <span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;example&quot;</span><span class="p">}],</span> <span class="s2">&quot;application/json&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+      <details class="quote">
+        <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">rpc_client</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">exchange</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+    <span class="n">delivery_mode</span><span class="p">:</span> <span class="n">DeliveryMode</span> <span class="o">=</span> <span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span>
+    <span class="n">expiration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sends a publish message to queue of the bus and waits for a response</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        exchange: exchange name</span>
+<span class="sd">        routing_key:  routing key name</span>
+<span class="sd">        body: body that will be sent</span>
+<span class="sd">        content_type: content type of message</span>
+<span class="sd">        timeout: timeout in seconds for waiting for response</span>
+<span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
+<span class="sd">        delivery_mode: delivery mode</span>
+<span class="sd">        expiration: maximum lifetime of message to stay on the queue</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bytes: response message</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
+<span class="sd">        PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">        does not receive confirmation on the gived timeout</span>
+<span class="sd">        NackException: if publish confirmation is setted to True and receives a nack</span>
+<span class="sd">        ResponseTimeoutException: if response timeout is reached</span>
+<span class="sd">        RpcProviderException: if the rpc provider responded with an error</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.rpc_client(&quot;example.rpc&quot;, &quot;user.find&quot;, [{&quot;name&quot;: &quot;example&quot;}], &quot;application/json&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">add_rpc_client</span><span class="p">():</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">rpc_client</span><span class="p">(</span>
+            <span class="n">exchange</span><span class="p">,</span>
+            <span class="n">routing_key</span><span class="p">,</span>
+            <span class="n">body</span><span class="p">,</span>
+            <span class="n">content_type</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="p">,</span>
+            <span class="n">delivery_mode</span><span class="p">,</span>
+            <span class="n">expiration</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_rpc_client</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.subscribe" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">subscribe</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">response_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.subscribe" class="headerlink" title="Permanent link">#</a></h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Register a provider to listen on queue of bus</p>
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>name</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>routing_key name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>callback</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>message handler</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>response_timeout</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout in seconds for waiting for process the received message</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>connection_timeout</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>timeout for waiting for connection restabilishment</p>
+            </div>
+          </td>
+          <td>
+                <code>16</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>None</code></td>          <td>
+                <code>None</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>None</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Raises:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code>AutoReconnectException</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>when cannout reconnect on the gived timeout</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+<p><strong>Examples:</strong></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">async</span> <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="o">*</span><span class="n">body</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="go">        print(f&quot;received message: {body}&quot;)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">subscribe_event</span> <span class="o">=</span> <span class="n">ExampleEvent</span><span class="p">(</span><span class="s2">&quot;example.rpc&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">subscribe_event</span><span class="p">,</span> <span class="n">event_handle</span><span class="p">,</span> <span class="s2">&quot;user.find3&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+      <details class="quote">
+        <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">event</span><span class="p">:</span> <span class="n">IntegrationEvent</span><span class="p">,</span>
+    <span class="n">handler</span><span class="p">:</span> <span class="n">AsyncSubscriberHandler</span><span class="p">,</span>
+    <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Register a provider to listen on queue of bus</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: routing_key name</span>
+<span class="sd">        callback: message handler</span>
+<span class="sd">        response_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        None: None</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; async def handle(*body) -&gt; None:</span>
+<span class="sd">                print(f&quot;received message: {body}&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; subscribe_event = ExampleEvent(&quot;example.rpc&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.subscribe(subscribe_event, event_handle, &quot;user.find3&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">add_subscribe</span><span class="p">():</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">queue_name</span><span class="p">,</span>
+            <span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+            <span class="n">routing_key</span><span class="p">,</span>
+            <span class="n">handler</span><span class="o">.</span><span class="n">handle</span><span class="p">,</span>
+            <span class="n">response_timeout</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_subscribe</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
       </details>
   </div>
