@@ -160,7 +160,7 @@ class AsyncEventbusRabbitMQ:
         delivery_mode: DeliveryMode = DeliveryMode.Transient,
         expiration: Optional[Union[str, None]] = None,  # example: '60000' -> 60s
         **kwargs
-    ) -> Optional[True]:
+    ) -> Optional[bool]:
         """
         Sends a publish message to the bus following parameters passed
 

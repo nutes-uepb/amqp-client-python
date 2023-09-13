@@ -6,7 +6,24 @@ license = "Apache-2.0"
 authors = ["NUTES UEPB <dev.seniorsaudemovel@gmail.com>"]
 readme = "README.md"
 packages = [{include = "amqp_client_python"}]
-
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Communications",
+    "Topic :: Internet",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Networking",
+]
 homepage = "https://github.com/nutes-uepb/amqp-client-python"
 repository = "https://github.com/nutes-uepb/amqp-client-python"
 
@@ -32,6 +49,7 @@ pytest = "^7.2.0"
 dependency-injector = "^4.40.0"
 pytest-asyncio-cooperative = "^0.30.0"
 taskipy = "^1.12.0"
+pytest-cov = "^4.1.0"
 
 
 [tool.poetry.group.doc.dependencies]
@@ -52,6 +70,6 @@ addopts = "--doctest-modules"
 [tool.taskipy.tasks]
 lint = "flake8 amqp_client_python/ --ignore=E722,W503,E402 --count --max-line-length=127 --statistics"
 docs = "mkdocs serve"
-pre_test = "task lint"
-test = "pytest -s -x --cov=amqp_client_python -vv"
+pre_test = "task lint && docker compose up -d rabbitmq"
+test = "pytest tests/unit -s -x --cov=amqp_client_python -vv"
 post_test = "coverage html"
