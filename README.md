@@ -1,5 +1,9 @@
 # AMQP Client Python
 
+Client with high level of abstraction for manipulation of messages in the event bus RabbitMQ.
+
+--------
+
 [![License][license-image]][license-url]
 <a href="https://pypi.org/project/amqp-client-python" target="_blank">
     <img src="https://img.shields.io/pypi/v/amqp-client-python?color=%2334D058&label=pypi%20package" alt="Package version">
@@ -11,10 +15,13 @@
 
 
 
+---
 
---------
-Client with high level of abstraction for manipulation of messages in the event bus RabbitMQ.
+**Documentation**: <a href="https://nutes-uepb.github.io/amqp-client-python" target="_blank">https://nutes-uepb.github.io/amqp-client-python</a>
 
+**Source Code**: <a href="https://github.com/nutes-uepb/amqp-client-python" target="_blank">https://github.com/nutes-uepb/amqp-client-python</a>
+
+---
 ### Features:
 - Automatic creation and management of queues, exchanges and channels;
 - Connection persistence and auto reconnect;
@@ -198,7 +205,7 @@ The library is provided by NUTES-UEPB.
 ### Know Limitations:
 #### basic eventbus
 <medium><pre>
-When using [**EventbusRabbitMQ**](https://github.com/nutes-uepb/amqp-client-python/blob/master/amqp_client_python/rabbitmq/eventbus_rabbitmq.py#L12) Should not use rpc call inside of rpc provider and subscribe handlers, it may block the ioloop
+When using [**EventbusRabbitMQ**](https://github.com/nutes-uepb/amqp-client-python/blob/master/amqp_client_python/rabbitmq/eventbus_rabbitmq.py#L12) Should not use rpc call inside of rpc provider or subscribe handlers, it may block the ioloop
 #/obs: fixed on other kinds of eventbus, will be removed on nexts releases
 </pre></medium>
 
