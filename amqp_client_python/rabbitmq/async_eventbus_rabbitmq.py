@@ -66,14 +66,15 @@ class AsyncEventbusRabbitMQ:
             self._loop,
             pub_publisher_confirms,
             connection_type=ConnectionType.PUBLISH,
-            signal=self._signal
+            signal=self._signal,
         )
         self._sub_connection = AsyncConnection(
-            self._loop, False,
+            self._loop,
+            False,
             sub_prefetch_count,
             sub_auto_ack,
             connection_type=ConnectionType.SUBSCRIBE,
-            signal=self._signal
+            signal=self._signal,
         )
         self._rpc_client_connection = AsyncConnection(
             self._loop,
@@ -81,7 +82,7 @@ class AsyncEventbusRabbitMQ:
             rpc_client_prefetch_count,
             rpc_client_auto_ack,
             connection_type=ConnectionType.RPC_CLIENT,
-            signal=self._signal
+            signal=self._signal,
         )
         self._rpc_server_connection = AsyncConnection(
             self._loop,
@@ -89,7 +90,7 @@ class AsyncEventbusRabbitMQ:
             rpc_server_prefetch_count,
             rpc_server_auto_ack,
             connection_type=ConnectionType.RPC_SERVER,
-            signal=self._signal
+            signal=self._signal,
         )
         self.on = self._signal.on
         self.config = config.build()
@@ -134,6 +135,7 @@ class AsyncEventbusRabbitMQ:
         Examples:
             >>> await eventbus.rpc_client("example.rpc", "user.find", [{"name": "example"}], "application/json")
         """
+
         async def add_rpc_client():
             return await self._rpc_client_connection.rpc_client(
                 exchange,
@@ -147,7 +149,9 @@ class AsyncEventbusRabbitMQ:
             )
 
         self._rpc_client_connection.open(self.config.url)
-        return await self._rpc_client_connection.add_callback(add_rpc_client, connection_timeout)
+        return await self._rpc_client_connection.add_callback(
+            add_rpc_client, connection_timeout
+        )
 
     async def publish(
         self,
@@ -189,6 +193,7 @@ class AsyncEventbusRabbitMQ:
             >>> publish_event = ExampleEvent("example.rpc")
             >>> await eventbus.publish(publish_event, "user.find3", ["content_message"])
         """
+
         async def add_publish():
             return await self._pub_connection.publish(
                 event.event_type,
@@ -209,7 +214,7 @@ class AsyncEventbusRabbitMQ:
         name: str,
         callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
         response_timeout: Optional[int] = None,
-        connection_timeout: int = 16
+        connection_timeout: int = 16,
     ) -> None:
         """
         Register a provider to listen on queue of bus
@@ -232,6 +237,7 @@ class AsyncEventbusRabbitMQ:
                     return b"[]"
             >>> await eventbus.provide_resource("user.find", handle)
         """
+
         async def add_resource():
             await self._rpc_server_connection.rpc_subscribe(
                 self.config.options.rpc_queue_name,
@@ -250,7 +256,7 @@ class AsyncEventbusRabbitMQ:
         handler: AsyncSubscriberHandler,
         routing_key: str,
         response_timeout: Optional[float] = None,
-        connection_timeout: int = 16
+        connection_timeout: int = 16,
     ) -> None:
         """
         Register a provider to listen on queue of bus
@@ -273,6 +279,7 @@ class AsyncEventbusRabbitMQ:
             >>> subscribe_event = ExampleEvent("example.rpc")
             >>> await eventbus.subscribe(subscribe_event, event_handle, "user.find3")
         """
+
         async def add_subscribe():
             await self._sub_connection.subscribe(
                 self.config.options.queue_name,
@@ -291,5 +298,7 @@ class AsyncEventbusRabbitMQ:
         await self._rpc_client_connection.close()
         await self._rpc_server_connection.close()
         if stop_event_loop:
+            if self._loop is None:
+                raise ValueError("Event loop is not defined")
             self._loop.stop()
         self._signal.dispose()
