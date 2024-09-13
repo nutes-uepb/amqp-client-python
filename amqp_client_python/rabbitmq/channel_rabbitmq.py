@@ -3,7 +3,6 @@ from .channel_factory_rabbitmq import ChannelFactoryRabbitMQ
 from amqp_client_python.signals import Signal, Event
 from pika.channel import Channel
 from pika.spec import Basic, BasicProperties
-from pika import BasicProperties
 from functools import partial
 from uuid import uuid4
 from json import loads, dumps
@@ -15,11 +14,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ChannelRabbitMQ:
-    def __init__(self,
-                 auto_ack=True,
-                 signal=Signal(),
-                 channel_type: Optional[str] = None
-                 ) -> None:
+    def __init__(
+        self, auto_ack=True, signal=Signal(), channel_type: Optional[str] = None
+    ) -> None:
         self.channel_factory = ChannelFactoryRabbitMQ()
         self.rpc_consumer = False
         self.rpc_publisher = False
@@ -219,7 +216,9 @@ class ChannelRabbitMQ:
             properties=BasicProperties(content_type="application/json"),
         )
 
-    def serve_resource(self, ch: Channel, method: Basic.Deliver, props: BasicProperties, body: bytes):
+    def serve_resource(
+        self, ch: Channel, method: Basic.Deliver, props: BasicProperties, body: bytes
+    ):
         if method.routing_key in self.consumers:
             response = None
             type_message = None

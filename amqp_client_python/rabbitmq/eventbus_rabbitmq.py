@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable, Any, List
+from typing import Union, Callable, Any, List
 from .connection_rabbitmq import ConnectionRabbitMQ
 from ..event import IntegrationEvent, SubscriberHandler
 from amqp_client_python.domain.models import Config
@@ -14,9 +14,15 @@ import asyncio
 class EventbusRabbitMQ:
     def __init__(self, config: Config) -> None:
         self.pub_connection = ConnectionRabbitMQ(connection_type=ConnectionType.PUBLISH)
-        self.sub_connection = ConnectionRabbitMQ(connection_type=ConnectionType.SUBSCRIBE)
-        self.rpc_client_connection = ConnectionRabbitMQ(connection_type=ConnectionType.RPC_CLIENT)
-        self.rpc_server_connection = ConnectionRabbitMQ(connection_type=ConnectionType.RPC_SERVER)
+        self.sub_connection = ConnectionRabbitMQ(
+            connection_type=ConnectionType.SUBSCRIBE
+        )
+        self.rpc_client_connection = ConnectionRabbitMQ(
+            connection_type=ConnectionType.RPC_CLIENT
+        )
+        self.rpc_server_connection = ConnectionRabbitMQ(
+            connection_type=ConnectionType.RPC_SERVER
+        )
         self.config = config.build()
         self._signal = Signal()
         self.on = self._signal.on
@@ -136,7 +142,9 @@ class EventbusRabbitMQ:
 
         self.event_loop.add_callback_threadsafe(add_subscribe)
 
-    def provide_resource(self, name: str, callback: Callable[[List[Any]], Union[bytes, str]]):
+    def provide_resource(
+        self, name: str, callback: Callable[[List[Any]], Union[bytes, str]]
+    ):
         self.initialize_rpc_server()
 
         def add_provider():

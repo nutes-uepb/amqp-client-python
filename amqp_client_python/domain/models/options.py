@@ -1,4 +1,4 @@
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Dict, Any
 
 
 class Options:
@@ -43,9 +43,11 @@ class Options:
 
             >>> Options("example", "example.rpc", "example.rpc", "amqps://admin:admin@localhost:5671/")
 
-            >>> Options("example", "example.rpc", "example.rpc", login="admin", passwd="admin", domain="localhost", port=5672)
+            >>> Options("example", "example.rpc", "example.rpc", login="admin", passwd="admin",
+                    domain="localhost", port=5672)
 
-            >>> Options("example", "example.rpc", "example.rpc", login="admin", passwd="admin", domain="localhost", port=5671)
+            >>> Options("example", "example.rpc", "example.rpc", login="admin", passwd="admin",
+                    domain="localhost", port=5671)
         """
         self.queue_name = queue_name
         self.rpc_queue_name = rpc_queue_name
