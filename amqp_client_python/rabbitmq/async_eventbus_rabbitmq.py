@@ -60,7 +60,7 @@ class AsyncEventbusRabbitMQ:
                     return "response"
             >>> await eventbus.provide_resource("user.find2", handle2)
         """
-        self._loop: AbstractEventLoop = loop
+        self._loop: Optional[AbstractEventLoop] = loop
         self._signal = Signal()
         self._pub_connection = AsyncConnection(
             self._loop,
@@ -208,7 +208,7 @@ class AsyncEventbusRabbitMQ:
         self,
         name: str,
         callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
-        response_timeout: int = None,
+        response_timeout: Optional[int] = None,
         connection_timeout: int = 16
     ) -> None:
         """
@@ -249,7 +249,7 @@ class AsyncEventbusRabbitMQ:
         event: IntegrationEvent,
         handler: AsyncSubscriberHandler,
         routing_key: str,
-        response_timeout: int = None,
+        response_timeout: Optional[float] = None,
         connection_timeout: int = 16
     ) -> None:
         """

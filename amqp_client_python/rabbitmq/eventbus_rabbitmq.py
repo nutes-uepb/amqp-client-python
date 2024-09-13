@@ -1,4 +1,4 @@
-from typing import Callable, Union, Any, List
+from typing import Optional, Union, Callable, Any, List
 from .connection_rabbitmq import ConnectionRabbitMQ
 from ..event import IntegrationEvent, SubscriberHandler
 from amqp_client_python.domain.models import Config
@@ -60,9 +60,9 @@ class EventbusRabbitMQ:
         exchange: str,
         routing_key: str,
         body: List[Any],
+        loop: AbstractEventLoop,
         content_type="application/json",
         timeout=5,
-        loop: AbstractEventLoop = None,
     ):
         promise = loop.create_future()
 

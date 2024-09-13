@@ -2,9 +2,9 @@ from .eventbus_exception import EventBusException
 
 
 class RpcProviderException(EventBusException):
-    message: str = None
-    description: str = None
+    message: str = ""
+    description: str = ""
 
-    def __init__(self, message, description="") -> None:
+    def __init__(self, message: str, description="") -> None:
         self.message = message
         self.description = description

@@ -22,15 +22,17 @@ LOGGER = logging.getLogger(__name__)
 
 
 class AsyncChannel:
+    ioloop: Optional[AbstractEventLoop]
+
     def __init__(
         self,
         prefetch_count=0,
         auto_ack=True,
         channel_factory=AsyncChannelFactoryRabbitMQ(),
-        channel_type: str = None,
+        channel_type: Optional[str] = None,
         signal=Signal()
     ) -> None:
-        self.ioloop: AbstractEventLoop = None
+        self.ioloop = None
         self.channel_factory = channel_factory
         self._channel: Channel = None
         self._connection: AsyncioConnection = None
@@ -61,7 +63,7 @@ class AsyncChannel:
         if not self.is_open:
             self.callbacks = callbacks
             self._connection = connection
-            self.ioloop: AbstractEventLoop = connection.ioloop
+            self.ioloop = connection.ioloop
             self._channel: Channel = self.channel_factory.create_channel(
                 connection, on_channel_open=self.on_channel_open
             )
@@ -251,7 +253,7 @@ class AsyncChannel:
             return await self.rpc_consumer_future
         self.rpc_consumer_starting = True
 
-        self.rpc_consumer_future = self.ioloop.create_future()
+        self.rpc_consumer_future: Future[bool] = self.ioloop.create_future()
         LOGGER.info("Starting rpc consumer")
 
         def on_open(channel: Channel):
@@ -432,13 +434,13 @@ class AsyncChannel:
 
     def publish_confirmation(self, future: Future):
         self._message_number += 1
-        self.futures[self._message_number] = future
+        self.futures[str(self._message_number)] = future
         self._deliveries[self._message_number] = future
         clean = partial(self.clean_publish_confirmation, self._message_number)
         future.add_done_callback(clean)
 
-    def clean_publish_confirmation(self, meassage_id, _fut):
-        self.futures.pop(meassage_id)
+    def clean_publish_confirmation(self, meassage_id: int, _fut):
+        self.futures.pop(str(meassage_id))
         self._deliveries.pop(meassage_id)
 
     def clean_rpc_response(self, corr_id, _fut):
@@ -515,7 +517,6 @@ class AsyncChannel:
         :param pika.Spec.BasicProperties: properties
         :param bytes body: The message body
         """
-
         async def handle_message(queue_name, basic_deliver, props, body):
             try:
                 if basic_deliver.routing_key in self.subscribes[queue_name]:

@@ -48,7 +48,7 @@ class Config:
             **self.options.kwargs,
             "heartbeat": self.options.heartbeat,
         }
-        if bool(self.ssl_options):
+        if self.ssl_options is not None:
             protocol = "amqps"
             if self.options.port is None:
                 self.options.port = 5671

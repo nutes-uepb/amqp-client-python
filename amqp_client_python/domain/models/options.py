@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Union, Dict, Any
 
 
 class Options:
@@ -7,14 +7,14 @@ class Options:
         queue_name: str,
         rpc_queue_name: str,
         rpc_exchange_name: str,
-        uri: str = None,
+        uri: Optional[str] = None,
         login: str = "guest",
         passwd: str = "guest",
         domain: str = "localhost",
-        port: int = None,
+        port: Optional[int] = None,
         vhost: str = "/",
         heartbeat: Optional[int] = 60,
-        publisher_confirms=False,
+        publisher_confirms: bool = False,
         **kwargs: Dict[str, Any]
     ) -> None:
         """

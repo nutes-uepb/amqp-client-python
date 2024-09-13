@@ -1,3 +1,4 @@
+from typing import Callable
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika import URLParameters
 
@@ -9,9 +10,9 @@ class AsyncConnectionFactoryRabbitMQ:
     def create_connection(
         self,
         uri: URLParameters,
-        on_connection_open: callable,
-        on_connection_open_error: callable,
-        on_connection_closed: callable,
+        on_connection_open: Callable,
+        on_connection_open_error: Callable,
+        on_connection_closed: Callable,
         custum_ioloop=None,
     ):
         if self.connection and self.connection.is_open:

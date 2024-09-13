@@ -1,7 +1,8 @@
-from typing import Dict
+from typing import Optional, Dict
 from .channel_factory_rabbitmq import ChannelFactoryRabbitMQ
 from amqp_client_python.signals import Signal, Event
 from pika.channel import Channel
+from pika.spec import Basic, BasicProperties
 from pika import BasicProperties
 from functools import partial
 from uuid import uuid4
@@ -17,7 +18,7 @@ class ChannelRabbitMQ:
     def __init__(self,
                  auto_ack=True,
                  signal=Signal(),
-                 channel_type: str = None
+                 channel_type: Optional[str] = None
                  ) -> None:
         self.channel_factory = ChannelFactoryRabbitMQ()
         self.rpc_consumer = False
@@ -44,14 +45,14 @@ class ChannelRabbitMQ:
         callback = partial(self.on_channel_open, callback=callback)
         self.channel_factory.create_channel(connection._connection, callback)
 
-    def on_channel_open(self, channel, callback=None):
+    def on_channel_open(self, channel: Channel, callback=None):
         """This method is invoked by pika when the channel has been opened.
         The channel object is passed in so we can make use of it.
         Since the channel is now open, we'll declare the exchange to use.
         :param pika.channel.Channel channel: The channel object
         """
         LOGGER.debug("Channel opened")
-        self._channel: Channel = channel
+        self._channel = channel
         self.add_on_channel_close_callback()
         if callback:
             callback("")
@@ -135,7 +136,7 @@ class ChannelRabbitMQ:
                 self._connection.close()
 
     def is_open(self) -> bool:
-        return self._channel and self._channel.is_open
+        return bool(self._channel) and self._channel.is_open
 
     def close_channel(self):
         """Invoke this command to close the channel with RabbitMQ by sending
@@ -218,7 +219,7 @@ class ChannelRabbitMQ:
             properties=BasicProperties(content_type="application/json"),
         )
 
-    def serve_resource(self, ch: Channel, method, props, body: bytes):
+    def serve_resource(self, ch: Channel, method: Basic.Deliver, props: BasicProperties, body: bytes):
         if method.routing_key in self.consumers:
             response = None
             type_message = None

@@ -1,3 +1,4 @@
+from typing import Callable, List
 from pika.adapters.select_connection import IOLoop
 from time import time
 
@@ -6,7 +7,7 @@ class IOLoopFactory:
     ioloop = IOLoop()
     last_creation = time()
     running = False
-    _reconnection_list = []
+    _reconnection_list: List[Callable] = []
 
     @classmethod
     def get_ioloop(cls):
@@ -28,7 +29,7 @@ class IOLoopFactory:
             cls.ioloop.start()
 
     @classmethod
-    def add_reconnection(cls, call):
+    def add_reconnection(cls, call: Callable):
         cls._reconnection_list.append(call)
 
     @classmethod

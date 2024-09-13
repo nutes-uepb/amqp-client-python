@@ -1,3 +1,4 @@
+from typing import Optional
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
 from .async_channel import AsyncChannel
 from ..exceptions import AutoReconnectException
@@ -19,11 +20,11 @@ LOGGER = logging.getLogger(__name__)
 class AsyncConnection:
     def __init__(
         self,
-        ioloop: AbstractEventLoop,
+        ioloop: Optional[AbstractEventLoop],
         publisher_confirms=False,
         prefetch_count=0,
         auto_ack=True,
-        connection_type: ConnectionType = None,
+        connection_type: Optional[ConnectionType] = None,
         signal=Signal()
     ) -> None:
         self.ioloop = ioloop
@@ -209,7 +210,7 @@ class AsyncConnection:
         routing_key: str,
         body,
         content_type,
-        timeout,
+        timeout: float,
         delivery_mode,
         expiration,
         **kwargs,
@@ -259,7 +260,7 @@ class AsyncConnection:
             response_timeout=response_timeout,
         )
 
-    async def add_callback(self, callback, connection_timeout: float = None):
+    async def add_callback(self, callback, connection_timeout: Optional[float] = None):
         try:
             if self.is_open and self._channel and self._channel.is_open:
                 return await callback()
