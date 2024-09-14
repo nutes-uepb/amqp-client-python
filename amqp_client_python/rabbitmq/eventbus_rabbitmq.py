@@ -42,7 +42,7 @@ class EventbusRabbitMQ:
         content_type="application/json",
         timeout=5,
     ):
-        promise = syncFuture()
+        promise: syncFuture = syncFuture()
 
         def add_rpc_client():
             def on_channel_openned():
@@ -50,7 +50,7 @@ class EventbusRabbitMQ:
                     exchange,
                     routing_key,
                     body,
-                    content_type=content_type,
+                    content_type,
                     future=promise,
                     timeout=timeout,
                 )

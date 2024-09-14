@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Dict
+from typing import Optional, Callable, Dict, Any
 from .channel_factory_rabbitmq import ChannelFactoryRabbitMQ
 from amqp_client_python.signals import Signal, Event
 from pika.channel import Channel
@@ -24,7 +24,7 @@ class ChannelRabbitMQ:
         self._callback_queue = None
         self.auto_ack = auto_ack
         self.signal = signal
-        self.consumers = {}
+        self.consumers: Dict[str, Dict[str, Callable]] = {}
         self.type = channel_type
         self.futures: Dict[str, Future] = {}
         self._stopping = False
@@ -92,7 +92,7 @@ class ChannelRabbitMQ:
         :param str|unicode queue_name: The name of the queue to declare.
         """
         LOGGER.debug("Declaring queue %s", queue_name)
-        self._channel.queue_declare(
+        self._channel.queue_declare(  # type: ignore
             queue=queue_name,
             durable=durable,
             auto_delete=auto_delete,
@@ -212,7 +212,7 @@ class ChannelRabbitMQ:
 
     def publish(self, exchange: str, routing_key: str, message):
         message = dumps({"handle": message})
-        self._channel.basic_publish(
+        self._channel.basic_publish(  # type: ignore
             exchange,
             routing_key,
             message,
@@ -226,8 +226,8 @@ class ChannelRabbitMQ:
             response = None
             type_message = None
             try:
-                body = loads(body)
-                response = self.consumers[method.routing_key]["handle"](*body["handle"])
+                body_as_json: Dict[str, Any] = loads(body)
+                response = self.consumers[method.routing_key]["handle"](*body_as_json["handle"])  # type: ignore
                 type_message = "normal"
                 if props.reply_to:
                     self._channel_rpc.basic_publish(
@@ -285,7 +285,7 @@ class ChannelRabbitMQ:
                     consumer_tag=consumer_tag,
                 )
             self.addResource(routing_key, callback)
-            self._channel.queue_bind(
+            self._channel.queue_bind(  # type: ignore
                 exchange=exchange, queue=queue_name, routing_key=routing_key
             )
 
@@ -297,21 +297,21 @@ class ChannelRabbitMQ:
         callback=None,
         auto_ack=True,
     ):
-        if self.is_open():
+        if self.is_open:
             if not self.consumer_tag:
-                self.consumer_tag = self._channel.basic_consume(
+                self.consumer_tag: str = self._channel.basic_consume(  # type: ignore
                     queue=queue_name,
                     on_message_callback=self.serve_subscribe,
                     auto_ack=auto_ack,
                     consumer_tag=self.consumer_tag,
                 )
             self.addResource(routing_key, callback)
-            self._channel.queue_bind(
+            self._channel.queue_bind(  # type: ignore
                 exchange=exchange, queue=queue_name, routing_key=routing_key
             )
 
     def unsubscribe(self, consumer_tag: str):
-        self._channel.basic_cancel(consumer_tag)
+        self._channel.basic_cancel(consumer_tag)  # type: ignore
 
     def serve_subscribe(self, ch: Channel, method, props, body):
         if method.routing_key in self.consumers:

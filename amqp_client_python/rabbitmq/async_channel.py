@@ -1,4 +1,4 @@
-from typing import MutableMapping, Mapping, Optional, Union
+from typing import MutableMapping, Mapping, Optional, Union, Callable, Dict
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -39,7 +39,7 @@ class AsyncChannel:
         self.type = channel_type
         self.signal = signal
         self._callback_queue = f"amqp.{uuid4()}"
-        self.futures: MutableMapping[str, Mapping[str, Future]] = {}
+        self.futures: MutableMapping[str, Union[Future, Mapping[str, Future]]] = {}
         self.rpc_consumer = False
         self.rpc_consumer_started = False
         self.rpc_consumer_starting = False
@@ -48,8 +48,8 @@ class AsyncChannel:
         self.consumer_tag = None
         self._prefetch_count = prefetch_count
         self.auto_ack = auto_ack
-        self.subscribes = {}
-        self.consumers = {}
+        self.subscribes: Dict[str, Dict[str, Union[Callable, str, float]]] = {}
+        self.consumers: Dict[str, bool] = {}
         self.publisher_confirms = False
         self._message_number = 0
         self._deliveries: MutableMapping[int, Future] = {}
@@ -64,7 +64,7 @@ class AsyncChannel:
             self.callbacks = callbacks
             self._connection = connection
             self.ioloop = connection.ioloop
-            self._channel: Channel = self.channel_factory.create_channel(
+            self._channel = self.channel_factory.create_channel(
                 connection, on_channel_open=self.on_channel_open
             )
 
@@ -80,7 +80,7 @@ class AsyncChannel:
         self.publisher_confirms and self.add_publish_confirms()
         self._prefetch_count and self.set_qos(self._prefetch_count)
         self.signal.emmit(Event.CHANNEL_OPENNED, self.type, self.ioloop)
-        self.ioloop.create_task(self.process_callbacks())
+        self.ioloop.create_task(self.process_callbacks())  # type: ignore
 
     async def process_callbacks(self):
         for callback, future in self.callbacks:
@@ -127,12 +127,12 @@ class AsyncChannel:
             self._acked += 1
             if delivery_tag in self._deliveries:
                 future = self._deliveries[delivery_tag]
-                not future.done() and future.set_result(True)
+                not future.done() and future.set_result(True)  # type: ignore
         elif confirmation_type == "nack":
             self._nacked += 1
             if delivery_tag in self._deliveries:
                 future = self._deliveries[delivery_tag]
-                not future.done() and future.set_exception(
+                not future.done() and future.set_exception(  # type: ignore
                     NackException(
                         f"Publish confirmation: nack of {delivery_tag} publish"
                     )
@@ -334,7 +334,7 @@ class AsyncChannel:
         expiration: Optional[Union[str, None]] = None,
         **key_args,
     ):
-        future = self.ioloop.create_future()
+        future = self.ioloop.create_future()  # type: ignore
         message = dumps({"resource_name": routing_key, "handle": body})
         corr_id = str(uuid4())
         self.futures[corr_id] = {"response": future}
@@ -371,7 +371,7 @@ class AsyncChannel:
                     )
 
         func = partial(not_arrived, corr_id)
-        self.ioloop.call_later(timeout, func)
+        self.ioloop.call_later(timeout, func)  # type: ignore
 
         if self.publisher_confirms:
             return await self.handle_publish(future, corr_id)
@@ -419,7 +419,7 @@ class AsyncChannel:
             mandatory=False,
         )
         if self.publisher_confirms:
-            publish_future = self.ioloop.create_future()
+            publish_future: Future = self.ioloop.create_future()  # type: ignore
             self.publish_confirmation(publish_future)
 
             def not_arrived(id):
@@ -429,7 +429,7 @@ class AsyncChannel:
                     )
 
             func = partial(not_arrived, self._message_number)
-            self.ioloop.call_later(timeout, func)
+            self.ioloop.call_later(timeout, func)  # type: ignore
             return await publish_future
 
     def publish_confirmation(self, future: Future):
@@ -468,7 +468,7 @@ class AsyncChannel:
         self.queue_declare(queue_name)
         self.queue_bind(queue_name, exchange_name, routing_key)
         if queue_name not in self.consumers:
-            registered = Future(loop=self.ioloop)
+            registered: Future[bool] = Future(loop=self.ioloop)
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
             self._channel.basic_consume(

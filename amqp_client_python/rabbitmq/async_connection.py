@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Awaitable, Tuple, List, Any
+from typing import Optional, Callable, Awaitable, Tuple, Dict, List, Any
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
 from .async_channel import AsyncChannel
 from ..exceptions import AutoReconnectException
@@ -35,7 +35,7 @@ class AsyncConnection:
         self.reconnect_delay = 1
         self.callbacks: List[Tuple[Callable, Future]] = []
         self.type = connection_type
-        self.backup = {
+        self.backup: Dict[str, Dict[str, Any]] = {
             "exchange": {},
             "queue": {},
             "subscribe": {},
@@ -161,9 +161,9 @@ class AsyncConnection:
             self._closing = True
             LOGGER.warning("Stopping intentionally")
             if self._consuming:
-                self._connection.ioloop.run_forever()
+                self._connection.ioloop.run_forever()  # type: ignore
             else:
-                self.ioloop.stop()
+                self.ioloop.stop()  # type: ignore
             LOGGER.warning("Stopped")
 
     async def rpc_client(

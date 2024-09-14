@@ -1,3 +1,4 @@
+from typing import Callable
 from enum import Enum
 
 
@@ -14,7 +15,7 @@ class Signal:
         try:
             Event(event)
 
-            def wrapper(callback: callable):
+            def wrapper(callback: Callable):
                 if event in self.events:
                     if condiction in self.events[event]:
                         self.events[event][condiction].append(callback)

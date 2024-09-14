@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Dict
 from .connection_factory_rabbitmq import ConnectionFactoryRabbitMQ
 from .channel_rabbitmq import ChannelRabbitMQ
 from amqp_client_python.exceptions import EventBusException
@@ -25,7 +25,7 @@ class ConnectionRabbitMQ:
         self._stopping = False
         self._channel = ChannelRabbitMQ(channel_type=self.type)
         self._uri = None
-        self.backup = {
+        self.backup: Dict[str, Dict[str, Any]] = {
             "exchange": {},
             "queue": {},
             "subscribe": {},
@@ -195,6 +195,7 @@ class ConnectionRabbitMQ:
         if not self.channel_is_open():
             self._channel.open(self, callback)
 
+    @property
     def is_open(self) -> bool:
         return self._connection and self._connection.is_open
 
@@ -202,9 +203,9 @@ class ConnectionRabbitMQ:
         return self._channel and self._channel.is_open()
 
     def publish(self, exchange_name: str, routing_key: str, message: str):
-        if not self.is_open():
+        if not self.ioloop_is_open:
             raise EventBusException("No connection open!")
-        if not self._channel.is_open():
+        if not self._channel.is_open:
             raise EventBusException("No channel open!")
         return self._channel.publish(exchange_name, routing_key, message)
 
@@ -216,9 +217,9 @@ class ConnectionRabbitMQ:
         callback,
         auto_ack=True,
     ):
-        if not self.is_open():
+        if not self.is_open:
             raise EventBusException("No connection open!")
-        if not self._channel.is_open():
+        if not self._channel.is_open:
             raise EventBusException("No channel open!")
         self.backup["subscribe"][routing_key] = {
             "exchange": exchange_name,
@@ -239,9 +240,9 @@ class ConnectionRabbitMQ:
         future,
         timeout,
     ):
-        if not self.is_open():
+        if not self.is_open:
             self.reset()
-        if not self._channel.is_open():
+        if not self._channel.is_open:
             self.channel_open()
         return self._channel.rpc_client(
             exchange_name,
@@ -255,9 +256,9 @@ class ConnectionRabbitMQ:
     def rpc_subscribe(
         self, queue_name: str, exchange_name: str, routing_key: str, callback
     ):
-        if not self.is_open():
+        if not self.is_open:
             raise EventBusException("No connection open!")
-        if not self._channel.is_open():
+        if not self._channel.is_open:
             raise EventBusException("No channel open!")
         self.backup["rpc_subscribe"][routing_key] = {
             "exchange": exchange_name,
