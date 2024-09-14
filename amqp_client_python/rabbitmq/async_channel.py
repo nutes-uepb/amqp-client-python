@@ -39,7 +39,8 @@ class AsyncChannel:
         self.type = channel_type
         self.signal = signal
         self._callback_queue = f"amqp.{uuid4()}"
-        self.futures: MutableMapping[str, Union[Future, Mapping[str, Future]]] = {}
+        self.futures: MutableMapping[int, Future] = {}
+        self.rpc_futures: MutableMapping[str, Mapping[str, Future]] = {}
         self.rpc_consumer = False
         self.rpc_consumer_started = False
         self.rpc_consumer_starting = False
@@ -224,8 +225,8 @@ class AsyncChannel:
         :param pika.Spec.BasicProperties: properties
         :param bytes body: The message body
         """
-        if properties.correlation_id in self.futures:
-            future: Future = self.futures[properties.correlation_id]["response"]
+        if properties.correlation_id in self.rpc_futures:
+            future: Future = self.rpc_futures[properties.correlation_id]["response"]
             if not future.done():
                 if properties.type == "error":
                     future.set_exception(
@@ -337,7 +338,7 @@ class AsyncChannel:
         future = self.ioloop.create_future()  # type: ignore
         message = dumps({"resource_name": routing_key, "handle": body})
         corr_id = str(uuid4())
-        self.futures[corr_id] = {"response": future}
+        self.rpc_futures[corr_id] = {"response": future}
         clean_response = partial(self.clean_rpc_response, corr_id)
         future.add_done_callback(clean_response)
 
@@ -358,9 +359,9 @@ class AsyncChannel:
             mandatory=False,
         )
 
-        def not_arrived(id):
-            if id in self.futures:
-                future = self.futures[id]
+        def not_arrived(id: str):
+            if id in self.rpc_futures:
+                future = self.rpc_futures[id]
                 if self.publisher_confirms and not future["published"].done():
                     return future["published"].set_exception(
                         PublishTimeoutException("PublishTimeout: time limit reached")
@@ -379,7 +380,7 @@ class AsyncChannel:
 
     async def handle_publish(self, future, corr_id):
         publish_future = self.ioloop.create_future()
-        self.futures[corr_id]["published"] = publish_future
+        self.rpc_futures[corr_id]["published"] = publish_future
         self.publish_confirmation(publish_future)
         done_all, pending_all = await wait(
             [publish_future, future], return_when=FIRST_COMPLETED
@@ -434,17 +435,17 @@ class AsyncChannel:
 
     def publish_confirmation(self, future: Future):
         self._message_number += 1
-        self.futures[str(self._message_number)] = future
+        self.futures[self._message_number] = future
         self._deliveries[self._message_number] = future
         clean = partial(self.clean_publish_confirmation, self._message_number)
         future.add_done_callback(clean)
 
     def clean_publish_confirmation(self, meassage_id: int, _fut):
-        self.futures.pop(str(meassage_id))
+        self.futures.pop(meassage_id)
         self._deliveries.pop(meassage_id)
 
-    def clean_rpc_response(self, corr_id, _fut):
-        self.futures.pop(corr_id)
+    def clean_rpc_response(self, corr_id: str, _fut):
+        self.rpc_futures.pop(corr_id)
 
     async def rpc_subscribe(
         self,
