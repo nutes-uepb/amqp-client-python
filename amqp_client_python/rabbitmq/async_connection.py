@@ -1,14 +1,8 @@
-from typing import Optional
+from typing import Optional, Callable, Awaitable, Tuple, List, Any
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
 from .async_channel import AsyncChannel
 from ..exceptions import AutoReconnectException
-from asyncio import (
-    AbstractEventLoop,
-    Future,
-    wait_for,
-    get_event_loop,
-    TimeoutError
-)
+from asyncio import AbstractEventLoop, Future, wait_for, get_event_loop, TimeoutError
 import logging
 from ..domain.utils import ConnectionType
 from amqp_client_python.signals import Signal, Event
@@ -25,7 +19,7 @@ class AsyncConnection:
         prefetch_count=0,
         auto_ack=True,
         connection_type: Optional[ConnectionType] = None,
-        signal=Signal()
+        signal=Signal(),
     ) -> None:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
@@ -39,7 +33,7 @@ class AsyncConnection:
         self.openning = False
         self.reconnecting = False
         self.reconnect_delay = 1
-        self.callbacks = []
+        self.callbacks: List[Tuple[Callable, Future]] = []
         self.type = connection_type
         self.backup = {
             "exchange": {},
@@ -71,7 +65,12 @@ class AsyncConnection:
         LOGGER.info(f"connection openned {_unused_connection}, {self._connection}")
         self.signal.emmit(Event.CONNECTED, condiction=self.type, loop=self.ioloop)
         self.openning = False
-        self._channel = AsyncChannel(self._prefetch_count, self._auto_ack, channel_type=self.type, signal=self.signal)
+        self._channel = AsyncChannel(
+            self._prefetch_count,
+            self._auto_ack,
+            channel_type=self.type,
+            signal=self.signal,
+        )
         self._channel.publisher_confirms = self.publisher_confirms
         self._channel.open(self._connection, self.callbacks)
 
@@ -117,6 +116,7 @@ class AsyncConnection:
             self.ioloop.call_later(self.reconnect_delay, self.retry_connection)
             self.reconnect_delay += 1
         else:
+
             async def recorvery():
                 for routing_key in self.backup["subscribe"]:
                     params = self.backup["subscribe"][routing_key]
@@ -260,13 +260,19 @@ class AsyncConnection:
             response_timeout=response_timeout,
         )
 
-    async def add_callback(self, callback, connection_timeout: Optional[float] = None):
+    async def add_callback(
+        self,
+        callback: Callable[..., Awaitable[Any]],
+        connection_timeout: Optional[float] = None,
+    ):
         try:
             if self.is_open and self._channel and self._channel.is_open:
                 return await callback()
             else:
-                future = Future(loop=self.ioloop)
+                future: Future = Future(loop=self.ioloop)
                 self.callbacks.append((callback, future))
                 return await wait_for(future, connection_timeout)
         except TimeoutError:
-            raise AutoReconnectException("Timeout: failed to connect, order rejected...")
+            raise AutoReconnectException(
+                "Timeout: failed to connect, order rejected..."
+            )
