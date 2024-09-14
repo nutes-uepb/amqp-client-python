@@ -10,11 +10,7 @@ class Signal:
     def __init__(self):
         self.events = {}
 
-    def on(
-        self,
-        event: str,
-        condiction=None
-    ):
+    def on(self, event: str, condiction=None):
         try:
             Event(event)
 
@@ -26,16 +22,20 @@ class Signal:
                         self.events[event][condiction] = [callback]
                 else:
                     self.events[event] = {condiction: [callback]}
+
             return wrapper
         except ValueError:
             raise Exception("event not listed in events")
 
-    def emmit(self, event: str, condiction, loop=None):
+    def emmit(self, event: Event, condiction, loop=None):
         if event in self.events:
             if condiction in self.events[event]:
                 if loop is None:
                     return [callback() for callback in self.events[event][condiction]]
-                [loop.create_task(callback()) for callback in self.events[event][condiction]]
+                [
+                    loop.create_task(callback())
+                    for callback in self.events[event][condiction]
+                ]
 
     def dispose(self):
         self.events = {}

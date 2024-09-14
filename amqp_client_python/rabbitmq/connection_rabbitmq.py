@@ -1,3 +1,4 @@
+from typing import Any, List
 from .connection_factory_rabbitmq import ConnectionFactoryRabbitMQ
 from .channel_rabbitmq import ChannelRabbitMQ
 from amqp_client_python.exceptions import EventBusException
@@ -233,7 +234,7 @@ class ConnectionRabbitMQ:
         self,
         exchange_name: str,
         routing_key: str,
-        message: str,
+        message: List[Any],
         content_type,
         future,
         timeout,

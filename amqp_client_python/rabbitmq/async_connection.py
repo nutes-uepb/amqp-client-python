@@ -24,7 +24,7 @@ class AsyncConnection:
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
-        self._connection: AsyncioConnection = None
+        self._connection: Optional[AsyncioConnection] = None
         self._prefetch_count = prefetch_count
         self._auto_ack = auto_ack
         self.signal = signal
@@ -113,7 +113,9 @@ class AsyncConnection:
             if self.reconnect_delay > 30:
                 self.reconnect_delay = 30
             self.open(self.url)
-            self.ioloop.call_later(self.reconnect_delay, self.retry_connection)
+            self.ioloop.call_later(  # type: ignore
+                self.reconnect_delay, self.retry_connection
+            )
             self.reconnect_delay += 1
         else:
 
@@ -137,12 +139,12 @@ class AsyncConnection:
                         params["response_timeout"],
                     )
 
-            self.ioloop.create_task(self.add_callback(recorvery))
+            self.ioloop.create_task(self.add_callback(recorvery))  # type: ignore
             self.reconnect_delay = 1
             self.reconnecting = False
 
     @property
-    def is_open(self) -> bool:
+    def is_open(self) -> Optional[bool]:
         return self._connection and self._connection.is_open
 
     def stop(self) -> None:
@@ -157,30 +159,12 @@ class AsyncConnection:
         """
         if not self._closing:
             self._closing = True
-            LOGGER.warn("Stopping intentionally")
+            LOGGER.warning("Stopping intentionally")
             if self._consuming:
-                self.stop_consuming()
                 self._connection.ioloop.run_forever()
             else:
                 self.ioloop.stop()
-            LOGGER.warn("Stopped")
-
-    def set_qos(self) -> None:
-        """This method sets up the consumer prefetch to only be delivered
-        one message at a time. The consumer must acknowledge this message
-        before RabbitMQ will deliver another one. You should experiment
-        with different prefetch values to achieve desired performance.
-        """
-        self._channel.basic_qos(
-            prefetch_count=self._prefetch_count, callback=self.on_basic_qos_ok
-        )
-
-    def run(self) -> None:
-        """Run the example consumer by connecting to RabbitMQ and then
-        starting the IOLoop to block and allow the AsyncioConnection to operate.
-        """
-        self._connection = self.connect()
-        self._connection.ioloop.run_forever()
+            LOGGER.warning("Stopped")
 
     async def rpc_client(
         self,
@@ -266,7 +250,7 @@ class AsyncConnection:
         connection_timeout: Optional[float] = None,
     ):
         try:
-            if self.is_open and self._channel and self._channel.is_open:
+            if self.is_open and self._channel.is_open:
                 return await callback()
             else:
                 future: Future = Future(loop=self.ioloop)

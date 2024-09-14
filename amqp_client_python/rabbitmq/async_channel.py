@@ -30,7 +30,7 @@ class AsyncChannel:
         auto_ack=True,
         channel_factory=AsyncChannelFactoryRabbitMQ(),
         channel_type: Optional[str] = None,
-        signal=Signal()
+        signal=Signal(),
     ) -> None:
         self.ioloop = None
         self.channel_factory = channel_factory
@@ -52,11 +52,11 @@ class AsyncChannel:
         self.consumers = {}
         self.publisher_confirms = False
         self._message_number = 0
-        self._deliveries = {}
+        self._deliveries: MutableMapping[int, Future] = {}
         self.response_timeout = 60
 
     @property
-    def is_open(self):
+    def is_open(self) -> Optional[bool]:
         return self._channel and self._channel.is_open
 
     def open(self, connection: AsyncioConnection, callbacks=[]):
@@ -115,12 +115,12 @@ class AsyncChannel:
     def add_publish_confirms(self):
         self._acked = 0
         self._nacked = 0
-        self._deliveries: MutableMapping[int, Future] = {}
+        self._deliveries = {}
         self._message_number = 0
         self._channel.confirm_delivery(self.on_delivery_confirmation)
         LOGGER.info("Adding Publish Confirmation")
 
-    def on_delivery_confirmation(self, method_frame):
+    def on_delivery_confirmation(self, method_frame) -> None:
         confirmation_type = method_frame.method.NAME.split(".")[1].lower()
         delivery_tag = method_frame.method.delivery_tag
         if confirmation_type == "ack":
@@ -472,7 +472,10 @@ class AsyncChannel:
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
             self._channel.basic_consume(
-                queue_name, on_message_callback=func, auto_ack=self.auto_ack, callback=lambda _: registered.set_result(True)
+                queue_name,
+                on_message_callback=func,
+                auto_ack=self.auto_ack,
+                callback=lambda _: registered.set_result(True),
             )
             await registered
 
@@ -517,6 +520,7 @@ class AsyncChannel:
         :param pika.Spec.BasicProperties: properties
         :param bytes body: The message body
         """
+
         async def handle_message(queue_name, basic_deliver, props, body):
             try:
                 if basic_deliver.routing_key in self.subscribes[queue_name]:
@@ -576,7 +580,9 @@ class AsyncChannel:
                     basic_deliver.delivery_tag, requeue=False
                 )
 
-        self.ioloop.create_task(handle_message(queue_name, basic_deliver, props, body))
+        self.ioloop.create_task(  # type: ignore
+            handle_message(queue_name, basic_deliver, props, body)
+        )
 
     def add_subscribe(
         self, queue_name, routing_key, handle, content_type, response_timeout=None

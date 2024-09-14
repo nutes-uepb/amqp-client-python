@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Callable, Dict
 from .channel_factory_rabbitmq import ChannelFactoryRabbitMQ
 from amqp_client_python.signals import Signal, Event
 from pika.channel import Channel
@@ -67,11 +67,13 @@ class ChannelRabbitMQ:
         cb = partial(
             callback or self.on_exchange_declareok, userdata=exchange, callback=callback
         )
-        self._channel.exchange_declare(
+        self._channel.exchange_declare(  # type: ignore
             exchange=exchange, durable=durable, exchange_type=exchange_type, callback=cb
         )
 
-    def on_exchange_declareok(self, _unused_frame, userdata, callback=None):
+    def on_exchange_declareok(
+        self, _unused_frame, userdata, callback: Optional[Callable] = None
+    ):
         """Invoked by pika when RabbitMQ has finished the Exchange.Declare RPC
         command.
         :param pika.Frame.Method unused_frame: Exchange.DeclareOk response frame
@@ -132,8 +134,9 @@ class ChannelRabbitMQ:
             else:
                 self._connection.close()
 
+    @property
     def is_open(self) -> bool:
-        return bool(self._channel) and self._channel.is_open
+        return self._channel is not None and self._channel.is_open
 
     def close_channel(self):
         """Invoke this command to close the channel with RabbitMQ by sending
@@ -273,9 +276,9 @@ class ChannelRabbitMQ:
     ):
         if not self.rpc_publisher:
             self.start_rpc_publisher()
-        if self.is_open():
+        if self.is_open:
             if not self.consumer_tag:
-                self.consumer_tag = self._channel.basic_consume(
+                self.consumer_tag = self._channel.basic_consume(  # type: ignore
                     queue=queue_name,
                     on_message_callback=self.serve_resource,
                     auto_ack=auto_ack,
