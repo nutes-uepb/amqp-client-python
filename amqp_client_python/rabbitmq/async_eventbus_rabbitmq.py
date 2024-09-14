@@ -3,7 +3,7 @@ from .async_connection import AsyncConnection
 from ..domain.utils import ConnectionType
 from ..event import IntegrationEvent, AsyncSubscriberHandler
 from amqp_client_python.domain.models import Config
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, get_event_loop
 from pika import DeliveryMode
 from amqp_client_python.signals import Signal
 
@@ -299,6 +299,6 @@ class AsyncEventbusRabbitMQ:
         await self._rpc_server_connection.close()
         if stop_event_loop:
             if self._loop is None:
-                raise ValueError("Event loop is not defined")
+                self._loop = get_event_loop()
             self._loop.stop()
         self._signal.dispose()
