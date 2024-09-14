@@ -55,6 +55,7 @@ async def test_async_publish_confirmation(
     channel_factory_mock.create_channel.return_value = channel_mock
     channel = AsyncChannel(channel_factory=channel_factory_mock)
     channel.publisher_confirms = True
+    channel.futures = {}
     channel.open(connection_mock)
     publish = channel.publish(
         exchange, routing_key, body, content_type, timeout, connection_mock.ioloop
@@ -64,5 +65,9 @@ async def test_async_publish_confirmation(
         result = await publish
         assert result is True
     else:
+        channel._message_number += 1
+        channel.futures[channel._message_number] = future_publish
+        channel.ioloop.call_later = loop.call_later
+        channel.publish_confirmation = channel_mock.publish_confirmation
         with pytest.raises(PublishTimeoutException):
             await wait_for(publish, timeout=timeout + 1)
