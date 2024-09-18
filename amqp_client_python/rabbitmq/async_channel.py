@@ -405,11 +405,10 @@ class AsyncChannel:
         expiration: Optional[Union[str, None]] = None,
         **key_args,
     ):
-        message = dumps({"handle": body})
         self._channel.basic_publish(
             exchange_name,
             routing_key,
-            message,
+            dumps(body),
             properties=BasicProperties(
                 reply_to=self._callback_queue,
                 content_type=content_type,
@@ -529,7 +528,7 @@ class AsyncChannel:
                     response = await wait_for(
                         self.subscribes[queue_name][basic_deliver.routing_key][
                             "handle"
-                        ](*body["handle"]),
+                        ](body),
                         timeout=self.subscribes[queue_name][basic_deliver.routing_key][
                             "response_timeout"
                         ],
