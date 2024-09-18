@@ -102,8 +102,6 @@ class AsyncConnection:
         closed. Indicates that a reconnect is necessary then stops the
         ioloop.
         """
-
-        self.should_reconnect = True
         if not self.reconnecting:
             self.reconnecting = True
             self.retry_connection()
