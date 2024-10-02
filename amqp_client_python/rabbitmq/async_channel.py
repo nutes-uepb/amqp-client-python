@@ -473,6 +473,7 @@ class AsyncChannel:
 
         self.queue_bind(queue_name, exchange_name, routing_key)
         if not self.consumers[queue_name]:
+            assert self.ioloop is not None
             registered: Future[bool] = self.ioloop.create_future()
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
