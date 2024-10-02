@@ -1,4 +1,4 @@
-from typing import MutableMapping, Mapping, Optional, Union, Callable, Dict
+from typing import MutableMapping, Mapping, Optional, Union, Callable, Dict, List
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -16,6 +16,7 @@ from functools import partial
 from json import dumps, loads
 from uuid import uuid4
 import logging
+import re
 
 
 LOGGER = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class AsyncChannel:
         self._prefetch_count = prefetch_count
         self.auto_ack = auto_ack
         self.subscribes: Dict[str, Dict[str, Union[Callable, str, float]]] = {}
+        self.topic_subscribes: List[str] = []
         self.consumers: Dict[str, bool] = {}
         self.publisher_confirms = False
         self._message_number = 0
@@ -105,6 +107,7 @@ class AsyncChannel:
         :param pika.channel.Channel: The closed channel
         :param Exception reason: why the channel was closed
         """
+        print("channel closed:", reason, flush=True)
         LOGGER.info(f"Channel {channel} was closed: {reason}")
         self._consuming = False
         if self._connection.is_closing or self._connection.is_closed:
@@ -456,19 +459,24 @@ class AsyncChannel:
         response_timeout,
         content_type="application/json",
         exchange_type="direct",
+        durable=True,
+        auto_delete=False,
     ):
         await self.start_rpc_publisher()
-        self.add_subscribe(
-            queue_name,
-            routing_key,
-            callback,
-            content_type=content_type,
-            response_timeout=response_timeout,
+        self.register_queue(
+            exchange_name, queue_name, exchange_type, durable, auto_delete
         )
-        self.setup_exchange(exchange_name, exchange_type)
-        self.queue_declare(queue_name)
+
+        if routing_key not in self.subscribes[queue_name]:
+            self.subscribes[queue_name][routing_key] = {
+                "handle": callback,
+                "content_type": content_type,
+                "response_timeout": response_timeout or self.response_timeout,
+            }
+            if "*" in routing_key and routing_key not in self.topic_subscribes:
+                self.topic_subscribes.append(routing_key)
         self.queue_bind(queue_name, exchange_name, routing_key)
-        if queue_name not in self.consumers:
+        if not self.consumers[queue_name]:
             registered: Future[bool] = Future(loop=self.ioloop)
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
@@ -480,6 +488,23 @@ class AsyncChannel:
             )
             await registered
 
+    def register_queue(
+        self,
+        exchange_name,
+        queue_name: str,
+        exchange_type="direct",
+        durable=True,
+        auto_delete=False,
+    ):
+        if queue_name not in self.subscribes:
+            if not len(self.subscribes):
+                self.subscribes[queue_name] = {}
+        self.setup_exchange(exchange_name, exchange_type)
+        self.queue_declare(queue_name, durable=durable, auto_delete=auto_delete)
+
+        if queue_name not in self.consumers:
+            self.consumers[queue_name] = False
+
     async def subscribe(
         self,
         exchange_name,
@@ -489,18 +514,23 @@ class AsyncChannel:
         response_timeout,
         content_type="application/json",
         exchange_type="direct",
+        durable=True,
+        auto_delete=False,
     ):
-        self.add_subscribe(
-            queue_name,
-            routing_key,
-            callback,
-            content_type=content_type,
-            response_timeout=response_timeout,
+        self.register_queue(
+            exchange_name, queue_name, exchange_type, durable, auto_delete
         )
-        self.setup_exchange(exchange_name, exchange_type)
-        self.queue_declare(queue_name, durable=True)
+
+        if routing_key not in self.subscribes[queue_name]:
+            self.subscribes[queue_name][routing_key] = {
+                "handle": callback,
+                "content_type": content_type,
+                "response_timeout": response_timeout or self.response_timeout,
+            }
+            if "*" in routing_key and routing_key not in self.topic_subscribes:
+                self.topic_subscribes.append(routing_key)
         self.queue_bind(queue_name, exchange_name, routing_key)
-        if queue_name not in self.consumers:
+        if not self.consumers[queue_name]:
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
             self._channel.basic_consume(
@@ -522,35 +552,40 @@ class AsyncChannel:
         :param bytes body: The message body
         """
 
+        async def process_message(sub):
+            nonlocal body
+            body = loads(body)
+            response = await wait_for(
+                sub["handle"](*body["handle"]),
+                timeout=sub["response_timeout"],
+            )
+            if self.rpc_publisher_started and response and props.reply_to:
+                self._channel_rpc.basic_publish(
+                    "",
+                    props.reply_to,
+                    response,
+                    properties=BasicProperties(
+                        correlation_id=props.correlation_id,
+                        content_type=sub["content_type"],
+                        type="normal",
+                    ),
+                )
+            not self.auto_ack and not self._channel.basic_ack(
+                basic_deliver.delivery_tag
+            )
+
         async def handle_message(queue_name, basic_deliver, props, body):
             try:
                 if basic_deliver.routing_key in self.subscribes[queue_name]:
-                    body = loads(body)
-                    response = await wait_for(
-                        self.subscribes[queue_name][basic_deliver.routing_key][
-                            "handle"
-                        ](*body["handle"]),
-                        timeout=self.subscribes[queue_name][basic_deliver.routing_key][
-                            "response_timeout"
-                        ],
-                    )
-                    if self.rpc_publisher_started and response and props.reply_to:
-                        self._channel_rpc.basic_publish(
-                            "",
-                            props.reply_to,
-                            response,
-                            properties=BasicProperties(
-                                correlation_id=props.correlation_id,
-                                content_type=self.subscribes[queue_name][
-                                    basic_deliver.routing_key
-                                ]["content_type"],
-                                type="normal",
-                            ),
-                        )
-                    not self.auto_ack and not self._channel.basic_ack(
-                        basic_deliver.delivery_tag
+                    await process_message(
+                        self.subscribes[queue_name][basic_deliver.routing_key]
                     )
                 else:
+                    for routing_key in self.topic_subscribes:
+                        if re.match(routing_key, basic_deliver.routing_key):
+                            return await process_message(
+                                self.subscribes[queue_name][routing_key]
+                            )
                     if self.rpc_publisher_started and props.reply_to:
                         self._channel_rpc.basic_publish(
                             "",
@@ -562,9 +597,10 @@ class AsyncChannel:
                                 type="error",
                             ),
                         )
-                    not self.auto_ack and self._channel.basic_nack(
+                    return not self.auto_ack and self._channel.basic_nack(
                         basic_deliver.delivery_tag, requeue=False
                     )
+
             except BaseException as err:
                 if self.rpc_publisher_started and props.reply_to:
                     self._channel_rpc.basic_publish(
@@ -584,16 +620,3 @@ class AsyncChannel:
         self.ioloop.create_task(  # type: ignore
             handle_message(queue_name, basic_deliver, props, body)
         )
-
-    def add_subscribe(
-        self, queue_name, routing_key, handle, content_type, response_timeout=None
-    ):
-        if queue_name not in self.subscribes:
-            if not len(self.subscribes):
-                self.subscribes[queue_name] = {}
-        if routing_key not in self.subscribes[queue_name]:
-            self.subscribes[queue_name][routing_key] = {
-                "handle": handle,
-                "content_type": content_type,
-                "response_timeout": response_timeout or self.response_timeout,
-            }
