@@ -31,19 +31,11 @@ Client with high level of abstraction for manipulation of messages in the event 
 - Support for a Remote procedure call _(RPC)_.
 
 
-[//]: # (These are reference links used in the body of this note.)
-[license-image]: https://img.shields.io/badge/license-Apache%202-blue.svg
-[license-url]: https://github.com/nutes-uepb/amqp-client-python/blob/master/LICENSE
-[npm-image]: https://img.shields.io/npm/v/amqp-client-python.svg?color=red&logo=npm
-[npm-url]: https://npmjs.org/package/amqp-client-python
-[downloads-image]: https://img.shields.io/npm/dt/amqp-client-python.svg?logo=npm
-[travis-url]: https://travis-ci.org/nutes-uepb/amqp-client-python
-[coverage-image]: https://coveralls.io/repos/github/nutes-uepb/amqp-client-python/badge.svg
-[coverage-url]: https://coveralls.io/github/nutes-uepb/amqp-client-python?branch=master
-[known-vulnerabilities-image]: https://snyk.io/test/github/nutes-uepb/amqp-client-python/badge.svg?targetFile=requirements.txt
-[known-vulnerabilities-url]: https://snyk.io/test/github/nutes-uepb/amqp-client-python?targetFile=requirements.txt
-[releases-image]: https://img.shields.io/github/release-date/nutes-uepb/amqp-client-python.svg
-[releases-url]: https://github.com/nutes-uepb/amqp-client-python/releases
+### Table of Compatibility
+| version  | compatible with |
+| ---- | ---- |
+|  0.2.0 | 0.2.0 |
+| 0.1.14 | ~0.1.12 |
 
 ### Examples:
 #### you can use [sync](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_rabbitmq.py) , [async eventbus](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py) and [sync wrapper](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_wrapper_rabbitmq.py) of async eventbus
@@ -192,3 +184,17 @@ When using [**EventbusRabbitMQ**](https://github.com/nutes-uepb/amqp-client-pyth
 </pre></medium>
 
 
+
+[//]: # (These are reference links used in the body of this note.)
+[license-image]: https://img.shields.io/badge/license-Apache%202-blue.svg
+[license-url]: https://github.com/nutes-uepb/amqp-client-python/blob/master/LICENSE
+[npm-image]: https://img.shields.io/npm/v/amqp-client-python.svg?color=red&logo=npm
+[npm-url]: https://npmjs.org/package/amqp-client-python
+[downloads-image]: https://img.shields.io/npm/dt/amqp-client-python.svg?logo=npm
+[travis-url]: https://travis-ci.org/nutes-uepb/amqp-client-python
+[coverage-image]: https://coveralls.io/repos/github/nutes-uepb/amqp-client-python/badge.svg
+[coverage-url]: https://coveralls.io/github/nutes-uepb/amqp-client-python?branch=master
+[known-vulnerabilities-image]: https://snyk.io/test/github/nutes-uepb/amqp-client-python/badge.svg?targetFile=requirements.txt
+[known-vulnerabilities-url]: https://snyk.io/test/github/nutes-uepb/amqp-client-python?targetFile=requirements.txt
+[releases-image]: https://img.shields.io/github/release-date/nutes-uepb/amqp-client-python.svg
+[releases-url]: https://github.com/nutes-uepb/amqp-client-python/releases
