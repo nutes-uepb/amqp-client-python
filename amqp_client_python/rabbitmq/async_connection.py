@@ -102,8 +102,6 @@ class AsyncConnection:
         closed. Indicates that a reconnect is necessary then stops the
         ioloop.
         """
-
-        self.should_reconnect = True
         if not self.reconnecting:
             self.reconnecting = True
             self.retry_connection()
@@ -170,8 +168,8 @@ class AsyncConnection:
         self,
         exchange_name: str,
         routing_key: str,
-        body,
-        content_type,
+        body: Any,
+        content_type: str,
         timeout,
         delivery_mode,
         expiration,
@@ -192,7 +190,7 @@ class AsyncConnection:
         self,
         exchange_name: str,
         routing_key: str,
-        body,
+        body: Any,
         content_type,
         timeout: float,
         delivery_mode,

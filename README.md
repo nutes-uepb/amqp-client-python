@@ -31,19 +31,11 @@ Client with high level of abstraction for manipulation of messages in the event 
 - Support for a Remote procedure call _(RPC)_.
 
 
-[//]: # (These are reference links used in the body of this note.)
-[license-image]: https://img.shields.io/badge/license-Apache%202-blue.svg
-[license-url]: https://github.com/nutes-uepb/amqp-client-python/blob/master/LICENSE
-[npm-image]: https://img.shields.io/npm/v/amqp-client-python.svg?color=red&logo=npm
-[npm-url]: https://npmjs.org/package/amqp-client-python
-[downloads-image]: https://img.shields.io/npm/dt/amqp-client-python.svg?logo=npm
-[travis-url]: https://travis-ci.org/nutes-uepb/amqp-client-python
-[coverage-image]: https://coveralls.io/repos/github/nutes-uepb/amqp-client-python/badge.svg
-[coverage-url]: https://coveralls.io/github/nutes-uepb/amqp-client-python?branch=master
-[known-vulnerabilities-image]: https://snyk.io/test/github/nutes-uepb/amqp-client-python/badge.svg?targetFile=requirements.txt
-[known-vulnerabilities-url]: https://snyk.io/test/github/nutes-uepb/amqp-client-python?targetFile=requirements.txt
-[releases-image]: https://img.shields.io/github/release-date/nutes-uepb/amqp-client-python.svg
-[releases-url]: https://github.com/nutes-uepb/amqp-client-python/releases
+### Table of Compatibility
+| version  | compatible with |
+| ---- | ---- |
+| 0.2.0 | 0.2.0 |
+| 0.1.14 | ~0.1.12 |
 
 ### Examples:
 #### you can use [sync](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_rabbitmq.py) , [async eventbus](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py) and [sync wrapper](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_wrapper_rabbitmq.py) of async eventbus
@@ -57,34 +49,26 @@ from amqp_client_python import (
     AsyncEventbusRabbitMQ,
     Config, Options
 )
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
 config = Config(Options("queue", "rpc_queue", "rpc_exchange"))
 eventbus = AsyncEventbusRabbitMQ(config)
 # publish
-class ExampleEvent(IntegrationEvent):
-    EVENT_NAME: str = "ExampleEvent"
-    def __init__(self, event_type: str, message = []) -> None:
-        super().__init__(self.EVENT_NAME, event_type)
-        self.message = message
 
-publish_event = ExampleEvent(rpc_exchange, ["message"])
-eventbus.publish(publish_event, rpc_routing_key, "direct")
+eventbus.publish("rpc_exchange", "routing.key", "message_content")
 # subscribe
-class ExampleEventHandler(IntegrationEventHandler):
-    async def handle(self, body) -> None:
-        print(body) # handle messages
-await eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
+async def subscribe_handler(body) -> None:
+    print(body, type(body), flush=True) # handle messages
+await eventbus.subscribe("rpc_exchange", "routing.key", subscribe_handler)
 # rpc_publish
-response = await eventbus.rpc_client(rpc_exchange, "user.find", ["content_message"])
+response = await eventbus.rpc_client("rpc_exchange", "user.find", "message_content")
 # provider
-async def handle2(*body) -> bytes:
+async def rpc_provider_handler(body) -> bytes:
     print(f"body: {body}")
     return b"content"
-await eventbus.provide_resource("user.find", handle)
+await eventbus.provide_resource("user.find", rpc_provider_handler)
 ```
 </details>
 
-<details><summary>sync usage</summary>
+<details><summary>sync usage(deprecated)</summary>
 
 ```Python
 from amqp_client_python import (
@@ -138,7 +122,7 @@ while running:
         count += 1
         if str(count) != eventbus.rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"]).decode("utf-8"):
             running = False
-        #eventbus.publish(publish_event, rpc_routing_key, "direct")
+        #eventbus.publish(publish_event, rpc_routing_key, "message_content")
         #running = False
     except TimeoutError as err:
         print("timeout!!!: ", str(err))
@@ -153,40 +137,30 @@ while running:
 
 ```Python
 from amqp_client_python import EventbusWrapperRabbitMQ, Config, Options
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
 
-config = Config(Options(queue, rpc_queue, rpc_exchange))
+config = Config(Options("queue", "rpc_queue", "rpc_exchange"))
 eventbus = EventbusWrapperRabbitMQ(config=config)
 
-class ExampleEvent(IntegrationEvent):
-    EVENT_NAME: str = "ExampleEvent"
-    def __init__(self, event_type: str, message = []) -> None:
-        super().__init__(self.EVENT_NAME, event_type)
-        self.message = message
-class ExampleEventHandler(IntegrationEventHandler):
-    async def handle(self, body) -> None:
-        print(body,"subscribe")
+async def subscribe_handler(body) -> None:
+    print(f"{body}", type(body), flush=True)
 
-async def handle(*body):
-    print(body[0], "rpc_provider")
-    return f"{body[0]}".encode("utf-8")
+async def rpc_provider_handler(body) -> bytes:
+    print(f"handle - {body}", type(body), flush=True)
+    return f"{body}".encode("utf-8")
 
-subscribe_event = ExampleEvent(rpc_exchange)
-publish_event = ExampleEvent(rpc_exchange, ["message"])
-subscribe_event_handle = ExampleEventHandler()
 # rpc_provider
-eventbus.provide_resource(rpc_routing_key+"2", handle).result()
+eventbus.provide_resource("user.find", rpc_provider_handler).result()
 # subscribe
-eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key).result()
+eventbus.subscribe("rpc_exchange", "routing.key", subscribe_handler).result()
 count = 0
 running = True
 while running:
     try:
         count += 1
         # rpc_client call
-        eventbus.rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"]).result().decode("utf-8")
+        eventbus.rpc_client("rpc_exchange", "user.find", count).result().decode("utf-8")
         # publish
-        eventbus.publish(publish_event, rpc_routing_key, "direct").result()
+        eventbus.publish("rpc_exchange", "routing.key", "message_content").result()
         #running = False
     except KeyboardInterrupt:
         running=False
@@ -210,3 +184,17 @@ When using [**EventbusRabbitMQ**](https://github.com/nutes-uepb/amqp-client-pyth
 </pre></medium>
 
 
+
+[//]: # (These are reference links used in the body of this note.)
+[license-image]: https://img.shields.io/badge/license-Apache%202-blue.svg
+[license-url]: https://github.com/nutes-uepb/amqp-client-python/blob/master/LICENSE
+[npm-image]: https://img.shields.io/npm/v/amqp-client-python.svg?color=red&logo=npm
+[npm-url]: https://npmjs.org/package/amqp-client-python
+[downloads-image]: https://img.shields.io/npm/dt/amqp-client-python.svg?logo=npm
+[travis-url]: https://travis-ci.org/nutes-uepb/amqp-client-python
+[coverage-image]: https://coveralls.io/repos/github/nutes-uepb/amqp-client-python/badge.svg
+[coverage-url]: https://coveralls.io/github/nutes-uepb/amqp-client-python?branch=master
+[known-vulnerabilities-image]: https://snyk.io/test/github/nutes-uepb/amqp-client-python/badge.svg?targetFile=requirements.txt
+[known-vulnerabilities-url]: https://snyk.io/test/github/nutes-uepb/amqp-client-python?targetFile=requirements.txt
+[releases-image]: https://img.shields.io/github/release-date/nutes-uepb/amqp-client-python.svg
+[releases-url]: https://github.com/nutes-uepb/amqp-client-python/releases

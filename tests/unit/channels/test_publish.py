@@ -31,7 +31,7 @@ async def test_channel_publish(connection_mock, channel_mock, channel_factory_mo
     assert channel_mock.basic_publish.call_args.args == (
         exchange,
         routing_key,
-        dumps({"handle": body}),
+        dumps(body),
     )
     assert result is None
 

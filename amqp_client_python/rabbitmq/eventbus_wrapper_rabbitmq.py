@@ -1,6 +1,5 @@
 from typing import Callable, Awaitable, Optional, Union, Any, List
 from .async_eventbus_rabbitmq import AsyncEventbusRabbitMQ
-from ..event import IntegrationEvent, AsyncSubscriberHandler
 from ..exceptions import BlockingException, ThreadUnsafeException
 from amqp_client_python.domain.models import Config
 from pika import DeliveryMode
@@ -46,7 +45,7 @@ class EventbusWrapperRabbitMQ:
         self,
         exchange: str,
         routing_key: str,
-        body: List[Any],
+        body: Any,
         content_type="application/json",
         timeout=5,
     ) -> Future:
@@ -65,7 +64,7 @@ class EventbusWrapperRabbitMQ:
         self,
         exchange: str,
         routing_key: str,
-        body: List[Any],
+        body: Any,
         content_type="application/json",
         timeout=5,
     ):
@@ -79,9 +78,9 @@ class EventbusWrapperRabbitMQ:
 
     async def async_publish(
         self,
-        event: IntegrationEvent,
+        exchange_name: str,
         routing_key: str,
-        body: List[Any],
+        body: Any,
         content_type="application/json",
         timeout=5,
         connection_timeout: int = 16,
@@ -94,7 +93,7 @@ class EventbusWrapperRabbitMQ:
                 "Cannot run async call on this thread, try to use sync thread safe methods"
             )
         await self._async_eventbus.publish(
-            event,
+            exchange_name,
             routing_key,
             body,
             content_type,
@@ -107,9 +106,9 @@ class EventbusWrapperRabbitMQ:
 
     def publish(
         self,
-        event: IntegrationEvent,
+        exchange_name: str,
         routing_key: str,
-        body: List[Any],
+        body: Any,
         content_type="application/json",
         timeout=5,
         connection_timeout: int = 16,
@@ -123,19 +122,26 @@ class EventbusWrapperRabbitMQ:
             )
         return run_coroutine_threadsafe(
             self._async_eventbus.publish(
-                event, routing_key, body, content_type, timeout, connection_timeout,
-                delivery_mode, expiration, **kwargs
+                exchange_name,
+                routing_key,
+                body,
+                content_type,
+                timeout,
+                connection_timeout,
+                delivery_mode,
+                expiration,
+                **kwargs
             ),
             self._loop,
         )
 
     def subscribe(
         self,
-        event: IntegrationEvent,
-        handler: AsyncSubscriberHandler,
+        exchange_name: str,
         routing_key: str,
+        handler: Callable[[Any], Awaitable[None]],
         response_timeout: Optional[int] = None,
-        connection_timeout: int = 16
+        connection_timeout: int = 16,
     ) -> Future:
         if self._thread.ident == current_thread().ident:
             raise BlockingException(
@@ -143,39 +149,46 @@ class EventbusWrapperRabbitMQ:
             )
         return run_coroutine_threadsafe(
             self._async_eventbus.subscribe(
-                event, handler, routing_key, response_timeout, connection_timeout
+                exchange_name,
+                routing_key,
+                handler,
+                response_timeout,
+                connection_timeout,
             ),
             self._loop,
         )
 
     async def async_subscribe(
         self,
-        event: IntegrationEvent,
-        handler: AsyncSubscriberHandler,
+        exchange_name: str,
         routing_key: str,
+        handler: Callable[[Any], Awaitable[None]],
         response_timeout: Optional[int] = None,
-        connection_timeout: int = 16
+        connection_timeout: int = 16,
     ):
         if self._thread.ident != current_thread().ident:
             raise ThreadUnsafeException(
                 "Cannot run async call on this thread, try to use sync thread safe methods"
             )
         await self._async_eventbus.subscribe(
-            event, handler, routing_key, response_timeout, connection_timeout
+            exchange_name, routing_key, handler, response_timeout, connection_timeout
         )
 
     def provide_resource(
-        self, name: str,
+        self,
+        name: str,
         callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
         response_timeout: Optional[int] = None,
-        connection_timeout: int = 16
+        connection_timeout: int = 16,
     ) -> Future:
         if self._thread.ident == current_thread().ident:
             raise BlockingException(
                 "Cannot run sync blocking call on async thread, try to use async methods with an await expression"
             )
         return run_coroutine_threadsafe(
-            self._async_eventbus.provide_resource(name, callback, response_timeout, connection_timeout),
+            self._async_eventbus.provide_resource(
+                name, callback, response_timeout, connection_timeout
+            ),
             self._loop,
         )
 
@@ -184,13 +197,15 @@ class EventbusWrapperRabbitMQ:
         name: str,
         callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
         response_timeout: Optional[int] = None,
-        connection_timeout: int = 16
+        connection_timeout: int = 16,
     ):
         if self._thread.ident != current_thread().ident:
             raise ThreadUnsafeException(
                 "Cannot run async call on this thread, try to use sync thread safe methods"
             )
-        await self._async_eventbus.provide_resource(name, callback, response_timeout, connection_timeout)
+        await self._async_eventbus.provide_resource(
+            name, callback, response_timeout, connection_timeout
+        )
 
     def dispose(self):
         run_coroutine_threadsafe(self._async_eventbus.dispose(True), self._loop)

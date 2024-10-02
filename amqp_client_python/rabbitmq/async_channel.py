@@ -340,7 +340,6 @@ class AsyncChannel:
         **key_args,
     ):
         future = self.ioloop.create_future()  # type: ignore
-        message = dumps({"resource_name": routing_key, "handle": body})
         corr_id = str(uuid4())
         self.rpc_futures[corr_id] = {"response": future}
         clean_response = partial(self.clean_rpc_response, corr_id)
@@ -351,7 +350,7 @@ class AsyncChannel:
         self._channel.basic_publish(
             exchange_name,
             routing_key,
-            message,
+            dumps(body),
             properties=BasicProperties(
                 reply_to=self._callback_queue,
                 correlation_id=corr_id,
@@ -409,11 +408,10 @@ class AsyncChannel:
         expiration: Optional[Union[str, None]] = None,
         **key_args,
     ):
-        message = dumps({"handle": body})
         self._channel.basic_publish(
             exchange_name,
             routing_key,
-            message,
+            dumps(body),
             properties=BasicProperties(
                 reply_to=self._callback_queue,
                 content_type=content_type,
@@ -522,7 +520,7 @@ class AsyncChannel:
         callback,
         response_timeout: Optional[int],
         content_type: str = "application/json",
-        exchange_type: str = "direct",
+        exchange_type: str = "topic",
         durable: bool = True,
         auto_delete: bool = False,
     ) -> None:
@@ -560,7 +558,7 @@ class AsyncChannel:
             nonlocal body
             body = loads(body)
             response = await wait_for(
-                handler["handle"](*body["handle"]),
+                handler["handle"](body),
                 timeout=handler["response_timeout"],
             )
             if self.rpc_publisher_started and response and props.reply_to:

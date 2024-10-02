@@ -1,5 +1,4 @@
 from amqp_client_python import AsyncEventbusRabbitMQ, DeliveryMode
-from amqp_client_python.event import IntegrationEvent
 from asyncio import iscoroutinefunction
 from tests.unit.eventbus.default import async_add_callback
 import pytest
@@ -8,20 +7,23 @@ from random import randint
 
 @pytest.mark.asyncio_cooperative
 async def test_async_eventbus_publish_surface(async_connection_mock, config_mock):
-    event_name, exchange, routing_key, body, connection_timeout = (
-        "example_event",
+    exchange, routing_key, body, connection_timeout = (
         "ex_example",
         "rk_example",
         ["content"],
-        randint(1, 16)
+        randint(1, 16),
     )
     eventbus = AsyncEventbusRabbitMQ(config_mock)
     eventbus._pub_connection = async_connection_mock
     # create event
-    event = IntegrationEvent(event_name, exchange)
 
     assert iscoroutinefunction(eventbus.publish)
-    assert await eventbus.publish(event, routing_key, body, connection_timeout=connection_timeout) is not None
+    assert (
+        await eventbus.publish(
+            exchange, routing_key, body, connection_timeout=connection_timeout
+        )
+        is not None
+    )
     # test connection will be open
     eventbus._pub_connection.open.assert_called_once_with(config_mock.build().url)
     # test if will try when connection and channel is open
@@ -34,14 +36,12 @@ async def test_async_eventbus_publish_surface(async_connection_mock, config_mock
 @pytest.mark.asyncio_cooperative
 async def test_async_eventbus_publish_deep(async_connection_mock, config_mock):
     (
-        event_name,
         exchange,
         routing_key,
         body,
         content_type,
         timeout,
     ) = (
-        "example_event",
         "ex_example",
         "rk_example",
         ["content"],
@@ -52,12 +52,11 @@ async def test_async_eventbus_publish_deep(async_connection_mock, config_mock):
     eventbus._pub_connection = async_connection_mock
     eventbus._pub_connection.add_callback = async_add_callback
     # create event
-    event = IntegrationEvent(event_name, exchange)
 
     assert iscoroutinefunction(eventbus.publish)
     assert (
         await eventbus.publish(
-            event,
+            exchange,
             routing_key,
             body,
             content_type,
@@ -69,7 +68,7 @@ async def test_async_eventbus_publish_deep(async_connection_mock, config_mock):
     eventbus._pub_connection.open.assert_called_once_with(config_mock.build().url)
     # test if will try when connection and channel is open
     eventbus._pub_connection.publish.assert_called_once_with(
-        event.event_type,
+        exchange,
         routing_key,
         body,
         content_type,

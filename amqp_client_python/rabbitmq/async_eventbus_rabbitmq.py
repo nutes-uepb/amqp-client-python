@@ -1,7 +1,6 @@
 from typing import Callable, Awaitable, Optional, Union, Any, List
 from .async_connection import AsyncConnection
 from ..domain.utils import ConnectionType
-from ..event import IntegrationEvent, AsyncSubscriberHandler
 from amqp_client_python.domain.models import Config
 from asyncio import AbstractEventLoop, get_event_loop
 from pika import DeliveryMode
@@ -100,7 +99,7 @@ class AsyncEventbusRabbitMQ:
         self,
         exchange: str,
         routing_key: str,
-        body: List[Any],
+        body: Any,
         content_type: str = "application/json",
         timeout: float = 5,
         connection_timeout: float = 16,
@@ -155,9 +154,9 @@ class AsyncEventbusRabbitMQ:
 
     async def publish(
         self,
-        event: IntegrationEvent,
+        exchange_name: str,
         routing_key: str,
-        body: List[Any],
+        body: Any,
         content_type: str = "application/json",
         timeout: float = 5,
         connection_timeout: float = 16,
@@ -190,13 +189,14 @@ class AsyncEventbusRabbitMQ:
 
 
         Examples:
-            >>> publish_event = ExampleEvent("example.rpc")
-            >>> await eventbus.publish(publish_event, "user.find3", ["content_message"])
+            >>> exchange_name = "example.rpc"
+            >>> routing_key = "user.find3"
+            >>> await eventbus.publish(exchange_name, routing_key, ["content_message"])
         """
 
         async def add_publish():
             return await self._pub_connection.publish(
-                event.event_type,
+                exchange_name,
                 routing_key,
                 body,
                 content_type,
@@ -212,7 +212,7 @@ class AsyncEventbusRabbitMQ:
     async def provide_resource(
         self,
         name: str,
-        callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
+        handler: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
         response_timeout: Optional[int] = None,
         connection_timeout: int = 16,
     ) -> None:
@@ -221,7 +221,7 @@ class AsyncEventbusRabbitMQ:
 
         Args:
             name: routing_key name
-            callback: message handler
+            handler: message handler, it will be called when a message is received
             response_timeout: timeout in seconds for waiting for process the received message
             connection_timeout: timeout for waiting for connection restabilishment
 
@@ -232,7 +232,7 @@ class AsyncEventbusRabbitMQ:
             AutoReconnectException: when cannout reconnect on the gived timeout
 
         Examples:
-            >>> async def handle(*body) -> Union[bytes, str]:
+            >>> async def handle(body) -> Union[bytes, str]:
                     print(f"received message: {body}")
                     return b"[]"
             >>> await eventbus.provide_resource("user.find", handle)
@@ -243,7 +243,7 @@ class AsyncEventbusRabbitMQ:
                 self.config.options.rpc_queue_name,
                 self.config.options.rpc_exchange_name,
                 name,
-                callback,
+                handler,
                 response_timeout,
             )
 
@@ -252,9 +252,9 @@ class AsyncEventbusRabbitMQ:
 
     async def subscribe(
         self,
-        event: IntegrationEvent,
-        handler: AsyncSubscriberHandler,
+        exchange_name: str,
         routing_key: str,
+        handler: Callable[[Any], Awaitable[None]],
         response_timeout: Optional[float] = None,
         connection_timeout: int = 16,
     ) -> None:
@@ -262,8 +262,9 @@ class AsyncEventbusRabbitMQ:
         Register a provider to listen on queue of bus
 
         Args:
-            name: routing_key name
-            callback: message handler
+            exchange_name: exchange name
+            routing_key: routing_key name
+            handler: message handler, it will be called when a message is received
             response_timeout: timeout in seconds for waiting for process the received message
             connection_timeout: timeout for waiting for connection restabilishment
 
@@ -274,18 +275,21 @@ class AsyncEventbusRabbitMQ:
             AutoReconnectException: when cannout reconnect on the gived timeout
 
         Examples:
-            >>> async def handle(*body) -> None:
+            >>> async def handle(body) -> None:
                     print(f"received message: {body}")
-            >>> subscribe_event = ExampleEvent("example.rpc")
-            >>> await eventbus.subscribe(subscribe_event, event_handle, "user.find3")
+            >>> exchange_name = "example"
+            >>> routing_key = "user.find3"
+            >>> response_timeout = 20
+            >>> connection_timeout = 16
+            >>> await eventbus.subscribe(exchange_name, routing_key, handle, response_timeout, connection_timeout)
         """
 
         async def add_subscribe():
             await self._sub_connection.subscribe(
                 self.config.options.queue_name,
-                event.event_type,
+                exchange_name,
                 routing_key,
-                handler.handle,
+                handler,
                 response_timeout,
             )
 
