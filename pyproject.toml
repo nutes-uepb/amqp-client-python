@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "amqp-client-python"
-version = "0.1.14"
+version = "0.2.0"
 description = "Python AMQP Client Library"
 license = "Apache-2.0"
 authors = ["NUTES UEPB <dev.seniorsaudemovel@gmail.com>"]
@@ -34,7 +34,7 @@ keywords = ["packaging", "dependency", "amqp-client-python"]
 
 [project]
 maintainers = [
-    {name = "João Pedro M. Cariry", email = "berrytern@gmail.com"}
+    {name = "João Pedro Miranda C. Hluchan", email = "berrytern@gmail.com"}
 ]
 
 [project.urls]
