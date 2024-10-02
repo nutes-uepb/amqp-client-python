@@ -9,10 +9,16 @@ from .ioloop_factory import IOLoopFactory
 from concurrent.futures import Future as syncFuture
 from asyncio import AbstractEventLoop
 import asyncio
+import warnings
 
 
 class EventbusRabbitMQ:
     def __init__(self, config: Config) -> None:
+        warnings.warn(
+            f"{self.__class__.__name__} is deprecated and will no longer be supported in future releases",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.pub_connection = ConnectionRabbitMQ(connection_type=ConnectionType.PUBLISH)
         self.sub_connection = ConnectionRabbitMQ(
             connection_type=ConnectionType.SUBSCRIBE
