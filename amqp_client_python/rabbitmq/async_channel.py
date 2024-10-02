@@ -452,13 +452,13 @@ class AsyncChannel:
 
     async def rpc_subscribe(
         self,
-        exchange_name,
+        exchange_name: str,
         routing_key: str,
         queue_name: str,
         callback,
         response_timeout,
         content_type="application/json",
-        exchange_type="direct",
+        exchange_type="topic",
         durable=True,
         auto_delete=False,
     ):
@@ -574,7 +574,7 @@ class AsyncChannel:
                 basic_deliver.delivery_tag
             )
 
-        async def handle_message(queue_name, basic_deliver, props, body):
+        async def handle_message(queue_name, basic_deliver, props):
             try:
                 if basic_deliver.routing_key in self.subscribes[queue_name]:
                     await process_message(
@@ -618,5 +618,5 @@ class AsyncChannel:
                 )
 
         self.ioloop.create_task(  # type: ignore
-            handle_message(queue_name, basic_deliver, props, body)
+            handle_message(queue_name, basic_deliver, props)
         )
