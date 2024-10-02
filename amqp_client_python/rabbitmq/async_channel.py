@@ -522,7 +522,7 @@ class AsyncChannel:
         callback,
         response_timeout: Optional[int],
         content_type: str = "application/json",
-        exchange_type: str = "direct",
+        exchange_type: str = "topic",
         durable: bool = True,
         auto_delete: bool = False,
     ) -> None:
