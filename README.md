@@ -34,7 +34,7 @@ Client with high level of abstraction for manipulation of messages in the event 
 ### Table of Compatibility
 | version  | compatible with |
 | ---- | ---- |
-|  0.2.0 | 0.2.0 |
+| 0.2.0 | 0.2.0 |
 | 0.1.14 | ~0.1.12 |
 
 ### Examples:
