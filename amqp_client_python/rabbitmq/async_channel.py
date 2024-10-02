@@ -1,4 +1,4 @@
-from typing import MutableMapping, Mapping, Optional, Union, Callable, Dict, List
+from typing import MutableMapping, Mapping, Optional, Union, Dict, List
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -8,6 +8,7 @@ from amqp_client_python.exceptions import (
     EventBusException,
 )
 from amqp_client_python.signals import Signal, Event
+from amqp_client_python.domain.utils.types import HandlerType
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.channel import Channel
 from pika import BasicProperties, DeliveryMode
@@ -50,8 +51,8 @@ class AsyncChannel:
         self.consumer_tag = None
         self._prefetch_count = prefetch_count
         self.auto_ack = auto_ack
-        self.subscribes: Dict[str, Dict[str, Union[Callable, str, float]]] = {}
-        self.topic_subscribes: List[str] = []
+        self.subscribes: Dict[str, Dict[str, HandlerType]] = {}
+        self.re_subscribes: List[str] = []
         self.consumers: Dict[str, bool] = {}
         self.publisher_confirms = False
         self._message_number = 0
@@ -466,15 +467,10 @@ class AsyncChannel:
         self.register_queue(
             exchange_name, queue_name, exchange_type, durable, auto_delete
         )
+        self.register_handler(
+            queue_name, routing_key, callback, content_type, response_timeout
+        )
 
-        if routing_key not in self.subscribes[queue_name]:
-            self.subscribes[queue_name][routing_key] = {
-                "handle": callback,
-                "content_type": content_type,
-                "response_timeout": response_timeout or self.response_timeout,
-            }
-            if "*" in routing_key and routing_key not in self.topic_subscribes:
-                self.topic_subscribes.append(routing_key)
         self.queue_bind(queue_name, exchange_name, routing_key)
         if not self.consumers[queue_name]:
             registered: Future[bool] = Future(loop=self.ioloop)
@@ -505,30 +501,37 @@ class AsyncChannel:
         if queue_name not in self.consumers:
             self.consumers[queue_name] = False
 
-    async def subscribe(
-        self,
-        exchange_name,
-        routing_key: str,
-        queue_name: str,
-        callback,
-        response_timeout,
-        content_type="application/json",
-        exchange_type="direct",
-        durable=True,
-        auto_delete=False,
+    def register_handler(
+        self, queue_name, routing_key, callback, content_type, response_timeout
     ):
-        self.register_queue(
-            exchange_name, queue_name, exchange_type, durable, auto_delete
-        )
-
         if routing_key not in self.subscribes[queue_name]:
             self.subscribes[queue_name][routing_key] = {
                 "handle": callback,
                 "content_type": content_type,
                 "response_timeout": response_timeout or self.response_timeout,
             }
-            if "*" in routing_key and routing_key not in self.topic_subscribes:
-                self.topic_subscribes.append(routing_key)
+            if "*" in routing_key and routing_key not in self.re_subscribes:
+                self.re_subscribes.append(routing_key)
+
+    async def subscribe(
+        self,
+        exchange_name: str,
+        routing_key: str,
+        queue_name: str,
+        callback,
+        response_timeout: Optional[int],
+        content_type: str = "application/json",
+        exchange_type: str = "direct",
+        durable: bool = True,
+        auto_delete: bool = False,
+    ) -> None:
+        self.register_queue(
+            exchange_name, queue_name, exchange_type, durable, auto_delete
+        )
+        self.register_handler(
+            queue_name, routing_key, callback, content_type, response_timeout
+        )
+
         self.queue_bind(queue_name, exchange_name, routing_key)
         if not self.consumers[queue_name]:
             self.consumers[queue_name] = True
@@ -539,7 +542,7 @@ class AsyncChannel:
 
     def on_message(
         self, queue_name, _unused_channel, basic_deliver, props: BasicProperties, body
-    ):
+    ) -> None:
         """Invoked by pika when a message is delivered from RabbitMQ. The
         channel is passed for your convenience. The basic_deliver object that
         is passed in carries the exchange, routing key, delivery tag and
@@ -552,12 +555,12 @@ class AsyncChannel:
         :param bytes body: The message body
         """
 
-        async def process_message(sub):
+        async def process_message(handler: HandlerType):
             nonlocal body
             body = loads(body)
             response = await wait_for(
-                sub["handle"](*body["handle"]),
-                timeout=sub["response_timeout"],
+                handler["handle"](*body["handle"]),
+                timeout=handler["response_timeout"],
             )
             if self.rpc_publisher_started and response and props.reply_to:
                 self._channel_rpc.basic_publish(
@@ -566,7 +569,7 @@ class AsyncChannel:
                     response,
                     properties=BasicProperties(
                         correlation_id=props.correlation_id,
-                        content_type=sub["content_type"],
+                        content_type=handler["content_type"],
                         type="normal",
                     ),
                 )
@@ -581,7 +584,7 @@ class AsyncChannel:
                         self.subscribes[queue_name][basic_deliver.routing_key]
                     )
                 else:
-                    for routing_key in self.topic_subscribes:
+                    for routing_key in self.re_subscribes:
                         if re.match(routing_key, basic_deliver.routing_key):
                             return await process_message(
                                 self.subscribes[queue_name][routing_key]
