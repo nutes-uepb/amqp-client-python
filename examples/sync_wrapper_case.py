@@ -1,5 +1,4 @@
-from amqp_client_python import EventbusWrapperRabbitMQ, Config, Options, SSLOptions
-from amqp_client_python.event import IntegrationEvent, AsyncSubscriberHandler
+from amqp_client_python import EventbusWrapperRabbitMQ, Config, Options  # , SSLOptions
 from default import queue, rpc_queue, rpc_exchange, rpc_routing_key
 
 
@@ -10,17 +9,8 @@ config = Config(
 eventbus = EventbusWrapperRabbitMQ(config=config)
 
 
-class ExampleEvent(IntegrationEvent):
-    EVENT_NAME: str = "ExampleEvent"
-
-    def __init__(self, event_type: str, message=[]) -> None:
-        super().__init__(self.EVENT_NAME, event_type)
-        self.message = message
-
-
-class ExampleEventHandler(AsyncSubscriberHandler):
-    async def handle(self, body) -> None:
-        print(body, "subscribe")
+async def subscribe_handler(body) -> None:
+    print(body, "subscribe")
 
 
 async def handle(*body):
@@ -37,10 +27,7 @@ async def handle2(*body):
     return f"{body[0]}".encode("utf-8")
 
 
-subscribe_event = ExampleEvent(rpc_exchange)
-publish_event = ExampleEvent(rpc_exchange, ["message"])
-subscribe_event_handle = ExampleEventHandler()
-eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key).result()
+eventbus.subscribe(rpc_exchange, rpc_routing_key, subscribe_handler).result()
 eventbus.provide_resource(rpc_routing_key + "2", handle).result()
 eventbus.provide_resource(rpc_routing_key + "3", handle2).result()
 count = 0
@@ -49,10 +36,10 @@ while running:
     try:
         count += 1
         if str(count) != eventbus.rpc_client(
-            rpc_exchange, rpc_routing_key + "2", [f"{count}"]
+            rpc_exchange, rpc_routing_key + "2", count
         ).result().decode("utf-8"):
             running = False
-        eventbus.publish(publish_event, rpc_routing_key, "direct").result()
+        eventbus.publish(rpc_exchange, rpc_routing_key, "message_content").result()
         # running = False
     except KeyboardInterrupt:
         running = False

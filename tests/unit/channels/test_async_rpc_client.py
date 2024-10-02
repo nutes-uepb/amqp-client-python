@@ -43,7 +43,7 @@ async def test_rpc_client(connection_mock, channel_mock, channel_factory_mock):
     assert channel_mock.basic_publish.call_args.args == (
         exchange,
         routing_key,
-        dumps({"resource_name": routing_key, "handle": body}),
+        dumps(body),
     )
     assert result == expected_result
 
