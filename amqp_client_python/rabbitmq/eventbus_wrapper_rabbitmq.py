@@ -160,8 +160,9 @@ class EventbusWrapperRabbitMQ:
 
     async def async_subscribe(
         self,
-        handler: Callable[[Any], Awaitable[None]],
+        exchange_name: str,
         routing_key: str,
+        handler: Callable[[Any], Awaitable[None]],
         response_timeout: Optional[int] = None,
         connection_timeout: int = 16,
     ):
@@ -170,7 +171,7 @@ class EventbusWrapperRabbitMQ:
                 "Cannot run async call on this thread, try to use sync thread safe methods"
             )
         await self._async_eventbus.subscribe(
-            handler, routing_key, response_timeout, connection_timeout
+            exchange_name, routing_key, handler, response_timeout, connection_timeout
         )
 
     def provide_resource(
