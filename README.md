@@ -61,7 +61,7 @@ config = Config(Options("queue", "rpc_queue", "rpc_exchange"))
 eventbus = AsyncEventbusRabbitMQ(config)
 # publish
 
-eventbus.publish("rpc_exchange", "routing.key", "direct")
+eventbus.publish("rpc_exchange", "routing.key", "message_content")
 # subscribe
 async def subscribe_handler(body) -> None:
     print(body, type(body), flush=True) # handle messages
@@ -130,7 +130,7 @@ while running:
         count += 1
         if str(count) != eventbus.rpc_client(rpc_exchange, rpc_routing_key+"2", [f"{count}"]).decode("utf-8"):
             running = False
-        #eventbus.publish(publish_event, rpc_routing_key, "direct")
+        #eventbus.publish(publish_event, rpc_routing_key, "message_content")
         #running = False
     except TimeoutError as err:
         print("timeout!!!: ", str(err))
@@ -168,7 +168,7 @@ while running:
         # rpc_client call
         eventbus.rpc_client("rpc_exchange", "user.find", count).result().decode("utf-8")
         # publish
-        eventbus.publish("rpc_exchange", "routing.key", "direct").result()
+        eventbus.publish("rpc_exchange", "routing.key", "message_content").result()
         #running = False
     except KeyboardInterrupt:
         running=False

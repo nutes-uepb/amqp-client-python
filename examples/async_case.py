@@ -55,10 +55,10 @@ async def run():
         try:
             count += 1
             result = await eventbus.rpc_client(
-                rpc_exchange, "user.find", ["content_message"]
+                rpc_exchange, "user.find", ["message_content"]
             )
             print("returned:", result)
-            await eventbus.publish(rpc_exchange, "user.find3", ["content_message"])
+            await eventbus.publish(rpc_exchange, "user.find3", ["message_content"])
         except BaseException as err:
             print(f"err: {err}")
 
