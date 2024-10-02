@@ -19,11 +19,12 @@ async def test_async_channel_subscribe(
 
     future_publisher = Future(loop=loop)
     future_publisher.set_result(True)
-    connection_mock.ioloop.create_future.side_effect = [
-        future_publisher,
-    ]
+    connection_mock.ioloop.call_later = loop.call_later
+    connection_mock.ioloop.create_future.return_value = future_publisher
     channel_factory_mock.create_channel.return_value = channel_mock
-    channel = AsyncChannel(channel_factory=channel_factory_mock, channel_type=ConnectionType.RPC_SERVER)
+    channel = AsyncChannel(
+        channel_factory=channel_factory_mock, channel_type=ConnectionType.RPC_SERVER
+    )
     channel.open(connection_mock)
 
     async def handle(*body):
@@ -34,7 +35,7 @@ async def test_async_channel_subscribe(
     )
     assert channel._channel == channel_mock
     assert iscoroutine(rpc_subscribe)
-    assert await rpc_subscribe is None
+    assert (await rpc_subscribe) is None
     channel_mock.basic_consume.assert_called_once()
     assert channel_mock.basic_consume.call_args.args == (queue_name,)
 
@@ -54,9 +55,7 @@ async def test_rpc_subscribe_publisher_started(
     future_publisher = Future(loop=loop)
     if consumer:
         future_publisher.set_result(True)
-    connection_mock.ioloop.create_future.side_effect = [
-        future_publisher,
-    ]
+    connection_mock.ioloop.create_future.return_value = future_publisher
     connection_mock.ioloop.call_later = loop.call_later
     channel_factory_mock.create_channel.return_value = channel_mock
     channel = AsyncChannel(channel_factory=channel_factory_mock)
@@ -66,10 +65,10 @@ async def test_rpc_subscribe_publisher_started(
         return b"result"
 
     rpc_subscribe = channel.rpc_subscribe(
-        exchange, routing_key, queue_name, handle, content_type, connection_mock.ioloop
+        exchange, routing_key, queue_name, handle, content_type
     )
     if consumer:
-        assert await rpc_subscribe is None
+        assert (await rpc_subscribe) is None
         assert channel.rpc_publisher_starting is True
     else:
         with pytest.raises(EventBusException):
