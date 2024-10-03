@@ -226,7 +226,12 @@ class AsyncConnection:
         )
 
     async def subscribe(
-        self, queue_name, exchange_name, routing_key, callback, response_timeout
+        self,
+        queue_name: str,
+        exchange_name: str,
+        routing_key: str,
+        callback: Callable[[Any], Awaitable[None]],
+        response_timeout: Optional[float],
     ):
         self.backup["subscribe"][routing_key] = {
             "queue_name": queue_name,

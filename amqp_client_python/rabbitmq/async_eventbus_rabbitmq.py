@@ -1,4 +1,4 @@
-from typing import Callable, Awaitable, Optional, Union, Any, List
+from typing import Callable, Awaitable, Optional, Union, Any
 from .async_connection import AsyncConnection
 from ..domain.utils import ConnectionType
 from amqp_client_python.domain.models import Config
@@ -49,15 +49,14 @@ class AsyncEventbusRabbitMQ:
                 config, loop, rpc_client_publisher_confirms=True,
                 rpc_server_publisher_confirms=False, rpc_server_auto_ack=False)
             ### register subscribe
-            >>> def handler(*body):
+            >>> def subscribe_handler(body):
                     print(f"do something with: {body}")
-            >>> subscribe_event = ExampleEvent("rpc_exchange")
-            >>> await eventbus.subscribe(subscribe_event, handler, "user.find")
+            >>> await eventbus.subscribe("rpc_exchange", "user.find", subscribe_handler)
             ### provide resource
-            >>> def handler2(*body):
+            >>> def rpc_provider_handler(body) -> Union[str, bytes]:
                     print(f"do something with: {body}")
-                    return "response"
-            >>> await eventbus.provide_resource("user.find2", handle2)
+                    return b"response"
+            >>> await eventbus.provide_resource("user.find2", rpc_provider_handler)
         """
         self._loop: Optional[AbstractEventLoop] = loop
         self._signal = Signal()
@@ -132,7 +131,7 @@ class AsyncEventbusRabbitMQ:
             RpcProviderException: if the rpc provider responded with an error
 
         Examples:
-            >>> await eventbus.rpc_client("example.rpc", "user.find", [{"name": "example"}], "application/json")
+            >>> await eventbus.rpc_client("example.rpc", "user.find", {"name": "example"}, "application/json")
         """
 
         async def add_rpc_client():
@@ -212,7 +211,7 @@ class AsyncEventbusRabbitMQ:
     async def provide_resource(
         self,
         name: str,
-        handler: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
+        handler: Callable[[Any], Awaitable[Union[bytes, str]]],
         response_timeout: Optional[int] = None,
         connection_timeout: int = 16,
     ) -> None:
@@ -232,10 +231,10 @@ class AsyncEventbusRabbitMQ:
             AutoReconnectException: when cannout reconnect on the gived timeout
 
         Examples:
-            >>> async def handle(body) -> Union[bytes, str]:
+            >>> async def handler(body) -> Union[bytes, str]:
                     print(f"received message: {body}")
                     return b"[]"
-            >>> await eventbus.provide_resource("user.find", handle)
+            >>> await eventbus.provide_resource("user.find", handler)
         """
 
         async def add_resource():
