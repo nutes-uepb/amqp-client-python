@@ -22,7 +22,7 @@ async def handle(body):
 
 
 async def handle2(body):
-    print(f"body: {body}")
+    print(f"body: {body}", flush=True)
     return b"here"
 
 
@@ -55,10 +55,10 @@ async def run():
         try:
             count += 1
             result = await eventbus.rpc_client(
-                rpc_exchange, "user.find", ["message_content"]
+                rpc_exchange, "user.find", "message_content"
             )
             print("returned:", result)
-            await eventbus.publish(rpc_exchange, "user.find3", ["message_content"])
+            await eventbus.publish(rpc_exchange, "user.find3", "message_content")
         except BaseException as err:
             print(f"err: {err}")
 

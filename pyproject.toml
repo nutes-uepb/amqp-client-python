@@ -44,9 +44,6 @@ Source = "https://github.com/nutes-uepb/amqp-client-python"
 python = "^3.7"
 pika = "^1.3.0"
 
-[tool.poetry.package-data]
-amqp_client_python = ["py.typed"]
-
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
 dependency-injector = "^4.40.0"
