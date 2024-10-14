@@ -21,6 +21,8 @@ Client with high level of abstraction for manipulation of messages in the event 
 
 **Source Code**: <a href="https://github.com/nutes-uepb/amqp-client-python" target="_blank">https://github.com/nutes-uepb/amqp-client-python</a>
 
+**Discord Server**: <a href="https://discord.gg/RkXNeZpNZk" target="_blank">https://discord.gg/RkXNeZpNZk</a>
+
 ---
 ### Features:
 - Automatic creation and management of queues, exchanges and channels;
