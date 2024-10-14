@@ -15,7 +15,7 @@
         <link rel="next" href="../ssl_options/">
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.1.21">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.21">
     
     
       
@@ -596,20 +596,22 @@
 <span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
-<span class="normal">61</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Options</span><span class="p">:</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Options</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">queue_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">rpc_queue_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">rpc_exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">uri</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">login</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;guest&quot;</span><span class="p">,</span>
         <span class="n">passwd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;guest&quot;</span><span class="p">,</span>
         <span class="n">domain</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;localhost&quot;</span><span class="p">,</span>
-        <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">port</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">vhost</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span>
         <span class="n">heartbeat</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
-        <span class="n">publisher_confirms</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">publisher_confirms</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -638,9 +640,11 @@
 
 <span class="sd">            &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, &quot;amqps://admin:admin@localhost:5671/&quot;)</span>
 
-<span class="sd">            &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;, domain=&quot;localhost&quot;, port=5672)</span>
+<span class="sd">            &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;,</span>
+<span class="sd">                    domain=&quot;localhost&quot;, port=5672)</span>
 
-<span class="sd">            &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;, domain=&quot;localhost&quot;, port=5671)</span>
+<span class="sd">            &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;,</span>
+<span class="sd">                    domain=&quot;localhost&quot;, port=5671)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">queue_name</span> <span class="o">=</span> <span class="n">queue_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rpc_queue_name</span> <span class="o">=</span> <span class="n">rpc_queue_name</span>
@@ -739,7 +743,7 @@
         <tr>
           <td><code>uri</code></td>
           <td>
-                <code>str</code>
+                <code><span title="typing.Optional">Optional</span>[str]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -795,7 +799,7 @@
         <tr>
           <td><code>port</code></td>
           <td>
-                <code>int</code>
+                <code><span title="typing.Optional">Optional</span>[int]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -837,6 +841,7 @@
         <tr>
           <td><code>publisher_confirms</code></td>
           <td>
+                <code>bool</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -869,9 +874,11 @@
 </code></pre></div>
     <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">Options</span><span class="p">(</span><span class="s2">&quot;example&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;amqps://admin:admin@localhost:5671/&quot;</span><span class="p">)</span>
 </code></pre></div>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">Options</span><span class="p">(</span><span class="s2">&quot;example&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="n">login</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="n">passwd</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5672</span><span class="p">)</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">Options</span><span class="p">(</span><span class="s2">&quot;example&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="n">login</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="n">passwd</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span>
+<span class="go">        domain=&quot;localhost&quot;, port=5672)</span>
 </code></pre></div>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">Options</span><span class="p">(</span><span class="s2">&quot;example&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="n">login</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="n">passwd</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5671</span><span class="p">)</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">Options</span><span class="p">(</span><span class="s2">&quot;example&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="n">login</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="n">passwd</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span>
+<span class="go">        domain=&quot;localhost&quot;, port=5671)</span>
 </code></pre></div>
 
       <details class="quote">
@@ -932,19 +939,21 @@
 <span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
-<span class="normal">61</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">queue_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">rpc_queue_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">rpc_exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">uri</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">login</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;guest&quot;</span><span class="p">,</span>
     <span class="n">passwd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;guest&quot;</span><span class="p">,</span>
     <span class="n">domain</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;localhost&quot;</span><span class="p">,</span>
-    <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">port</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">vhost</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span>
     <span class="n">heartbeat</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
-    <span class="n">publisher_confirms</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">publisher_confirms</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -973,9 +982,11 @@
 
 <span class="sd">        &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, &quot;amqps://admin:admin@localhost:5671/&quot;)</span>
 
-<span class="sd">        &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;, domain=&quot;localhost&quot;, port=5672)</span>
+<span class="sd">        &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;,</span>
+<span class="sd">                domain=&quot;localhost&quot;, port=5672)</span>
 
-<span class="sd">        &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;, domain=&quot;localhost&quot;, port=5671)</span>
+<span class="sd">        &gt;&gt;&gt; Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, login=&quot;admin&quot;, passwd=&quot;admin&quot;,</span>
+<span class="sd">                domain=&quot;localhost&quot;, port=5671)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">queue_name</span> <span class="o">=</span> <span class="n">queue_name</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">rpc_queue_name</span> <span class="o">=</span> <span class="n">rpc_queue_name</span>

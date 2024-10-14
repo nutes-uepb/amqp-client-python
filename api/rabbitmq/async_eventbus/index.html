@@ -13,7 +13,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.1.21">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.21">
     
     
       
@@ -593,7 +593,8 @@
 
         <details class="quote">
           <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 11</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 10</span>
+<span class="normal"> 11</span>
 <span class="normal"> 12</span>
 <span class="normal"> 13</span>
 <span class="normal"> 14</span>
@@ -877,7 +878,19 @@
 <span class="normal">292</span>
 <span class="normal">293</span>
 <span class="normal">294</span>
-<span class="normal">295</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">AsyncEventbusRabbitMQ</span><span class="p">:</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">AsyncEventbusRabbitMQ</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span>
@@ -919,30 +932,30 @@
 <span class="sd">                config, loop, rpc_client_publisher_confirms=True,</span>
 <span class="sd">                rpc_server_publisher_confirms=False, rpc_server_auto_ack=False)</span>
 <span class="sd">            ### register subscribe</span>
-<span class="sd">            &gt;&gt;&gt; def handler(*body):</span>
+<span class="sd">            &gt;&gt;&gt; def subscribe_handler(body):</span>
 <span class="sd">                    print(f&quot;do something with: {body}&quot;)</span>
-<span class="sd">            &gt;&gt;&gt; subscribe_event = ExampleEvent(&quot;rpc_exchange&quot;)</span>
-<span class="sd">            &gt;&gt;&gt; await eventbus.subscribe(subscribe_event, handler, &quot;user.find&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.subscribe(&quot;rpc_exchange&quot;, &quot;user.find&quot;, subscribe_handler)</span>
 <span class="sd">            ### provide resource</span>
-<span class="sd">            &gt;&gt;&gt; def handler2(*body):</span>
+<span class="sd">            &gt;&gt;&gt; def rpc_provider_handler(body) -&gt; Union[str, bytes]:</span>
 <span class="sd">                    print(f&quot;do something with: {body}&quot;)</span>
-<span class="sd">                    return &quot;response&quot;</span>
-<span class="sd">            &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find2&quot;, handle2)</span>
+<span class="sd">                    return b&quot;response&quot;</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find2&quot;, rpc_provider_handler)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">:</span> <span class="n">AbstractEventLoop</span> <span class="o">=</span> <span class="n">loop</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AbstractEventLoop</span><span class="p">]</span> <span class="o">=</span> <span class="n">loop</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span> <span class="o">=</span> <span class="n">Signal</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
             <span class="n">pub_publisher_confirms</span><span class="p">,</span>
             <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">PUBLISH</span><span class="p">,</span>
-            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
+            <span class="kc">False</span><span class="p">,</span>
             <span class="n">sub_prefetch_count</span><span class="p">,</span>
             <span class="n">sub_auto_ack</span><span class="p">,</span>
             <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">SUBSCRIBE</span><span class="p">,</span>
-            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
@@ -950,7 +963,7 @@
             <span class="n">rpc_client_prefetch_count</span><span class="p">,</span>
             <span class="n">rpc_client_auto_ack</span><span class="p">,</span>
             <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">RPC_CLIENT</span><span class="p">,</span>
-            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
@@ -958,7 +971,7 @@
             <span class="n">rpc_server_prefetch_count</span><span class="p">,</span>
             <span class="n">rpc_server_auto_ack</span><span class="p">,</span>
             <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">RPC_SERVER</span><span class="p">,</span>
-            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+            <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">on</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="o">.</span><span class="n">on</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
@@ -968,7 +981,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">exchange</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">body</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
         <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
         <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
@@ -1001,8 +1014,9 @@
 <span class="sd">            RpcProviderException: if the rpc provider responded with an error</span>
 
 <span class="sd">        Examples:</span>
-<span class="sd">            &gt;&gt;&gt; await eventbus.rpc_client(&quot;example.rpc&quot;, &quot;user.find&quot;, [{&quot;name&quot;: &quot;example&quot;}], &quot;application/json&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.rpc_client(&quot;example.rpc&quot;, &quot;user.find&quot;, {&quot;name&quot;: &quot;example&quot;}, &quot;application/json&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_rpc_client</span><span class="p">():</span>
             <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">rpc_client</span><span class="p">(</span>
                 <span class="n">exchange</span><span class="p">,</span>
@@ -1016,13 +1030,15 @@
             <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
-        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_rpc_client</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span>
+            <span class="n">add_rpc_client</span><span class="p">,</span> <span class="n">connection_timeout</span>
+        <span class="p">)</span>
 
     <span class="k">async</span> <span class="k">def</span> <span class="nf">publish</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">event</span><span class="p">:</span> <span class="n">IntegrationEvent</span><span class="p">,</span>
+        <span class="n">exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">body</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
         <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
         <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
@@ -1055,12 +1071,14 @@
 
 
 <span class="sd">        Examples:</span>
-<span class="sd">            &gt;&gt;&gt; publish_event = ExampleEvent(&quot;example.rpc&quot;)</span>
-<span class="sd">            &gt;&gt;&gt; await eventbus.publish(publish_event, &quot;user.find3&quot;, [&quot;content_message&quot;])</span>
+<span class="sd">            &gt;&gt;&gt; exchange_name = &quot;example.rpc&quot;</span>
+<span class="sd">            &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.publish(exchange_name, routing_key, [&quot;content_message&quot;])</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_publish</span><span class="p">():</span>
             <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
-                <span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+                <span class="n">exchange_name</span><span class="p">,</span>
                 <span class="n">routing_key</span><span class="p">,</span>
                 <span class="n">body</span><span class="p">,</span>
                 <span class="n">content_type</span><span class="p">,</span>
@@ -1076,16 +1094,16 @@
     <span class="k">async</span> <span class="k">def</span> <span class="nf">provide_resource</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
-        <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
+        <span class="n">response_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Register a provider to listen on queue of bus</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            name: routing_key name</span>
-<span class="sd">            callback: message handler</span>
+<span class="sd">            handler: message handler, it will be called when a message is received</span>
 <span class="sd">            response_timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
 
@@ -1096,17 +1114,18 @@
 <span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
 
 <span class="sd">        Examples:</span>
-<span class="sd">            &gt;&gt;&gt; async def handle(*body) -&gt; Union[bytes, str]:</span>
+<span class="sd">            &gt;&gt;&gt; async def handler(body) -&gt; Union[bytes, str]:</span>
 <span class="sd">                    print(f&quot;received message: {body}&quot;)</span>
 <span class="sd">                    return b&quot;[]&quot;</span>
-<span class="sd">            &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find&quot;, handle)</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find&quot;, handler)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_resource</span><span class="p">():</span>
             <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">rpc_subscribe</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_queue_name</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_exchange_name</span><span class="p">,</span>
                 <span class="n">name</span><span class="p">,</span>
-                <span class="n">callback</span><span class="p">,</span>
+                <span class="n">handler</span><span class="p">,</span>
                 <span class="n">response_timeout</span><span class="p">,</span>
             <span class="p">)</span>
 
@@ -1115,18 +1134,19 @@
 
     <span class="k">async</span> <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">event</span><span class="p">:</span> <span class="n">IntegrationEvent</span><span class="p">,</span>
-        <span class="n">handler</span><span class="p">:</span> <span class="n">AsyncSubscriberHandler</span><span class="p">,</span>
+        <span class="n">exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="kc">None</span><span class="p">]],</span>
+        <span class="n">response_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Register a provider to listen on queue of bus</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name: routing_key name</span>
-<span class="sd">            callback: message handler</span>
+<span class="sd">            exchange_name: exchange name</span>
+<span class="sd">            routing_key: routing_key name</span>
+<span class="sd">            handler: message handler, it will be called when a message is received</span>
 <span class="sd">            response_timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
 
@@ -1137,17 +1157,21 @@
 <span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
 
 <span class="sd">        Examples:</span>
-<span class="sd">            &gt;&gt;&gt; async def handle(*body) -&gt; None:</span>
+<span class="sd">            &gt;&gt;&gt; async def handle(body) -&gt; None:</span>
 <span class="sd">                    print(f&quot;received message: {body}&quot;)</span>
-<span class="sd">            &gt;&gt;&gt; subscribe_event = ExampleEvent(&quot;example.rpc&quot;)</span>
-<span class="sd">            &gt;&gt;&gt; await eventbus.subscribe(subscribe_event, event_handle, &quot;user.find3&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; exchange_name = &quot;example&quot;</span>
+<span class="sd">            &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
+<span class="sd">            &gt;&gt;&gt; response_timeout = 20</span>
+<span class="sd">            &gt;&gt;&gt; connection_timeout = 16</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.subscribe(exchange_name, routing_key, handle, response_timeout, connection_timeout)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_subscribe</span><span class="p">():</span>
             <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">queue_name</span><span class="p">,</span>
-                <span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+                <span class="n">exchange_name</span><span class="p">,</span>
                 <span class="n">routing_key</span><span class="p">,</span>
-                <span class="n">handler</span><span class="o">.</span><span class="n">handle</span><span class="p">,</span>
+                <span class="n">handler</span><span class="p">,</span>
                 <span class="n">response_timeout</span><span class="p">,</span>
             <span class="p">)</span>
 
@@ -1160,6 +1184,8 @@
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">stop_event_loop</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span> <span class="o">=</span> <span class="n">get_event_loop</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="o">.</span><span class="n">dispose</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
@@ -1387,20 +1413,20 @@ thats provides some connection management abstractions.</p>
 <span class="go">    config, loop, rpc_client_publisher_confirms=True,</span>
 <span class="go">    rpc_server_publisher_confirms=False, rpc_server_auto_ack=False)</span>
 <span class="go">### register subscribe</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">handler</span><span class="p">(</span><span class="o">*</span><span class="n">body</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">subscribe_handler</span><span class="p">(</span><span class="n">body</span><span class="p">):</span>
 <span class="go">        print(f&quot;do something with: {body}&quot;)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">subscribe_event</span> <span class="o">=</span> <span class="n">ExampleEvent</span><span class="p">(</span><span class="s2">&quot;rpc_exchange&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">subscribe_event</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="s2">&quot;user.find&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s2">&quot;rpc_exchange&quot;</span><span class="p">,</span> <span class="s2">&quot;user.find&quot;</span><span class="p">,</span> <span class="n">subscribe_handler</span><span class="p">)</span>
 <span class="go">### provide resource</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">handler2</span><span class="p">(</span><span class="o">*</span><span class="n">body</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">rpc_provider_handler</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]:</span>
 <span class="go">        print(f&quot;do something with: {body}&quot;)</span>
-<span class="go">        return &quot;response&quot;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">provide_resource</span><span class="p">(</span><span class="s2">&quot;user.find2&quot;</span><span class="p">,</span> <span class="n">handle2</span><span class="p">)</span>
+<span class="go">        return b&quot;response&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">provide_resource</span><span class="p">(</span><span class="s2">&quot;user.find2&quot;</span><span class="p">,</span> <span class="n">rpc_provider_handler</span><span class="p">)</span>
 </code></pre></div>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">12</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">11</span>
+<span class="normal">12</span>
 <span class="normal">13</span>
 <span class="normal">14</span>
 <span class="normal">15</span>
@@ -1483,8 +1509,7 @@ thats provides some connection management abstractions.</p>
 <span class="normal">92</span>
 <span class="normal">93</span>
 <span class="normal">94</span>
-<span class="normal">95</span>
-<span class="normal">96</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">95</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span>
     <span class="n">loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AbstractEventLoop</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1525,30 +1550,30 @@ thats provides some connection management abstractions.</p>
 <span class="sd">            config, loop, rpc_client_publisher_confirms=True,</span>
 <span class="sd">            rpc_server_publisher_confirms=False, rpc_server_auto_ack=False)</span>
 <span class="sd">        ### register subscribe</span>
-<span class="sd">        &gt;&gt;&gt; def handler(*body):</span>
+<span class="sd">        &gt;&gt;&gt; def subscribe_handler(body):</span>
 <span class="sd">                print(f&quot;do something with: {body}&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; subscribe_event = ExampleEvent(&quot;rpc_exchange&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; await eventbus.subscribe(subscribe_event, handler, &quot;user.find&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.subscribe(&quot;rpc_exchange&quot;, &quot;user.find&quot;, subscribe_handler)</span>
 <span class="sd">        ### provide resource</span>
-<span class="sd">        &gt;&gt;&gt; def handler2(*body):</span>
+<span class="sd">        &gt;&gt;&gt; def rpc_provider_handler(body) -&gt; Union[str, bytes]:</span>
 <span class="sd">                print(f&quot;do something with: {body}&quot;)</span>
-<span class="sd">                return &quot;response&quot;</span>
-<span class="sd">        &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find2&quot;, handle2)</span>
+<span class="sd">                return b&quot;response&quot;</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find2&quot;, rpc_provider_handler)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">:</span> <span class="n">AbstractEventLoop</span> <span class="o">=</span> <span class="n">loop</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AbstractEventLoop</span><span class="p">]</span> <span class="o">=</span> <span class="n">loop</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span> <span class="o">=</span> <span class="n">Signal</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
         <span class="n">pub_publisher_confirms</span><span class="p">,</span>
         <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">PUBLISH</span><span class="p">,</span>
-        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
+        <span class="kc">False</span><span class="p">,</span>
         <span class="n">sub_prefetch_count</span><span class="p">,</span>
         <span class="n">sub_auto_ack</span><span class="p">,</span>
         <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">SUBSCRIBE</span><span class="p">,</span>
-        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
@@ -1556,7 +1581,7 @@ thats provides some connection management abstractions.</p>
         <span class="n">rpc_client_prefetch_count</span><span class="p">,</span>
         <span class="n">rpc_client_auto_ack</span><span class="p">,</span>
         <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">RPC_CLIENT</span><span class="p">,</span>
-        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
@@ -1564,7 +1589,7 @@ thats provides some connection management abstractions.</p>
         <span class="n">rpc_server_prefetch_count</span><span class="p">,</span>
         <span class="n">rpc_server_auto_ack</span><span class="p">,</span>
         <span class="n">connection_type</span><span class="o">=</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">RPC_SERVER</span><span class="p">,</span>
-        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span>
+        <span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">on</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="o">.</span><span class="n">on</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
@@ -1580,7 +1605,7 @@ thats provides some connection management abstractions.</p>
 
 
 <h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.provide_resource" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">provide_resource</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">response_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">provide_resource</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">response_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-async"><code>async</code></small>
@@ -1619,13 +1644,13 @@ thats provides some connection management abstractions.</p>
           </td>
         </tr>
         <tr>
-          <td><code>callback</code></td>
+          <td><code>handler</code></td>
           <td>
-                <code><span title="typing.Callable">Callable</span>[[<span title="typing.List">List</span>[<span title="typing.Any">Any</span>]], <span title="typing.Awaitable">Awaitable</span>[<span title="typing.Union">Union</span>[bytes, str]]]</code>
+                <code><span title="typing.Callable">Callable</span>[[<span title="typing.Any">Any</span>], <span title="typing.Awaitable">Awaitable</span>[<span title="typing.Union">Union</span>[bytes, str]]]</code>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>message handler</p>
+              <p>message handler, it will be called when a message is received</p>
             </div>
           </td>
           <td>
@@ -1635,7 +1660,7 @@ thats provides some connection management abstractions.</p>
         <tr>
           <td><code>response_timeout</code></td>
           <td>
-                <code>int</code>
+                <code><span title="typing.Optional">Optional</span>[int]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1708,19 +1733,15 @@ thats provides some connection management abstractions.</p>
   </table>
 
 <p><strong>Examples:</strong></p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">async</span> <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="o">*</span><span class="n">body</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">async</span> <span class="k">def</span> <span class="nf">handler</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
 <span class="go">        print(f&quot;received message: {body}&quot;)</span>
 <span class="go">        return b&quot;[]&quot;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">provide_resource</span><span class="p">(</span><span class="s2">&quot;user.find&quot;</span><span class="p">,</span> <span class="n">handle</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">provide_resource</span><span class="p">(</span><span class="s2">&quot;user.find&quot;</span><span class="p">,</span> <span class="n">handler</span><span class="p">)</span>
 </code></pre></div>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
 <span class="normal">214</span>
@@ -1754,19 +1775,24 @@ thats provides some connection management abstractions.</p>
 <span class="normal">242</span>
 <span class="normal">243</span>
 <span class="normal">244</span>
-<span class="normal">245</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">provide_resource</span><span class="p">(</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">provide_resource</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
-    <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
+    <span class="n">response_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Register a provider to listen on queue of bus</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        name: routing_key name</span>
-<span class="sd">        callback: message handler</span>
+<span class="sd">        handler: message handler, it will be called when a message is received</span>
 <span class="sd">        response_timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
 
@@ -1777,17 +1803,18 @@ thats provides some connection management abstractions.</p>
 <span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; async def handle(*body) -&gt; Union[bytes, str]:</span>
+<span class="sd">        &gt;&gt;&gt; async def handler(body) -&gt; Union[bytes, str]:</span>
 <span class="sd">                print(f&quot;received message: {body}&quot;)</span>
 <span class="sd">                return b&quot;[]&quot;</span>
-<span class="sd">        &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find&quot;, handle)</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.provide_resource(&quot;user.find&quot;, handler)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">async</span> <span class="k">def</span> <span class="nf">add_resource</span><span class="p">():</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">rpc_subscribe</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_queue_name</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_exchange_name</span><span class="p">,</span>
             <span class="n">name</span><span class="p">,</span>
-            <span class="n">callback</span><span class="p">,</span>
+            <span class="n">handler</span><span class="p">,</span>
             <span class="n">response_timeout</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1804,7 +1831,7 @@ thats provides some connection management abstractions.</p>
 
 
 <h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.publish" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">publish</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;application/json&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">delivery_mode</span><span class="o">=</span><span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span> <span class="n">expiration</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">publish</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;application/json&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">delivery_mode</span><span class="o">=</span><span class="n">DeliveryMode</span><span class="o">.</span><span class="n">Transient</span><span class="p">,</span> <span class="n">expiration</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-async"><code>async</code></small>
@@ -1858,7 +1885,7 @@ thats provides some connection management abstractions.</p>
         <tr>
           <td><code>body</code></td>
           <td>
-                <code><span title="typing.List">List</span>[<span title="typing.Any">Any</span>]</code>
+                <code><span title="typing.Any">Any</span></code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2017,15 +2044,14 @@ thats provides some connection management abstractions.</p>
   </table>
 
 <p><strong>Examples:</strong></p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">publish_event</span> <span class="o">=</span> <span class="n">ExampleEvent</span><span class="p">(</span><span class="s2">&quot;example.rpc&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">publish_event</span><span class="p">,</span> <span class="s2">&quot;user.find3&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;content_message&quot;</span><span class="p">])</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">exchange_name</span> <span class="o">=</span> <span class="s2">&quot;example.rpc&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">routing_key</span> <span class="o">=</span> <span class="s2">&quot;user.find3&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;content_message&quot;</span><span class="p">])</span>
 </code></pre></div>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">154</span>
 <span class="normal">155</span>
 <span class="normal">156</span>
 <span class="normal">157</span>
@@ -2076,11 +2102,15 @@ thats provides some connection management abstractions.</p>
 <span class="normal">202</span>
 <span class="normal">203</span>
 <span class="normal">204</span>
-<span class="normal">205</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">publish</span><span class="p">(</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">publish</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
-    <span class="n">event</span><span class="p">:</span> <span class="n">IntegrationEvent</span><span class="p">,</span>
+    <span class="n">exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">body</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
     <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
@@ -2113,12 +2143,14 @@ thats provides some connection management abstractions.</p>
 
 
 <span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; publish_event = ExampleEvent(&quot;example.rpc&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; await eventbus.publish(publish_event, &quot;user.find3&quot;, [&quot;content_message&quot;])</span>
+<span class="sd">        &gt;&gt;&gt; exchange_name = &quot;example.rpc&quot;</span>
+<span class="sd">        &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.publish(exchange_name, routing_key, [&quot;content_message&quot;])</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">async</span> <span class="k">def</span> <span class="nf">add_publish</span><span class="p">():</span>
         <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
-            <span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+            <span class="n">exchange_name</span><span class="p">,</span>
             <span class="n">routing_key</span><span class="p">,</span>
             <span class="n">body</span><span class="p">,</span>
             <span class="n">content_type</span><span class="p">,</span>
@@ -2196,7 +2228,7 @@ thats provides some connection management abstractions.</p>
         <tr>
           <td><code>body</code></td>
           <td>
-                <code><span title="typing.List">List</span>[<span title="typing.Any">Any</span>]</code>
+                <code><span title="typing.Any">Any</span></code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2365,12 +2397,13 @@ thats provides some connection management abstractions.</p>
   </table>
 
 <p><strong>Examples:</strong></p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">rpc_client</span><span class="p">(</span><span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;user.find&quot;</span><span class="p">,</span> <span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;example&quot;</span><span class="p">}],</span> <span class="s2">&quot;application/json&quot;</span><span class="p">)</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">rpc_client</span><span class="p">(</span><span class="s2">&quot;example.rpc&quot;</span><span class="p">,</span> <span class="s2">&quot;user.find&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;example&quot;</span><span class="p">},</span> <span class="s2">&quot;application/json&quot;</span><span class="p">)</span>
 </code></pre></div>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 98</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 97</span>
+<span class="normal"> 98</span>
 <span class="normal"> 99</span>
 <span class="normal">100</span>
 <span class="normal">101</span>
@@ -2422,11 +2455,13 @@ thats provides some connection management abstractions.</p>
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
-<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">rpc_client</span><span class="p">(</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">rpc_client</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">exchange</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">body</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">body</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
     <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
@@ -2459,8 +2494,9 @@ thats provides some connection management abstractions.</p>
 <span class="sd">        RpcProviderException: if the rpc provider responded with an error</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; await eventbus.rpc_client(&quot;example.rpc&quot;, &quot;user.find&quot;, [{&quot;name&quot;: &quot;example&quot;}], &quot;application/json&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.rpc_client(&quot;example.rpc&quot;, &quot;user.find&quot;, {&quot;name&quot;: &quot;example&quot;}, &quot;application/json&quot;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">async</span> <span class="k">def</span> <span class="nf">add_rpc_client</span><span class="p">():</span>
         <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">rpc_client</span><span class="p">(</span>
             <span class="n">exchange</span><span class="p">,</span>
@@ -2474,7 +2510,9 @@ thats provides some connection management abstractions.</p>
         <span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
-    <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_rpc_client</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_client_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span>
+        <span class="n">add_rpc_client</span><span class="p">,</span> <span class="n">connection_timeout</span>
+    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
       </details>
   </div>
@@ -2486,7 +2524,7 @@ thats provides some connection management abstractions.</p>
 
 
 <h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.subscribe" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">subscribe</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">response_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">subscribe</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">response_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-async"><code>async</code></small>
@@ -2511,8 +2549,23 @@ thats provides some connection management abstractions.</p>
     </thead>
     <tbody>
         <tr>
-          <td><code>name</code></td>
+          <td><code>exchange_name</code></td>
           <td>
+                <code>str</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>exchange name</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>routing_key</code></td>
+          <td>
+                <code>str</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2524,12 +2577,13 @@ thats provides some connection management abstractions.</p>
           </td>
         </tr>
         <tr>
-          <td><code>callback</code></td>
+          <td><code>handler</code></td>
           <td>
+                <code><span title="typing.Callable">Callable</span>[[<span title="typing.Any">Any</span>], <span title="typing.Awaitable">Awaitable</span>[None]]</code>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>message handler</p>
+              <p>message handler, it will be called when a message is received</p>
             </div>
           </td>
           <td>
@@ -2539,7 +2593,7 @@ thats provides some connection management abstractions.</p>
         <tr>
           <td><code>response_timeout</code></td>
           <td>
-                <code>int</code>
+                <code><span title="typing.Optional">Optional</span>[float]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2612,20 +2666,18 @@ thats provides some connection management abstractions.</p>
   </table>
 
 <p><strong>Examples:</strong></p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">async</span> <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="o">*</span><span class="n">body</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="k">async</span> <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="go">        print(f&quot;received message: {body}&quot;)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">subscribe_event</span> <span class="o">=</span> <span class="n">ExampleEvent</span><span class="p">(</span><span class="s2">&quot;example.rpc&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">subscribe_event</span><span class="p">,</span> <span class="n">event_handle</span><span class="p">,</span> <span class="s2">&quot;user.find3&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">exchange_name</span> <span class="o">=</span> <span class="s2">&quot;example&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">routing_key</span> <span class="o">=</span> <span class="s2">&quot;user.find3&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">response_timeout</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">connection_timeout</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">handle</span><span class="p">,</span> <span class="n">response_timeout</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 </code></pre></div>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
-<span class="normal">250</span>
-<span class="normal">251</span>
-<span class="normal">252</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">252</span>
 <span class="normal">253</span>
 <span class="normal">254</span>
 <span class="normal">255</span>
@@ -2659,20 +2711,31 @@ thats provides some connection management abstractions.</p>
 <span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
-<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
-    <span class="n">event</span><span class="p">:</span> <span class="n">IntegrationEvent</span><span class="p">,</span>
-    <span class="n">handler</span><span class="p">:</span> <span class="n">AsyncSubscriberHandler</span><span class="p">,</span>
+    <span class="n">exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">response_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="kc">None</span><span class="p">]],</span>
+    <span class="n">response_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Register a provider to listen on queue of bus</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name: routing_key name</span>
-<span class="sd">        callback: message handler</span>
+<span class="sd">        exchange_name: exchange name</span>
+<span class="sd">        routing_key: routing_key name</span>
+<span class="sd">        handler: message handler, it will be called when a message is received</span>
 <span class="sd">        response_timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
 
@@ -2683,17 +2746,21 @@ thats provides some connection management abstractions.</p>
 <span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; async def handle(*body) -&gt; None:</span>
+<span class="sd">        &gt;&gt;&gt; async def handle(body) -&gt; None:</span>
 <span class="sd">                print(f&quot;received message: {body}&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; subscribe_event = ExampleEvent(&quot;example.rpc&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; await eventbus.subscribe(subscribe_event, event_handle, &quot;user.find3&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; exchange_name = &quot;example&quot;</span>
+<span class="sd">        &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
+<span class="sd">        &gt;&gt;&gt; response_timeout = 20</span>
+<span class="sd">        &gt;&gt;&gt; connection_timeout = 16</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.subscribe(exchange_name, routing_key, handle, response_timeout, connection_timeout)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">async</span> <span class="k">def</span> <span class="nf">add_subscribe</span><span class="p">():</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">queue_name</span><span class="p">,</span>
-            <span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+            <span class="n">exchange_name</span><span class="p">,</span>
             <span class="n">routing_key</span><span class="p">,</span>
-            <span class="n">handler</span><span class="o">.</span><span class="n">handle</span><span class="p">,</span>
+            <span class="n">handler</span><span class="p">,</span>
             <span class="n">response_timeout</span><span class="p">,</span>
         <span class="p">)</span>
 
