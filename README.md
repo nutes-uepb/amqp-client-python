@@ -1,6 +1,6 @@
 # AMQP Client Python
 
-Client with high level of abstraction for manipulation of messages in the event bus RabbitMQ.
+A client with a high level of abstraction for manipulating messages in the RabbitMQ event bus.
 
 --------
 
