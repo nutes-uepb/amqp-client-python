@@ -3,7 +3,7 @@ class SSLOptions:
         self, certfile_path: str, keyfile_path: str, ca_certs_path: str
     ) -> None:
         """
-        Create an SslOptions object that hold the certs paths.
+        Create an SslOptions object that holds the cert paths.
 
         Args:
             certfile_path: cert file path string
@@ -11,7 +11,6 @@ class SSLOptions:
             ca_certs_path: ca file path string
 
         Returns:
-            Um dicionário com as notas da escala e os graus.
 
         Raises:
 

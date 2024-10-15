@@ -18,7 +18,7 @@ class Options:
         **kwargs: Dict[str, Any]
     ) -> None:
         """
-        Create an Options object that hold the credentials and configs options.
+        Create an Options object that holds the credentials and configuration options.
 
         Args:
             queue_name: name of queue that will be used for subscriptions
