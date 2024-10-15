@@ -906,8 +906,8 @@
         <span class="n">rpc_server_auto_ack</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Create an AsyncEventbusRabbitMQ object thats interacts with Bus</span>
-<span class="sd">        thats provides some connection management abstractions.</span>
+<span class="sd">        Create an AsyncEventbusRabbitMQ object that interacts with Bus that provides</span>
+<span class="sd">        some connection management abstractions</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            config: the Config object</span>
@@ -990,7 +990,7 @@
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Sends a publish message to queue of the bus and waits for a response</span>
+<span class="sd">        Sends a publish message to a queue of the bus and waits for a response</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            exchange: exchange name</span>
@@ -1007,9 +1007,9 @@
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
-<span class="sd">            PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">            PublishTimeoutException: if publish confirmation is set to True and \</span>
 <span class="sd">            does not receive confirmation on the gived timeout</span>
-<span class="sd">            NackException: if publish confirmation is setted to True and receives a nack</span>
+<span class="sd">            NackException: if publish confirmation is set to True and receives a nack</span>
 <span class="sd">            ResponseTimeoutException: if response timeout is reached</span>
 <span class="sd">            RpcProviderException: if the rpc provider responded with an error</span>
 
@@ -1047,7 +1047,7 @@
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Sends a publish message to the bus following parameters passed</span>
+<span class="sd">        Sends a publish message to the bus following the parameters passed</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            exchange: exchange name</span>
@@ -1060,14 +1060,14 @@
 <span class="sd">            expiration: maximum lifetime of message to stay on the queue</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            None: if publish confirmation is setted to False</span>
-<span class="sd">            True: if successful when publish confirmation is setted to True</span>
+<span class="sd">            None: if publish confirmation is set to False</span>
+<span class="sd">            True: if successful when publish confirmation is set to True</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
-<span class="sd">            PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">            PublishTimeoutException: if publish confirmation is set to True and \</span>
 <span class="sd">            does not receive confirmation on the gived timeout</span>
-<span class="sd">            NackException: if publish confirmation is setted to True and receives a nack</span>
+<span class="sd">            NackException: if publish confirmation is set to True and receives a nack</span>
 
 
 <span class="sd">        Examples:</span>
@@ -1215,8 +1215,8 @@
 
   <div class="doc doc-contents ">
   
-      <p>Create an AsyncEventbusRabbitMQ object thats interacts with Bus
-thats provides some connection management abstractions.</p>
+      <p>Create an AsyncEventbusRabbitMQ object that interacts with Bus that provides
+some connection management abstractions</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1524,8 +1524,8 @@ thats provides some connection management abstractions.</p>
     <span class="n">rpc_server_auto_ack</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Create an AsyncEventbusRabbitMQ object thats interacts with Bus</span>
-<span class="sd">    thats provides some connection management abstractions.</span>
+<span class="sd">    Create an AsyncEventbusRabbitMQ object that interacts with Bus that provides</span>
+<span class="sd">    some connection management abstractions</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        config: the Config object</span>
@@ -1842,7 +1842,7 @@ thats provides some connection management abstractions.</p>
 
   <div class="doc doc-contents ">
   
-      <p>Sends a publish message to the bus following parameters passed</p>
+      <p>Sends a publish message to the bus following the parameters passed</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1984,7 +1984,7 @@ thats provides some connection management abstractions.</p>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>if publish confirmation is setted to False</p>
+              <p>if publish confirmation is set to False</p>
             </div>
           </td>
         </tr>
@@ -1994,7 +1994,7 @@ thats provides some connection management abstractions.</p>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>if successful when publish confirmation is setted to True</p>
+              <p>if successful when publish confirmation is set to True</p>
             </div>
           </td>
         </tr>
@@ -2026,7 +2026,7 @@ thats provides some connection management abstractions.</p>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>if publish confirmation is setted to True and             does not receive confirmation on the gived timeout</p>
+              <p>if publish confirmation is set to True and             does not receive confirmation on the gived timeout</p>
             </div>
           </td>
         </tr>
@@ -2036,7 +2036,7 @@ thats provides some connection management abstractions.</p>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>if publish confirmation is setted to True and receives a nack</p>
+              <p>if publish confirmation is set to True and receives a nack</p>
             </div>
           </td>
         </tr>
@@ -2119,7 +2119,7 @@ thats provides some connection management abstractions.</p>
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Sends a publish message to the bus following parameters passed</span>
+<span class="sd">    Sends a publish message to the bus following the parameters passed</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        exchange: exchange name</span>
@@ -2132,14 +2132,14 @@ thats provides some connection management abstractions.</p>
 <span class="sd">        expiration: maximum lifetime of message to stay on the queue</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        None: if publish confirmation is setted to False</span>
-<span class="sd">        True: if successful when publish confirmation is setted to True</span>
+<span class="sd">        None: if publish confirmation is set to False</span>
+<span class="sd">        True: if successful when publish confirmation is set to True</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
-<span class="sd">        PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">        PublishTimeoutException: if publish confirmation is set to True and \</span>
 <span class="sd">        does not receive confirmation on the gived timeout</span>
-<span class="sd">        NackException: if publish confirmation is setted to True and receives a nack</span>
+<span class="sd">        NackException: if publish confirmation is set to True and receives a nack</span>
 
 
 <span class="sd">    Examples:</span>
@@ -2184,7 +2184,7 @@ thats provides some connection management abstractions.</p>
 
   <div class="doc doc-contents ">
   
-      <p>Sends a publish message to queue of the bus and waits for a response</p>
+      <p>Sends a publish message to a queue of the bus and waits for a response</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -2359,7 +2359,7 @@ thats provides some connection management abstractions.</p>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>if publish confirmation is setted to True and             does not receive confirmation on the gived timeout</p>
+              <p>if publish confirmation is set to True and             does not receive confirmation on the gived timeout</p>
             </div>
           </td>
         </tr>
@@ -2369,7 +2369,7 @@ thats provides some connection management abstractions.</p>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>if publish confirmation is setted to True and receives a nack</p>
+              <p>if publish confirmation is set to True and receives a nack</p>
             </div>
           </td>
         </tr>
@@ -2470,7 +2470,7 @@ thats provides some connection management abstractions.</p>
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Sends a publish message to queue of the bus and waits for a response</span>
+<span class="sd">    Sends a publish message to a queue of the bus and waits for a response</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        exchange: exchange name</span>
@@ -2487,9 +2487,9 @@ thats provides some connection management abstractions.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
-<span class="sd">        PublishTimeoutException: if publish confirmation is setted to True and \</span>
+<span class="sd">        PublishTimeoutException: if publish confirmation is set to True and \</span>
 <span class="sd">        does not receive confirmation on the gived timeout</span>
-<span class="sd">        NackException: if publish confirmation is setted to True and receives a nack</span>
+<span class="sd">        NackException: if publish confirmation is set to True and receives a nack</span>
 <span class="sd">        ResponseTimeoutException: if response timeout is reached</span>
 <span class="sd">        RpcProviderException: if the rpc provider responded with an error</span>
 
