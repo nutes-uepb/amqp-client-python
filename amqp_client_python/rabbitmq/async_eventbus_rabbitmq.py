@@ -23,8 +23,8 @@ class AsyncEventbusRabbitMQ:
         rpc_server_auto_ack: bool = False,
     ) -> None:
         """
-        Create an AsyncEventbusRabbitMQ object thats interacts with Bus
-        thats provides some connection management abstractions.
+        Create an AsyncEventbusRabbitMQ object that interacts with Bus that provides
+        some connection management abstractions
 
         Args:
             config: the Config object
@@ -107,7 +107,7 @@ class AsyncEventbusRabbitMQ:
         **kwargs
     ) -> bytes:
         """
-        Sends a publish message to queue of the bus and waits for a response
+        Sends a publish message to a queue of the bus and waits for a response
 
         Args:
             exchange: exchange name
@@ -124,9 +124,9 @@ class AsyncEventbusRabbitMQ:
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
-            PublishTimeoutException: if publish confirmation is setted to True and \
+            PublishTimeoutException: if publish confirmation is set to True and \
             does not receive confirmation on the gived timeout
-            NackException: if publish confirmation is setted to True and receives a nack
+            NackException: if publish confirmation is set to True and receives a nack
             ResponseTimeoutException: if response timeout is reached
             RpcProviderException: if the rpc provider responded with an error
 
@@ -164,7 +164,7 @@ class AsyncEventbusRabbitMQ:
         **kwargs
     ) -> Optional[bool]:
         """
-        Sends a publish message to the bus following parameters passed
+        Sends a publish message to the bus following the parameters passed
 
         Args:
             exchange: exchange name
@@ -177,14 +177,14 @@ class AsyncEventbusRabbitMQ:
             expiration: maximum lifetime of message to stay on the queue
 
         Returns:
-            None: if publish confirmation is setted to False
-            True: if successful when publish confirmation is setted to True
+            None: if publish confirmation is set to False
+            True: if successful when publish confirmation is set to True
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
-            PublishTimeoutException: if publish confirmation is setted to True and \
+            PublishTimeoutException: if publish confirmation is set to True and \
             does not receive confirmation on the gived timeout
-            NackException: if publish confirmation is setted to True and receives a nack
+            NackException: if publish confirmation is set to True and receives a nack
 
 
         Examples:
