@@ -1,6 +1,6 @@
 <!-- [logo do projeto](assets/icon2.webp){ width="200"} -->
 
-AmqpClientPython Framework: High performance, easy to learn, fast to code, production-ready
+AmqpClientPython Library: High performance, easy to learn, fast to code, production-ready
 
 <strong>Documentation:</strong> [https://nutes-uepb.github.io/amqp-client-python](https://nutes-uepb.github.io/amqp-client-python/)<br>
 <strong>Source Code:</strong> [https://github.com/nutes-uepb/amqp-client-python](https://github.com/nutes-uepb/amqp-client-python)
