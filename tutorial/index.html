@@ -12,10 +12,10 @@
         <link rel="prev" href="../contribute/">
       
       
-        <link rel="next" href="../api/domain/config/">
+        <link rel="next" href="../API/domain/config/">
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.21">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.1.21">
     
     
       
@@ -63,6 +63,11 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
+      
+        
+        <a href="#1_basic_configuration" class="md-skip">
+          Skip to content
+        </a>
       
     </div>
     <div data-md-component="announce">
@@ -209,9 +214,132 @@
       
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Tutorial
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         Tutorial
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1_basic_configuration" class="md-nav__link">
+    1. Basic Configuration
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Basic Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure_without_ssl" class="md-nav__link">
+    Configure without SSL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure_with_ssl" class="md-nav__link">
+    Configure with SSL
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2_publishing_messages" class="md-nav__link">
+    2. Publishing Messages
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Publishing Messages">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_1" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3_subscribing_to_queues" class="md-nav__link">
+    3. Subscribing to Queues
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Subscribing to Queues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_2" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4_implementing_rpc" class="md-nav__link">
+    4. Implementing RPC
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Implementing RPC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rpc_client_example" class="md-nav__link">
+    RPC Client Example
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rpc_provider_example" class="md-nav__link">
+    RPC Provider Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -235,14 +363,14 @@
       
       
         <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
-          Api
+          API
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
         <label class="md-nav__title" for="__nav_4">
           <span class="md-nav__icon md-icon"></span>
-          Api
+          API
         </label>
         <ul class="md-nav__list" data-md-scrollfix>
           
@@ -279,7 +407,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/domain/config/" class="md-nav__link">
+      <a href="../API/domain/config/" class="md-nav__link">
         Config
       </a>
     </li>
@@ -293,7 +421,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/domain/options/" class="md-nav__link">
+      <a href="../API/domain/options/" class="md-nav__link">
         Options
       </a>
     </li>
@@ -307,7 +435,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/domain/ssl_options/" class="md-nav__link">
+      <a href="../API/domain/ssl_options/" class="md-nav__link">
         Ssl options
       </a>
     </li>
@@ -355,7 +483,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/rabbitmq/async_eventbus/" class="md-nav__link">
+      <a href="../API/rabbitmq/async_eventbus/" class="md-nav__link">
         Async eventbus
       </a>
     </li>
@@ -394,6 +522,115 @@
   
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1_basic_configuration" class="md-nav__link">
+    1. Basic Configuration
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Basic Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure_without_ssl" class="md-nav__link">
+    Configure without SSL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure_with_ssl" class="md-nav__link">
+    Configure with SSL
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2_publishing_messages" class="md-nav__link">
+    2. Publishing Messages
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Publishing Messages">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_1" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3_subscribing_to_queues" class="md-nav__link">
+    3. Subscribing to Queues
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Subscribing to Queues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_2" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4_implementing_rpc" class="md-nav__link">
+    4. Implementing RPC
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Implementing RPC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rpc_client_example" class="md-nav__link">
+    RPC Client Example
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rpc_provider_example" class="md-nav__link">
+    RPC Provider Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -412,173 +649,62 @@
 
   <h1>Tutorial</h1>
 
-<p>There are 3 types of eventbus available:</p>
-<ol>
-<li>AsyncEventBus<ul>
-<li>It uses an eventloop as core, like asyncio and uvloop.</li>
-</ul>
-</li>
-</ol>
-<details><summary>async usage </summary>
-
-<br>
-
-
-<pre><code class="language-Python"># basic configuration
-from amqp_client_python import (
-    AsyncEventbusRabbitMQ,
-    Config, Options
+<p>Learn how to use all AmqpClientPython features:</p>
+<h2 id="1_basic_configuration">1. Basic Configuration<a class="headerlink" href="#1_basic_configuration" title="Permanent link">#</a></h2>
+<p>To set up the configuration for your connection, create a <code>Config</code> object. This object holds and manages the connection information.</p>
+<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">#</a></h3>
+<pre><code class="language-python">from amqp_client_python.domain.models import Config, Options, SSLOptions
+</code></pre>
+<h3 id="configure_without_ssl">Configure without SSL<a class="headerlink" href="#configure_without_ssl" title="Permanent link">#</a></h3>
+<pre><code class="language-python">config = Config(
+    Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;, &quot;amqp://admin:admin@localhost:5672/&quot;)
 )
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-config = Config(Options(&quot;queue&quot;, &quot;rpc_queue&quot;, &quot;rpc_exchange&quot;))
-eventbus = AsyncEventbusRabbitMQ(config)
-# publish
-class ExampleEvent(IntegrationEvent):
-    EVENT_NAME: str = &quot;ExampleEvent&quot;
-    def __init__(self, event_type: str, message = []) -&gt; None:
-        super().__init__(self.EVENT_NAME, event_type)
-        self.message = message
-
-publish_event = ExampleEvent(rpc_exchange, [&quot;message&quot;])
-eventbus.publish(publish_event, rpc_routing_key, &quot;direct&quot;)
-# subscribe
-class ExampleEventHandler(IntegrationEventHandler):
-    async def handle(self, body) -&gt; None:
-        print(body) # handle messages
-await eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
-# rpc_publish
-response = await eventbus.rpc_client(rpc_exchange, &quot;user.find&quot;, [&quot;content_message&quot;])
-# provider
-async def handle2(*body) -&gt; bytes:
-    print(f&quot;body: {body}&quot;)
-    return b&quot;content&quot;
-await eventbus.provide_resource(&quot;user.find&quot;, handle)
 </code></pre>
-
-</details>
-<ol>
-<li>Eventbus<ul>
-<li>It uses a basic IoLoop that runs on separated thread</li>
-</ul>
-</li>
-</ol>
-<details><summary>sync usage</summary>
-
-
-<pre><code class="language-Python">from amqp_client_python import (
-    EventbusRabbitMQ,
-    Config, Options
+<h3 id="configure_with_ssl">Configure with SSL<a class="headerlink" href="#configure_with_ssl" title="Permanent link">#</a></h3>
+<pre><code class="language-python">ssl_options = SSLOptions(&quot;./.certs/cert.pem&quot;, &quot;./.certs/privkey.pem&quot;, &quot;./.certs/ca.pem&quot;)
+config = Config(
+    Options(&quot;example&quot;, &quot;example.rpc&quot;, &quot;example.rpc&quot;),
+    ssl_options=ssl_options
 )
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-from examples.default import queue, rpc_queue, rpc_exchange, rpc_routing_key
-
-
-class ExampleEvent(IntegrationEvent):
-    EVENT_NAME: str = &quot;ExampleEvent&quot;
-    ROUTING_KEY: str = rpc_routing_key
-
-    def __init__(self, event_type: str, message = []) -&gt; None:
-        super().__init__(self.EVENT_NAME, event_type)
-        self.message = message
-        self.routing_key = self.ROUTING_KEY
-
-
-class ExampleEventHandler(IntegrationEventHandler):
-    def handle(self, body) -&gt; None:
-        print(body,&quot;subscribe&quot;)
-
-
-config = Config(Options(queue, rpc_queue, rpc_exchange))
-eventbus = EventbusRabbitMQ(config=config)
-
-class ExampleEvent(IntegrationEvent):
-    EVENT_NAME: str = &quot;ExampleEvent&quot;
-    def __init__(self, event_type: str, message = []) -&gt; None:
-        super().__init__(self.EVENT_NAME, event_type)
-        self.message = message
-
-from time import sleep
-from random import randint
-def handle(*body):
-    print(body[0], &quot;rpc_provider&quot;)
-    return f&quot;{body[0]}&quot;.encode(&quot;utf-8&quot;)
-
-subscribe_event = ExampleEvent(rpc_exchange)
-publish_event = ExampleEvent(rpc_exchange, [&quot;message&quot;])
-subscribe_event_handle = ExampleEventHandler()
-eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key)
-eventbus.provide_resource(rpc_routing_key+&quot;2&quot;, handle)
-count = 0
-running = True
-from concurrent.futures import TimeoutError
-while running:
-    try:
-        count += 1
-        if str(count) != eventbus.rpc_client(rpc_exchange, rpc_routing_key+&quot;2&quot;, [f&quot;{count}&quot;]).decode(&quot;utf-8&quot;):
-            running = False
-        #eventbus.publish(publish_event, rpc_routing_key, &quot;direct&quot;)
-        #running = False
-    except TimeoutError as err:
-        print(&quot;timeout!!!: &quot;, str(err))
-    except KeyboardInterrupt:
-        running=False
-    except BaseException as err:
-        print(&quot;Err:&quot;, err)
 </code></pre>
+<h2 id="2_publishing_messages">2. Publishing Messages<a class="headerlink" href="#2_publishing_messages" title="Permanent link">#</a></h2>
+<p>To publish messages, use the <code>publish</code> method of the <code>AsyncEventbusRabbitMQ</code> class.</p>
+<h3 id="example_1">Example<a class="headerlink" href="#example_1" title="Permanent link">#</a></h3>
+<pre><code class="language-python">async_eventbus = AsyncEventbusRabbitMQ(config)
 
-</details>
-<ol>
-<li>EventbusWrapper<ul>
-<li>It uses an eventloop that run on separeted thread.</li>
-</ul>
-</li>
-</ol>
-<details><summary>sync wrapper usage</summary>
-
-
-<pre><code class="language-Python">from amqp_client_python import EventbusWrapperRabbitMQ, Config, Options
-from amqp_client_python.event import IntegrationEvent, IntegrationEventHandler
-
-config = Config(Options(queue, rpc_queue, rpc_exchange))
-eventbus = EventbusWrapperRabbitMQ(config=config)
-
-class ExampleEvent(IntegrationEvent):
-    EVENT_NAME: str = &quot;ExampleEvent&quot;
-    def __init__(self, event_type: str, message = []) -&gt; None:
-        super().__init__(self.EVENT_NAME, event_type)
-        self.message = message
-class ExampleEventHandler(IntegrationEventHandler):
-    async def handle(self, body) -&gt; None:
-        print(body,&quot;subscribe&quot;)
-
-async def handle(*body):
-    print(body[0], &quot;rpc_provider&quot;)
-    return f&quot;{body[0]}&quot;.encode(&quot;utf-8&quot;)
-
-subscribe_event = ExampleEvent(rpc_exchange)
-publish_event = ExampleEvent(rpc_exchange, [&quot;message&quot;])
-subscribe_event_handle = ExampleEventHandler()
-# rpc_provider
-eventbus.provide_resource(rpc_routing_key+&quot;2&quot;, handle).result()
-# subscribe
-eventbus.subscribe(subscribe_event, subscribe_event_handle, rpc_routing_key).result()
-count = 0
-running = True
-while running:
-    try:
-        count += 1
-        # rpc_client call
-        eventbus.rpc_client(rpc_exchange, rpc_routing_key+&quot;2&quot;, [f&quot;{count}&quot;]).result().decode(&quot;utf-8&quot;)
-        # publish
-        eventbus.publish(publish_event, rpc_routing_key, &quot;direct&quot;).result()
-        #running = False
-    except KeyboardInterrupt:
-        running=False
-    except BaseException as err:
-        print(&quot;Err:&quot;, err)
+exchange_name = &quot;example.rpc&quot;
+routing_key = &quot;user.find3&quot;
+await async_eventbus.publish(exchange_name, routing_key, [&quot;content_message&quot;])
 </code></pre>
+<h2 id="3_subscribing_to_queues">3. Subscribing to Queues<a class="headerlink" href="#3_subscribing_to_queues" title="Permanent link">#</a></h2>
+<p>You can register a provider to listen on a queue using the <code>subscribe</code> method.</p>
+<h3 id="example_2">Example<a class="headerlink" href="#example_2" title="Permanent link">#</a></h3>
+<pre><code class="language-python">async def handle(body) -&gt; None:
+    print(f&quot;received message: {body}&quot;)
+exchange_name = &quot;example&quot;
+routing_key = &quot;user.find3&quot;
+process_timeout = 20
+await async_eventbus.subscribe(exchange_name, routing_key, handle, process_timeout)
+</code></pre>
+<h2 id="4_implementing_rpc">4. Implementing RPC<a class="headerlink" href="#4_implementing_rpc" title="Permanent link">#</a></h2>
+<p>Use the methods <code>rpc_client</code> and <code>provide_resource</code> for RPC communication.</p>
+<h3 id="rpc_client_example">RPC Client Example<a class="headerlink" href="#rpc_client_example" title="Permanent link">#</a></h3>
+<pre><code class="language-python">exchange_name = &quot;example.rpc&quot;
+routing_key = &quot;example.find&quot;
+body = {&quot;name&quot;: &quot;example&quot;}
+content_type = &quot;application/json&quot;
+response = await async_eventbus.rpc_client(
+    exchange_name, routing_key, body, content_type
+)
+</code></pre>
+<h3 id="rpc_provider_example">RPC Provider Example<a class="headerlink" href="#rpc_provider_example" title="Permanent link">#</a></h3>
+<pre><code class="language-python">async def rpc_provider_handler(body) -&gt; Union[str, bytes]:
+    print(f&quot;do something with: {body}&quot;)
+    return b&quot;response&quot; # json.dumps({&quot;name&quot;: &quot;example&quot;})
 
-</details>
+routing_key = &quot;example.find&quot;
+await async_eventbus.provide_resource(routing_key, rpc_provider_handler)
+</code></pre>
 
 
 
