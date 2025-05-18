@@ -40,9 +40,7 @@ class AsyncEventbusRabbitMQ:
             rpc_server_auto_ack: set to True to ack messages before processing on rpc server connection
 
         Returns:
-            AsyncEventbusRabbitMQ object
-
-        Raises:
+            None: None
 
         Examples:
             >>> async_eventbus = AsyncEventbusRabbitMQ(
@@ -167,7 +165,7 @@ class AsyncEventbusRabbitMQ:
         Sends a publish message to the bus following the parameters passed
 
         Args:
-            exchange: exchange name
+            exchange_name: exchange name
             routing_key:  routing key name
             body: body that will be sent
             content_type: content type of message
@@ -216,7 +214,7 @@ class AsyncEventbusRabbitMQ:
         connection_timeout: int = 16,
     ) -> None:
         """
-        Register a provider to listen on queue of bus
+        Register a provider to listen on RPC request queue
 
         Args:
             name: routing_key name
@@ -254,7 +252,7 @@ class AsyncEventbusRabbitMQ:
         exchange_name: str,
         routing_key: str,
         handler: Callable[[Any], Awaitable[None]],
-        response_timeout: Optional[float] = None,
+        process_timeout: Optional[float] = None,
         connection_timeout: int = 16,
     ) -> None:
         """
@@ -264,7 +262,7 @@ class AsyncEventbusRabbitMQ:
             exchange_name: exchange name
             routing_key: routing_key name
             handler: message handler, it will be called when a message is received
-            response_timeout: timeout in seconds for waiting for process the received message
+            process_timeout: timeout in seconds for waiting for process the received message
             connection_timeout: timeout for waiting for connection restabilishment
 
         Returns:
@@ -278,9 +276,9 @@ class AsyncEventbusRabbitMQ:
                     print(f"received message: {body}")
             >>> exchange_name = "example"
             >>> routing_key = "user.find3"
-            >>> response_timeout = 20
+            >>> process_timeout = 20
             >>> connection_timeout = 16
-            >>> await eventbus.subscribe(exchange_name, routing_key, handle, response_timeout, connection_timeout)
+            >>> await eventbus.subscribe(exchange_name, routing_key, handle, process_timeout, connection_timeout)
         """
 
         async def add_subscribe():
@@ -289,13 +287,32 @@ class AsyncEventbusRabbitMQ:
                 exchange_name,
                 routing_key,
                 handler,
-                response_timeout,
+                process_timeout,
             )
 
         self._sub_connection.open(self.config.url)
         await self._sub_connection.add_callback(add_subscribe, connection_timeout)
 
-    async def dispose(self, stop_event_loop=True) -> None:
+    async def dispose(self, stop_event_loop: bool=True) -> None:
+        """
+        Closes all connections and optionally stops the event loop.
+        
+        This method properly disposes of all resources used by the event bus,
+        including publisher, subscriber, RPC client, and RPC server connections.
+        
+        Args:
+            stop_event_loop: Whether to stop the event loop after closing connections.
+        
+        Returns:
+            None: None
+        
+        Examples:
+            >>> # Close all connections and stop the event loop
+            >>> await eventbus.dispose()
+            
+            >>> # Close all connections but keep the event loop running
+            >>> await eventbus.dispose(stop_event_loop=False)
+        """
         await self._pub_connection.close()
         await self._sub_connection.close()
         await self._rpc_client_connection.close()

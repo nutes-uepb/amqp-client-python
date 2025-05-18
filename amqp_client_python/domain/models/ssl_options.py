@@ -10,10 +10,6 @@ class SSLOptions:
             keyfile_path: private key file path string
             ca_certs_path: ca file path string
 
-        Returns:
-
-        Raises:
-
         Examples:
             >>> SSLOptions("./.certs/cert.pem", "./.certs/privkey.pem", "./.certs/ca.pem")
         """

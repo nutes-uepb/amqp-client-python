@@ -16,10 +16,6 @@ class Config:
             options: holds information for establishing connection
             ssl_options: holds information for establishing SSL connections
 
-        Returns:
-
-        Raises:
-
         Examples:
             >>> Config(
                     Options("example", "example.rpc", "example.rpc", "amqp://admin:admin@localhost:5672/"),
@@ -34,14 +30,11 @@ class Config:
         """
         Create a Config object that holds and manages the connection information.
 
-        Args:
-
         Returns:
             Config object
 
-        Raises:
-
         Examples:
+            >>> # config = Config(...)
             >>> config.build()
         """
         opt = {

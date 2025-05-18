@@ -34,10 +34,6 @@ class Options:
             publisher_confirms: wait for publisher confirmations
             **kwargs: pika options
 
-        Returns:
-
-        Raises:
-
         Examples:
             >>> Options("example", "example.rpc", "example.rpc", "amqp://admin:admin@localhost:5672/")
 
