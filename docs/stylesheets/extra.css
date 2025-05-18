@@ -10,13 +10,22 @@
     align-items: center;
 }
 
+
 .card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1; /* Distribuição igualitária */
+    height: 150px; /* Altura fixa */
     border-radius: 5px;
     box-shadow: 7px 7px 13px 0px #5f98c0;
+    box-sizing: border-box;
     padding: 30px;
     margin: 30px;
     transition: all 0.1s ease-out;
     width: 500px;
+    min-width: 250px; /* Largura mínima */
+    max-width: 350px; /* Largura máxima */
     border-top: 3px solid #5f98c0;
 }
 
