@@ -1,7 +1,7 @@
 import pytest
 from amqp_client_python import AsyncEventbusRabbitMQ
-from amqp_client_python.event import IntegrationEvent
 from asyncio import Future, BaseEventLoop, sleep
+from uuid import uuid4
 
 
 @pytest.mark.asyncio_cooperative
@@ -11,10 +11,11 @@ async def test_provider(async_eventbus: AsyncEventbusRabbitMQ, loop: BaseEventLo
     async def handle(body):
         future.set_result(expected_result)
         return "hello"
-    await async_eventbus.provide_resource("prov.receive", handle, 50)
-    result = await async_eventbus.rpc_client("example.rpc", "prov.receive", ["hi"])
+    routing_key = str(uuid4())[:4]
+    await async_eventbus.provide_resource(routing_key, handle, 50)
+    await sleep(1)
+    result = await async_eventbus.rpc_client(async_eventbus.config.options.rpc_exchange_name, routing_key, ["hi"])
     assert future.done()
     assert future.result() == expected_result
     assert result == b"hello"
-    #await sleep(3)
     

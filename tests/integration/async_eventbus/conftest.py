@@ -6,6 +6,7 @@ from amqp_client_python import (
     SSLOptions
 )
 from asyncio import get_running_loop
+from uuid import uuid4
 
 
 @pytest.fixture()
@@ -14,7 +15,7 @@ def loop():
 
 @pytest.fixture(scope="function")
 async def async_eventbus(loop):
-    config = Config(Options("example", "example.rpc", "example.rpc"))
+    config = Config(Options(str(uuid4())[:4], str(uuid4())[:4], str(uuid4())[:4]))
     eventbus = AsyncEventbusRabbitMQ(config, loop)
     yield eventbus
     await eventbus.dispose(stop_event_loop=False)
@@ -22,7 +23,7 @@ async def async_eventbus(loop):
 @pytest.fixture(scope="function")
 async def async_eventbus_ssl(loop):
     config = Config(
-        Options("example", "example.rpc", "example.rpc"),
+        Options(str(uuid4())[:4], str(uuid4())[:4], str(uuid4())[:4]),
         SSLOptions("./.certs/amqp/rabbitmq_cert.pem", "./.certs/amqp/rabbitmq_key.pem", "./.certs/amqp/ca.pem")
     )
     eventbus = AsyncEventbusRabbitMQ(config, loop)
