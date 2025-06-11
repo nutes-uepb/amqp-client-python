@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: ts-models Test
+name: Tests
 
 on:
   push:
@@ -13,56 +13,18 @@ permissions:
   contents: read
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Generate self-signed certificates
-        run: |
-          # Make the script executable and run it
-          chmod +x ./create-self-signed-certs.sh
-          ./create-self-signed-certs.sh
-      - name: Prepare artifact directory
-        run: |
-          # Create a temporary directory to stage the files for upload.
-          # This ensures the directory structure is preserved in the artifact.
-          mkdir artifact_to_upload
-          # Copy the necessary directories into the staging area.
-          cp -r .certs artifact_to_upload/
-          cp -r external_config artifact_to_upload/
-      - name: Upload certs and config for build job
-        uses: actions/upload-artifact@v4
-        with:
-          include-hidden-files: true
-          name: certs-and-config
-          # Upload the contents of the staging directory.
-          path: artifact_to_upload/
-
   build:
-
     runs-on: ubuntu-latest
-    needs: setup
 
     steps:
-    - name: Correct volume mount permissions
-      run: |
-        # When the RabbitMQ service starts, Docker creates the volume mount points
-        # on the host runner (`.certs` and `external_config`) as the root user.
-        # This causes the checkout action to fail with a permission error when it tries to clean the workspace.
-        # To fix this, we change the ownership of the entire workspace to the current runner user as the first step.
-        sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
-
     - name: Checkout repository
       uses: actions/checkout@v3
-      # With the correct permissions, the default `clean: true` will now succeed.
+    - name: Generate self-signed certificates
+      run: |
+        # Make the script executable and run it
+        chmod +x ./create-self-signed-certs.sh
+        ./create-self-signed-certs.sh
 
-    - name: Download certs and config from setup job
-      uses: actions/download-artifact@v4
-      with:
-        name: certs-and-config
-        # The path where the artifact contents will be placed.
-        # '.' places them in the root of the workspace.
-        path: .
     - name: Start RabbitMQ container manually
       run: |
         # We start the container manually as a step to ensure that the certificate
@@ -91,15 +53,12 @@ jobs:
         if [ -f dev_requirements.txt ]; then pip install -r dev_requirements.txt; fi
     - name: Run unit tests with coverage
       run: |
-        # This creates the initial .coverage file
         coverage run --source=amqp_client_python -m pytest -v tests/unit/
     - name: Run integration tests with coverage
       run: |
-        # The --append flag adds the results of this run to the existing .coverage file
         coverage run --append --source=amqp_client_python -m pytest -v tests/integration/
       env:
         AMQP_DOMAIN: localhost
     - name: Generate and show combined coverage report
       run: |
-        # This command reads the combined .coverage file and creates a single report
         coverage report --show-missing
