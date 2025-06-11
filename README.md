@@ -1,6 +1,6 @@
 # AMQP Client Python
 
-A client with a high level of abstraction for manipulating messages in the RabbitMQ event bus.
+A Python client providing a high-level abstraction for interacting with RabbitMQ, simplifying message publishing, subscribing, and RPC patterns.
 
 --------
 
@@ -38,6 +38,18 @@ A client with a high level of abstraction for manipulating messages in the Rabbi
 | ---- | ---- |
 | 0.2.0 | 0.2.0 |
 | 0.1.14 | ~0.1.12 |
+
+### Installation
+
+You can install `amqp-client-python` using pip:
+```bash
+pip install amqp-client-python
+```
+
+### Prerequisites
+
+*   Python 3.7+
+*   A running RabbitMQ instance.
 
 ### Examples:
 #### you can use [sync](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_rabbitmq.py) , [async eventbus](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py) and [sync wrapper](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_wrapper_rabbitmq.py) of async eventbus
