@@ -480,7 +480,7 @@ class AsyncChannel:
         routing_key: str,
         queue_name: str,
         callback,
-        response_timeout,
+        timeout,
         content_type="application/json",
         exchange_type="topic",
         durable=True,
@@ -491,7 +491,7 @@ class AsyncChannel:
             exchange_name, queue_name, exchange_type, durable, auto_delete
         )
         self.register_handler(
-            queue_name, routing_key, callback, content_type, response_timeout
+            queue_name, routing_key, callback, content_type, timeout
         )
 
         self.queue_bind(queue_name, exchange_name, routing_key)
@@ -543,7 +543,7 @@ class AsyncChannel:
         routing_key: str,
         queue_name: str,
         callback,
-        response_timeout: Optional[int],
+        timeout: Optional[int],
         content_type: str = "application/json",
         exchange_type: str = "topic",
         durable: bool = True,
@@ -553,7 +553,7 @@ class AsyncChannel:
             exchange_name, queue_name, exchange_type, durable, auto_delete
         )
         self.register_handler(
-            queue_name, routing_key, callback, content_type, response_timeout
+            queue_name, routing_key, callback, content_type, timeout
         )
 
         self.queue_bind(queue_name, exchange_name, routing_key)
@@ -597,7 +597,7 @@ class AsyncChannel:
                         type="normal",
                     ),
                 )
-            not self.auto_ack and not self._channel.basic_ack(
+            not self.auto_ack and self._channel.is_open and not self._channel.basic_ack(
                 basic_deliver.delivery_tag
             )
 
