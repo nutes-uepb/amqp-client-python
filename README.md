@@ -36,7 +36,7 @@ A Python client providing a high-level abstraction for interacting with RabbitMQ
 ### Table of Compatibility
 | version  | compatible with |
 | ---- | ---- |
-| 0.2.0 | 0.2.0 |
+| 0.2.1 | ~0.2.0 |
 | 0.1.14 | ~0.1.12 |
 
 ### Installation
