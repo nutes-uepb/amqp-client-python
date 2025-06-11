@@ -13,7 +13,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.1.21">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.21">
     
     
       
@@ -427,6 +427,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.restore" class="md-nav__link">
+    restore()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.rpc_client" class="md-nav__link">
     rpc_client()
   </a>
@@ -530,6 +537,13 @@
           <li class="md-nav__item">
   <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.publish" class="md-nav__link">
     publish()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.restore" class="md-nav__link">
+    restore()
   </a>
   
 </li>
@@ -921,7 +935,15 @@
 <span class="normal">321</span>
 <span class="normal">322</span>
 <span class="normal">323</span>
-<span class="normal">324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">AsyncEventbusRabbitMQ</span><span class="p">:</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">AsyncEventbusRabbitMQ</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span>
@@ -972,6 +994,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AbstractEventLoop</span><span class="p">]</span> <span class="o">=</span> <span class="n">loop</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span> <span class="o">=</span> <span class="n">Signal</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">AsyncConnection</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
             <span class="n">pub_publisher_confirms</span><span class="p">,</span>
@@ -1098,7 +1121,6 @@
 <span class="sd">            does not receive confirmation on the gived timeout</span>
 <span class="sd">            NackException: if publish confirmation is set to True and receives a nack</span>
 
-
 <span class="sd">        Examples:</span>
 <span class="sd">            &gt;&gt;&gt; exchange_name = &quot;example.rpc&quot;</span>
 <span class="sd">            &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
@@ -1124,7 +1146,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
-        <span class="n">response_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1133,11 +1155,8 @@
 <span class="sd">        Args:</span>
 <span class="sd">            name: routing_key name</span>
 <span class="sd">            handler: message handler, it will be called when a message is received</span>
-<span class="sd">            response_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">            timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            None: None</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
@@ -1155,10 +1174,11 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_exchange_name</span><span class="p">,</span>
                 <span class="n">name</span><span class="p">,</span>
                 <span class="n">handler</span><span class="p">,</span>
-                <span class="n">response_timeout</span><span class="p">,</span>
+                <span class="n">timeout</span><span class="p">,</span>
             <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="p">)</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_resource</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 
     <span class="k">async</span> <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span>
@@ -1166,7 +1186,7 @@
         <span class="n">exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="kc">None</span><span class="p">]],</span>
-        <span class="n">process_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1176,11 +1196,8 @@
 <span class="sd">            exchange_name: exchange name</span>
 <span class="sd">            routing_key: routing_key name</span>
 <span class="sd">            handler: message handler, it will be called when a message is received</span>
-<span class="sd">            process_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">            timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">            connection_timeout: timeout for waiting for connection restabilishment</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            None: None</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AutoReconnectException: when cannout reconnect on the gived timeout</span>
@@ -1190,9 +1207,9 @@
 <span class="sd">                    print(f&quot;received message: {body}&quot;)</span>
 <span class="sd">            &gt;&gt;&gt; exchange_name = &quot;example&quot;</span>
 <span class="sd">            &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
-<span class="sd">            &gt;&gt;&gt; process_timeout = 20</span>
+<span class="sd">            &gt;&gt;&gt; timeout = 20</span>
 <span class="sd">            &gt;&gt;&gt; connection_timeout = 16</span>
-<span class="sd">            &gt;&gt;&gt; await eventbus.subscribe(exchange_name, routing_key, handle, process_timeout, connection_timeout)</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.subscribe(exchange_name, routing_key, handle, timeout, connection_timeout)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">async</span> <span class="k">def</span> <span class="nf">add_subscribe</span><span class="p">():</span>
@@ -1201,13 +1218,29 @@
                 <span class="n">exchange_name</span><span class="p">,</span>
                 <span class="n">routing_key</span><span class="p">,</span>
                 <span class="n">handler</span><span class="p">,</span>
-                <span class="n">process_timeout</span><span class="p">,</span>
+                <span class="n">timeout</span><span class="p">,</span>
             <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="p">)</span>
         <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_subscribe</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 
-    <span class="k">async</span> <span class="k">def</span> <span class="nf">dispose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stop_event_loop</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Restores connections and subscriptions after a disconnection.</span>
+
+<span class="sd">        This method attempts to reopen connections that were closed and</span>
+<span class="sd">        re-establishes any previously registered subscriptions and RPC providers.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; # After a dispose, call restore to re-establish connections</span>
+<span class="sd">            &gt;&gt;&gt; await eventbus.restore()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">is_open</span><span class="p">:</span>
+                <span class="n">connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">dispose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stop_event_loop</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Closes all connections and optionally stops the event loop.</span>
 
@@ -1216,9 +1249,6 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            stop_event_loop: Whether to stop the event loop after closing connections.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            None: None</span>
 
 <span class="sd">        Examples:</span>
 <span class="sd">            &gt;&gt;&gt; # Close all connections and stop the event loop</span>
@@ -1555,7 +1585,8 @@ some connection management abstractions</p>
 <span class="normal">90</span>
 <span class="normal">91</span>
 <span class="normal">92</span>
-<span class="normal">93</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">93</span>
+<span class="normal">94</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span>
     <span class="n">loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AbstractEventLoop</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1605,6 +1636,7 @@ some connection management abstractions</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AbstractEventLoop</span><span class="p">]</span> <span class="o">=</span> <span class="n">loop</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span> <span class="o">=</span> <span class="n">Signal</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">AsyncConnection</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span> <span class="o">=</span> <span class="n">AsyncConnection</span><span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">,</span>
         <span class="n">pub_publisher_confirms</span><span class="p">,</span>
@@ -1692,28 +1724,6 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
     </tbody>
   </table>
 
-  <p><strong>Returns:</strong></p>
-  <table>
-    <thead>
-      <tr>
-<th>Name</th>        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr>
-<td><code>None</code></td>          <td>
-                <code>None</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>None</p>
-            </div>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
 <p><strong>Examples:</strong></p>
     <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Close all connections and stop the event loop</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">dispose</span><span class="p">()</span>
@@ -1724,18 +1734,7 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">296</span>
-<span class="normal">297</span>
-<span class="normal">298</span>
-<span class="normal">299</span>
-<span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
-<span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">307</span>
 <span class="normal">308</span>
 <span class="normal">309</span>
 <span class="normal">310</span>
@@ -1752,7 +1751,15 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="normal">321</span>
 <span class="normal">322</span>
 <span class="normal">323</span>
-<span class="normal">324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">dispose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stop_event_loop</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">dispose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stop_event_loop</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Closes all connections and optionally stops the event loop.</span>
 
@@ -1761,9 +1768,6 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 
 <span class="sd">    Args:</span>
 <span class="sd">        stop_event_loop: Whether to stop the event loop after closing connections.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        None: None</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; # Close all connections and stop the event loop</span>
@@ -1792,7 +1796,7 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 
 
 <h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.provide_resource" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">provide_resource</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">response_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">provide_resource</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-async"><code>async</code></small>
@@ -1845,7 +1849,7 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
           </td>
         </tr>
         <tr>
-          <td><code>response_timeout</code></td>
+          <td><code>timeout</code></td>
           <td>
                 <code><span title="typing.Optional">Optional</span>[int]</code>
           </td>
@@ -1870,28 +1874,6 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
           </td>
           <td>
                 <code>16</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-  <p><strong>Returns:</strong></p>
-  <table>
-    <thead>
-      <tr>
-<th>Name</th>        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr>
-<td><code>None</code></td>          <td>
-                <code>None</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>None</p>
-            </div>
           </td>
         </tr>
     </tbody>
@@ -1965,13 +1947,11 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="normal">243</span>
 <span class="normal">244</span>
 <span class="normal">245</span>
-<span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">provide_resource</span><span class="p">(</span>
+<span class="normal">246</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">provide_resource</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">bytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]],</span>
-    <span class="n">response_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1980,11 +1960,8 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="sd">    Args:</span>
 <span class="sd">        name: routing_key name</span>
 <span class="sd">        handler: message handler, it will be called when a message is received</span>
-<span class="sd">        response_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">        timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        None: None</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
@@ -2002,10 +1979,11 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">rpc_exchange_name</span><span class="p">,</span>
             <span class="n">name</span><span class="p">,</span>
             <span class="n">handler</span><span class="p">,</span>
-            <span class="n">response_timeout</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="p">,</span>
         <span class="p">)</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="p">)</span>
     <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpc_server_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_resource</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
       </details>
@@ -2239,8 +2217,7 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
-<span class="normal">153</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">153</span>
 <span class="normal">154</span>
 <span class="normal">155</span>
 <span class="normal">156</span>
@@ -2329,7 +2306,6 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="sd">        does not receive confirmation on the gived timeout</span>
 <span class="sd">        NackException: if publish confirmation is set to True and receives a nack</span>
 
-
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; exchange_name = &quot;example.rpc&quot;</span>
 <span class="sd">        &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
@@ -2350,6 +2326,66 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
     <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pub_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_publish</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.restore" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">restore</span><span class="p">()</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.restore" class="headerlink" title="Permanent link">#</a></h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Restores connections and subscriptions after a disconnection.</p>
+<p>This method attempts to reopen connections that were closed and
+re-establishes any previously registered subscriptions and RPC providers.</p>
+
+<p><strong>Examples:</strong></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># After a dispose, call restore to re-establish connections</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">restore</span><span class="p">()</span>
+</code></pre></div>
+
+      <details class="quote">
+        <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Restores connections and subscriptions after a disconnection.</span>
+
+<span class="sd">    This method attempts to reopen connections that were closed and</span>
+<span class="sd">    re-establishes any previously registered subscriptions and RPC providers.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; # After a dispose, call restore to re-establish connections</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.restore()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">is_open</span><span class="p">:</span>
+            <span class="n">connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
       </details>
   </div>
@@ -2590,8 +2626,7 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 95</span>
-<span class="normal"> 96</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 96</span>
 <span class="normal"> 97</span>
 <span class="normal"> 98</span>
 <span class="normal"> 99</span>
@@ -2645,7 +2680,8 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
-<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">rpc_client</span><span class="p">(</span>
+<span class="normal">150</span>
+<span class="normal">151</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">rpc_client</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">exchange</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -2712,7 +2748,7 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 
 
 <h3 id="rabbitmq.async_eventbus_rabbitmq.AsyncEventbusRabbitMQ.subscribe" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">subscribe</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">process_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">subscribe</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-async"><code>async</code></small>
@@ -2779,7 +2815,7 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
           </td>
         </tr>
         <tr>
-          <td><code>process_timeout</code></td>
+          <td><code>timeout</code></td>
           <td>
                 <code><span title="typing.Optional">Optional</span>[float]</code>
           </td>
@@ -2804,28 +2840,6 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
           </td>
           <td>
                 <code>16</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-  <p><strong>Returns:</strong></p>
-  <table>
-    <thead>
-      <tr>
-<th>Name</th>        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr>
-<td><code>None</code></td>          <td>
-                <code>None</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>None</p>
-            </div>
           </td>
         </tr>
     </tbody>
@@ -2858,14 +2872,16 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="go">        print(f&quot;received message: {body}&quot;)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">exchange_name</span> <span class="o">=</span> <span class="s2">&quot;example&quot;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">routing_key</span> <span class="o">=</span> <span class="s2">&quot;user.find3&quot;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">process_timeout</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">timeout</span> <span class="o">=</span> <span class="mi">20</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">connection_timeout</span> <span class="o">=</span> <span class="mi">16</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">handle</span><span class="p">,</span> <span class="n">process_timeout</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">await</span> <span class="n">eventbus</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">exchange_name</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">handle</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 </code></pre></div>
 
       <details class="quote">
         <summary>Source code in <code>amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">250</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
 <span class="normal">253</span>
@@ -2905,16 +2921,12 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="normal">287</span>
 <span class="normal">288</span>
 <span class="normal">289</span>
-<span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
-<span class="normal">294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span>
+<span class="normal">290</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">exchange_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">routing_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="kc">None</span><span class="p">]],</span>
-    <span class="n">process_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">connection_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -2924,11 +2936,8 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="sd">        exchange_name: exchange name</span>
 <span class="sd">        routing_key: routing_key name</span>
 <span class="sd">        handler: message handler, it will be called when a message is received</span>
-<span class="sd">        process_timeout: timeout in seconds for waiting for process the received message</span>
+<span class="sd">        timeout: timeout in seconds for waiting for process the received message</span>
 <span class="sd">        connection_timeout: timeout for waiting for connection restabilishment</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        None: None</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        AutoReconnectException: when cannout reconnect on the gived timeout</span>
@@ -2938,9 +2947,9 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
 <span class="sd">                print(f&quot;received message: {body}&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; exchange_name = &quot;example&quot;</span>
 <span class="sd">        &gt;&gt;&gt; routing_key = &quot;user.find3&quot;</span>
-<span class="sd">        &gt;&gt;&gt; process_timeout = 20</span>
+<span class="sd">        &gt;&gt;&gt; timeout = 20</span>
 <span class="sd">        &gt;&gt;&gt; connection_timeout = 16</span>
-<span class="sd">        &gt;&gt;&gt; await eventbus.subscribe(exchange_name, routing_key, handle, process_timeout, connection_timeout)</span>
+<span class="sd">        &gt;&gt;&gt; await eventbus.subscribe(exchange_name, routing_key, handle, timeout, connection_timeout)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">async</span> <span class="k">def</span> <span class="nf">add_subscribe</span><span class="p">():</span>
@@ -2949,10 +2958,11 @@ including publisher, subscriber, RPC client, and RPC server connections.</p>
             <span class="n">exchange_name</span><span class="p">,</span>
             <span class="n">routing_key</span><span class="p">,</span>
             <span class="n">handler</span><span class="p">,</span>
-            <span class="n">process_timeout</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="p">,</span>
         <span class="p">)</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">url</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_used_connections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="p">)</span>
     <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_connection</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span><span class="n">add_subscribe</span><span class="p">,</span> <span class="n">connection_timeout</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
       </details>
