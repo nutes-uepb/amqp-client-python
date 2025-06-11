@@ -7,6 +7,7 @@ from amqp_client_python import (
 )
 from asyncio import get_running_loop
 from uuid import uuid4
+import os
 
 
 @pytest.fixture(scope="function")
@@ -15,7 +16,7 @@ def loop():
 
 @pytest.fixture(scope="function")
 async def eventbus_wrapper():
-    config = Config(Options(str(uuid4())[:4], str(uuid4())[:4], str(uuid4())[:4]))
+    config = Config(Options(str(uuid4())[:4], str(uuid4())[:4], str(uuid4())[:4], domain=os.environ.get("AMQP_DOMAIN", "localhost")))
     eventbus = EventbusWrapperRabbitMQ(config)
     yield eventbus
     eventbus.dispose()
@@ -23,7 +24,7 @@ async def eventbus_wrapper():
 @pytest.fixture(scope="function")
 async def eventbus_wrapper_ssl():
     config = Config(
-        Options(str(uuid4())[:4], str(uuid4())[:4], str(uuid4())[:4]),
+        Options(str(uuid4())[:4], str(uuid4())[:4], str(uuid4())[:4], domain=os.environ.get("AMQP_DOMAIN", "localhost")),
         SSLOptions("./.certs/amqp/rabbitmq_cert.pem", "./.certs/amqp/rabbitmq_key.pem", "./.certs/amqp/ca.pem")
     )
     eventbus = EventbusWrapperRabbitMQ(config)

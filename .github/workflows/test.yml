@@ -42,25 +42,6 @@ jobs:
 
     runs-on: ubuntu-latest
     needs: setup
-    # Service containers to run with this job
-    services:
-      rabbitmq:
-        image: rabbitmq:3-management-alpine
-        env:
-          RABBITMQ_DEFAULT_USER: guest
-          RABBITMQ_DEFAULT_PASS: guest
-        ports:
-          - 5671:5671
-          - 5672:5672
-        volumes:
-          - ${{ github.workspace }}/.certs/rabbitmq:/etc/ssl:ro
-          - ${{ github.workspace }}/external_config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
-        # Health check to ensure RabbitMQ is ready before starting the steps
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
     - name: Correct volume mount permissions
@@ -82,6 +63,23 @@ jobs:
         # The path where the artifact contents will be placed.
         # '.' places them in the root of the workspace.
         path: .
+    - name: Start RabbitMQ container manually
+      run: |
+        # We start the container manually as a step to ensure that the certificate
+        # and config files exist on the host before we try to mount them.
+        docker run -d --name rabbitmq \
+          -p 5672:5672 \
+          -p 5671:5671 \
+          -v ${{ github.workspace }}/.certs/rabbitmq:/etc/ssl:ro \
+          -v ${{ github.workspace }}/external_config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro \
+          -e RABBITMQ_DEFAULT_USER=guest \
+          -e RABBITMQ_DEFAULT_PASS=guest \
+          rabbitmq:3-management-alpine
+    - name: Wait for RabbitMQ to start
+      run: |
+        echo "Waiting for RabbitMQ to initialize..."
+        # Give the container time to start up and apply the configuration.
+        sleep 8
     - name: Set up Python 3.8
       uses: actions/setup-python@v3
       with:
@@ -100,7 +98,7 @@ jobs:
         # The --append flag adds the results of this run to the existing .coverage file
         coverage run --append --source=amqp_client_python -m pytest -v tests/integration/
       env:
-        AMQP_DOMAIN: rabbitmq
+        AMQP_DOMAIN: localhost
     - name: Generate and show combined coverage report
       run: |
         # This command reads the combined .coverage file and creates a single report
