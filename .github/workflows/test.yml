@@ -22,13 +22,21 @@ jobs:
           # Make the script executable and run it
           chmod +x ./create-self-signed-certs.sh
           ./create-self-signed-certs.sh
+      - name: Prepare artifact directory
+        run: |
+          # Create a temporary directory to stage the files for upload.
+          # This ensures the directory structure is preserved in the artifact.
+          mkdir artifact_to_upload
+          # Copy the necessary directories into the staging area.
+          cp -r .certs artifact_to_upload/
+          cp -r external_config artifact_to_upload/
       - name: Upload certs and config for build job
         uses: actions/upload-artifact@v4
         with:
+          include-hidden-files: true
           name: certs-and-config
-          path: |
-            .certs/
-            external_config/
+          # Upload the contents of the staging directory.
+          path: artifact_to_upload/
 
   build:
 
@@ -45,8 +53,8 @@ jobs:
           - 5671:5671
           - 5672:5672
         volumes:
-          - ./.certs/rabbitmq:/etc/ssl:ro
-          - ./external_config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+          - ${{ github.workspace }}/.certs/rabbitmq:/etc/ssl:ro
+          - ${{ github.workspace }}/external_config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
         # Health check to ensure RabbitMQ is ready before starting the steps
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping"

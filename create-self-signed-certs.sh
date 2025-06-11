@@ -37,9 +37,9 @@ string_mask         = utf8only
 countryName                    = BR
 stateOrProvinceName            = PB
 localityName                   = Campina Grande
-organizationName               = HANIoT
-organizationalUnitName         = HANIoT
-commonName                     = HANIoT CA
+organizationName               = UEPB
+organizationalUnitName         = UEPB
+commonName                     = UEPB CA
 
 ####################################################################
 [ ca_extensions ]
@@ -92,9 +92,9 @@ EOF
 openssl req -x509 \
   -config "$DIR/openssl.cnf" \
   -nodes -days 3650 \
-  -subj "/O=HANIoT,CN=HANIoT CA" \
+  -subj "/O=UEPB,CN=UEPB CA" \
   -keyout "$DIR/ca.key" \
-  -out "$DIR/ca.pem" 2>/dev/null
+  -out "$DIR/ca.pem"
 
 # Params:
 # type (server, client) $1, CN $2, Alt Names $3, filename $4, output $5
@@ -120,15 +120,15 @@ generateCerts() {
   done
 
   # Generate the private key
-  openssl genrsa -out "$5/$4_key.pem" 2>/dev/null
+  openssl genrsa -out "$5/$4_key.pem"
 
   # Generate a CSR using the configuration and the key just generated. We will
   # give this CSR to our CA to sign.
   openssl req \
     -new -nodes \
     -key "$5/$4_key.pem" \
-    -subj "/O=$ORG/CN=HANIoT" \
-    -out "$5/$4.csr" 2>/dev/null
+    -subj "/O=$ORG/CN=UEPB" \
+    -out "$5/$4.csr"
 
   # Sign the CSR with our CA. This will generate a new certificate that is signed
   # by our CA.
@@ -136,7 +136,7 @@ generateCerts() {
     -req -days 3650 -in "$5/$4.csr" \
     -CA "$DIR/ca.pem" -CAkey "$DIR/ca.key" -CAcreateserial \
     -out "$5/$4_cert.pem" -extfile "$DIR/openssl.cnf" \
-    -extensions $TYPE 2>/dev/null
+    -extensions $TYPE
 
   # Copy CA file to the destination directory
   cp "$DIR/ca.pem" "$5/ca.pem"
