@@ -237,10 +237,10 @@ class AsyncChannel:
                     )
                 else:
                     future.set_result(body)
-            return not self.auto_ack and self._channel_rpc.basic_ack(
+            return not self.auto_ack and self._channel_rpc.is_open and self._channel_rpc.basic_ack(
                 basic_deliver.delivery_tag
             )
-        not self.auto_ack and self._channel_rpc.basic_nack(
+        not self.auto_ack and self._channel_rpc.is_open and self._channel_rpc.basic_nack(
             basic_deliver.delivery_tag, requeue=False
         )
 
@@ -624,7 +624,7 @@ class AsyncChannel:
                                 type="error",
                             ),
                         )
-                    return not self.auto_ack and self._channel.basic_nack(
+                    return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
                         basic_deliver.delivery_tag, requeue=False
                     )
 
@@ -640,7 +640,7 @@ class AsyncChannel:
                             type="error",
                         ),
                     )
-                not self.auto_ack and self._channel.basic_nack(
+                not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
                     basic_deliver.delivery_tag, requeue=False
                 )
 
