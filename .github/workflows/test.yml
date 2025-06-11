@@ -17,6 +17,28 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # Service containers to run with this job
+    services:
+      # Label used to access the service container
+      rabbitmq:
+        # Docker Hub image for RabbitMQ
+        image: rabbitmq:3-management-alpine
+        # Environment variables for the service container
+        env:
+          # Use default user/password for testing purposes
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        # Port mapping to access the service from the runner
+        ports:
+          - 5672:5672
+          - 15672:15672
+        # Health check to ensure RabbitMQ is ready before starting the steps
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.8
@@ -26,8 +48,17 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install pytest pika coverage
         if [ -f dev_requirements.txt ]; then pip install -r dev_requirements.txt; fi
-    - name: Test with pytest
+    - name: Run unit tests with coverage
       run: |
+        # This creates the initial .coverage file
         coverage run --source=amqp_client_python -m pytest -v tests/unit/
+    - name: Run integration tests with coverage
+      run: |
+        # The --append flag adds the results of this run to the existing .coverage file
+        coverage run --append --source=amqp_client_python -m pytest -v tests/integration/
+    - name: Generate and show combined coverage report
+      run: |
+        # This command reads the combined .coverage file and creates a single report
         coverage report --show-missing
