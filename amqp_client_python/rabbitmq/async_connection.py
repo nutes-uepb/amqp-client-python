@@ -94,6 +94,8 @@ class AsyncConnection:
                 on_connection_closed=self.on_connection_closed,
                 custum_ioloop=self.ioloop,
             )
+            return True
+        return False
 
     async def close(self):
         """

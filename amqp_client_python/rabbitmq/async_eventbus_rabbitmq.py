@@ -1,4 +1,4 @@
-from typing import Callable, Awaitable, Optional, Union, Any
+from typing import Callable, Awaitable, Optional, Union, Any, List
 from .async_connection import AsyncConnection
 from ..domain.utils import ConnectionType
 from amqp_client_python.domain.models import Config
@@ -58,6 +58,7 @@ class AsyncEventbusRabbitMQ:
         """
         self._loop: Optional[AbstractEventLoop] = loop
         self._signal = Signal()
+        self._used_connections: List[AsyncConnection] = []
         self._pub_connection = AsyncConnection(
             self._loop,
             pub_publisher_confirms,
@@ -240,7 +241,8 @@ class AsyncEventbusRabbitMQ:
                 timeout,
             )
 
-        self._rpc_server_connection.open(self.config.url)
+        if self._rpc_server_connection.open(self.config.url):
+            self._used_connections.append(self._rpc_server_connection)
         await self._rpc_server_connection.add_callback(add_resource, connection_timeout)
 
     async def subscribe(
@@ -283,8 +285,24 @@ class AsyncEventbusRabbitMQ:
                 timeout,
             )
 
-        self._sub_connection.open(self.config.url)
+        if self._sub_connection.open(self.config.url):
+            self._used_connections.append(self._sub_connection)
         await self._sub_connection.add_callback(add_subscribe, connection_timeout)
+
+    async def restore(self) -> None:
+        """
+        Restores connections and subscriptions after a disconnection.
+
+        This method attempts to reopen connections that were closed and
+        re-establishes any previously registered subscriptions and RPC providers.
+
+        Examples:
+            >>> # After a dispose, call restore to re-establish connections
+            >>> await eventbus.restore()
+        """
+        for connection in self._used_connections:
+            if not connection.is_open:
+                connection.open(self.config.url)
 
     async def dispose(self, stop_event_loop: bool = True) -> None:
         """
