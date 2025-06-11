@@ -99,6 +99,8 @@ jobs:
       run: |
         # The --append flag adds the results of this run to the existing .coverage file
         coverage run --append --source=amqp_client_python -m pytest -v tests/integration/
+      env:
+        AMQP_DOMAIN: rabbitmq
     - name: Generate and show combined coverage report
       run: |
         # This command reads the combined .coverage file and creates a single report
