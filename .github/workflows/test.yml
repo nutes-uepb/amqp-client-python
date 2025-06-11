@@ -13,6 +13,23 @@ permissions:
   contents: read
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Generate self-signed certificates
+        run: |
+          # Make the script executable and run it
+          chmod +x ./create-self-signed-certs.sh
+          ./create-self-signed-certs.sh
+      - name: Upload certs and config for build job
+        uses: actions/upload-artifact@v4
+        with:
+          name: certs-and-config
+          path: |
+            .certs/
+            external_config/
+
   build:
 
     runs-on: ubuntu-latest
@@ -32,6 +49,9 @@ jobs:
         ports:
           - 5672:5672
           - 15672:15672
+        volumes:
+          - ${{ github.workspace }}/.certs/rabbitmq:/etc/ssl:ro
+          - ${{ github.workspace }}/external_config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
         # Health check to ensure RabbitMQ is ready before starting the steps
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping"
@@ -41,6 +61,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Download certs and config from setup job
+      uses: actions/download-artifact@v4
+      with:
+        name: certs-and-config
+        path: .
     - name: Set up Python 3.8
       uses: actions/setup-python@v3
       with:
