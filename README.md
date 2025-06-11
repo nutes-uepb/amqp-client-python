@@ -48,7 +48,7 @@ pip install amqp-client-python
 
 ### Prerequisites
 
-*   Python 3.7+
+*   Python 3.9+
 *   A running RabbitMQ instance.
 
 ### Examples:
