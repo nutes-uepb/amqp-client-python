@@ -23,6 +23,16 @@ A Python client providing a high-level abstraction for interacting with RabbitMQ
 
 **Discord Server**: <a href="https://discord.gg/RkXNeZpNZk" target="_blank">https://discord.gg/RkXNeZpNZk</a>
 
+### 🦀 Looking for higher performance? Try `amqp-rs`!
+If you need higher throughput, thread safety, and built-in compression, check out [**amqp-rs**](https://pypi.org/project/amqp-rs/).
+
+It is a high-performance Python extension developed in Rust using PyO3 and `tokio`. It shares a similar API and design philosophy with this library, but adds native thread safety, `zstd`/`zlib`/`lz4` compression, robust TLS/SSL support, and graceful shutdowns. 
+
+You can install it via `pip` or `uv`:
+```bash
+pip install amqp-rs
+```
+
 ---
 ### Features:
 - Automatic creation and management of queues, exchanges and channels;
