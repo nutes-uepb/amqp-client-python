@@ -21,6 +21,33 @@ class AsyncConnection:
         connection_type: Optional[ConnectionType] = None,
         signal=Signal(),
     ) -> None:
+        """
+        Manages asynchronous connections to RabbitMQ with automatic reconnection capabilities.
+
+        This class handles connection lifecycle, channel management, and provides methods for
+        publishing messages, subscribing to queues, and implementing RPC patterns.
+
+        Args:
+            ioloop: The asyncio event loop to use for async operations
+            publisher_confirms: Whether to enable publisher confirmations for this connection
+            prefetch_count: Maximum number of unacknowledged messages to prefetch
+            auto_ack: Whether to automatically acknowledge messages
+            connection_type: Type of connection (PUBLISH, SUBSCRIBE, RPC_CLIENT, RPC_SERVER)
+            signal: Signal object for event handling
+
+        Returns:
+            None: None
+
+        Examples:
+            >>> connection = AsyncConnection(
+                    get_event_loop(),
+                    publisher_confirms=True,
+                    prefetch_count=10,
+                    auto_ack=False,
+                    connection_type=ConnectionType.PUBLISH
+                )
+            >>> connection.open("amqp://guest:guest@localhost:5672/%2F")
+        """
         self.ioloop = ioloop
         self.publisher_confirms = publisher_confirms
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
@@ -43,6 +70,18 @@ class AsyncConnection:
         }
 
     def open(self, uri):
+        """
+        Opens a connection to RabbitMQ using the provided URI.
+
+        If the connection is not already open and not in the process of opening,
+        this method will initiate a new connection.
+
+        Args:
+            uri: The AMQP URI to connect to (e.g., "amqp://guest:guest@localhost:5672/")
+
+        Examples:
+            >>> connection.open("amqp://guest:guest@localhost:5672/")
+        """
         self.url = uri
         if not self.is_open and not self.openning:
             if not self.ioloop:
@@ -55,13 +94,31 @@ class AsyncConnection:
                 on_connection_closed=self.on_connection_closed,
                 custum_ioloop=self.ioloop,
             )
+            return True
+        return False
 
     async def close(self):
+        """
+        Closes the connection to RabbitMQ gracefully.
+
+        This method will only close the connection if it is currently open.
+
+        Examples:
+            >>> await connection.close()
+        """
         if self.is_open:
             self._closing = True
             self._connection.close()
 
     def on_connection_open(self, _unused_connection):
+        """
+        Callback invoked when the connection to RabbitMQ is established.
+
+        This method creates a channel and emits a connection event.
+
+        Args:
+            _unused_connection: The connection object (not used)
+        """
         LOGGER.info(f"connection openned {_unused_connection}, {self._connection}")
         self.signal.emmit(Event.CONNECTED, condiction=self.type, loop=self.ioloop)
         self.openning = False
@@ -75,17 +132,29 @@ class AsyncConnection:
         self._channel.open(self._connection, self.callbacks)
 
     def on_connection_open_error(self, _unused_connection, err):
+        """
+        Callback invoked when the connection to RabbitMQ is established.
+
+        This method creates a channel and emits a connection event.
+
+        Args:
+            _unused_connection: The connection object (not used)
+        """
         LOGGER.info(f"connection open error: {err}, will attempt a connection")
         self.openning = False
         self.reconnect()
 
     def on_connection_closed(self, _unused_connection, reason):
-        """This method is invoked by pika when the connection to RabbitMQ is
+        """
+        Callback invoked when the connection to RabbitMQ is closed unexpectedly.
+
+        This method is invoked by pika when the connection to RabbitMQ is
         closed unexpectedly. Since it is unexpected, we will reconnect to
         RabbitMQ if it disconnects.
-        :param pika.connection.Connection connection: The closed connection obj
-        :param Exception reason: exception representing reason for loss of
-            connection.
+
+        Args:
+            _unused_connection: The closed connection object
+            reason: Exception representing reason for loss of connection
         """
         self._channel = None
         if self._closing:
@@ -98,15 +167,23 @@ class AsyncConnection:
             self.reconnect()
 
     def reconnect(self):
-        """Will be invoked if the connection can't be opened or is
-        closed. Indicates that a reconnect is necessary then stops the
-        ioloop.
+        """
+        Initiates the reconnection process.
+
+        Will be invoked if the connection can't be opened or is closed.
+        Indicates that a reconnect is necessary.
         """
         if not self.reconnecting:
             self.reconnecting = True
             self.retry_connection()
 
     def retry_connection(self):
+        """
+        Attempts to reconnect to RabbitMQ with exponential backoff.
+
+        If reconnection is successful, this method will recover previous subscriptions
+        and RPC handlers.
+        """
         if not self.is_open:
             if self.reconnect_delay > 30:
                 self.reconnect_delay = 30
@@ -125,7 +202,7 @@ class AsyncConnection:
                         params["exchange_name"],
                         routing_key,
                         params["callback"],
-                        params["response_timeout"],
+                        params["timeout"],
                     )
                 for routing_key in self.backup["rpc_subscribe"]:
                     params = self.backup["rpc_subscribe"][routing_key]
@@ -134,7 +211,7 @@ class AsyncConnection:
                         params["exchange_name"],
                         routing_key,
                         params["callback"],
-                        params["response_timeout"],
+                        params["timeout"],
                     )
 
             self.ioloop.create_task(self.add_callback(recorvery))  # type: ignore
@@ -143,6 +220,12 @@ class AsyncConnection:
 
     @property
     def is_open(self) -> Optional[bool]:
+        """
+        Checks if the connection is currently open.
+
+        Returns:
+            Optional[bool]: True if the connection is open, False otherwise, or None if no connection exists
+        """
         return self._connection and self._connection.is_open
 
     def stop(self) -> None:
@@ -170,17 +253,49 @@ class AsyncConnection:
         routing_key: str,
         body: Any,
         content_type: str,
-        timeout,
+        response_timeout,
         delivery_mode,
         expiration,
         **kwargs,
     ):
+        """
+        Sends an RPC request and waits for a response.
+
+        Args:
+            exchange_name: The exchange to publish to
+            routing_key: The routing key for the message
+            body: The message body to send
+            content_type: Content type of the message
+            response_timeout: Timeout in seconds for waiting for a response
+            delivery_mode: Delivery mode (persistent or transient)
+            expiration: Maximum lifetime of the message in the queue
+            **kwargs: Additional message properties
+
+        Returns:
+            Any: The response from the RPC server
+
+        Raises:
+            PublishTimeoutException: If publisher confirmation times out
+            NackException: If the message is rejected by the broker
+            ResponseTimeoutException: If no response is received within the response_timeout
+
+        Examples:
+            >>> response = await connection.rpc_client(
+                    "rpc_exchange",
+                    "user.find",
+                    {"id": 123},
+                    "application/json",
+                    5.0,
+                    DeliveryMode.Transient,
+                    "60000"
+                )
+        """
         return await self._channel.rpc_client(
             exchange_name,
             routing_key,
             body,
             content_type,
-            timeout,
+            response_timeout,
             delivery_mode,
             expiration,
             **kwargs,
@@ -197,6 +312,38 @@ class AsyncConnection:
         expiration,
         **kwargs,
     ):
+        """
+        Publishes a message to RabbitMQ.
+
+        Args:
+            exchange_name: The exchange to publish to
+            routing_key: The routing key for the message
+            body: The message body to send
+            content_type: Content type of the message
+            timeout: Timeout in seconds for publisher confirmation
+            delivery_mode: Delivery mode (persistent or transient)
+            expiration: Maximum lifetime of the message in the queue
+            **kwargs: Additional message properties
+
+        Returns:
+            Optional[bool]: True if publisher confirms enabled and message was confirmed,
+                           None if publisher confirms disabled
+
+        Raises:
+            PublishTimeoutException: If publisher confirmation times out
+            NackException: If the message is rejected by the broker
+
+        Examples:
+            >>> result = await connection.publish(
+                    "notifications",
+                    "email.send",
+                    {"to": "user@example.com", "subject": "Hello"},
+                    "application/json",
+                    5.0,
+                    DeliveryMode.Persistent,
+                    "60000"
+                )
+        """
         return await self._channel.publish(
             exchange_name,
             routing_key,
@@ -209,37 +356,85 @@ class AsyncConnection:
         )
 
     async def rpc_subscribe(
-        self, queue_name, exchange_name, routing_key, callback, response_timeout
+        self, queue_name, exchange_name, routing_key, callback, timeout
     ):
+        """
+        Registers an RPC handler for a specific routing key.
+
+        Args:
+            queue_name: The queue to consume from
+            exchange_name: The exchange to bind to
+            routing_key: The routing key to subscribe to
+            callback: The function to call when a message is received
+            timeout: Timeout in seconds for processing the received message
+
+        Examples:
+            >>> async def handle_rpc(body):
+                    result = process_request(body)
+                    return json.dumps(result).encode()
+            >>> await connection.rpc_subscribe(
+                    "rpc_queue",
+                    "rpc_exchange",
+                    "user.find",
+                    handle_rpc,
+                    10.0
+                )
+        """
         self.backup["rpc_subscribe"][routing_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
             "callback": callback,
-            "response_timeout": response_timeout,
+            "timeout": timeout,
         }
         await self._channel.rpc_subscribe(
             queue_name=queue_name,
             exchange_name=exchange_name,
             routing_key=routing_key,
             callback=callback,
-            response_timeout=response_timeout,
+            timeout=timeout,
         )
 
     async def subscribe(
-        self, queue_name, exchange_name, routing_key, callback, response_timeout
+        self,
+        queue_name: str,
+        exchange_name: str,
+        routing_key: str,
+        callback: Callable[[Any], Awaitable[None]],
+        timeout: Optional[float],
     ):
+        """
+        Subscribes to messages with a specific routing key.
+
+        Args:
+            queue_name: The queue to consume from
+            exchange_name: The exchange to bind to
+            routing_key: The routing key to subscribe to
+            callback: The function to call when a message is received
+            timeout: Timeout in seconds for processing the received message
+
+        Examples:
+            >>> async def handle_message(body):
+                    print(f"Received: {body}")
+            >>> await connection.subscribe(
+                    "notifications_queue",
+                    "notifications",
+                    "email.send",
+                    handle_message,
+                    5.0
+                )
+        """
         self.backup["subscribe"][routing_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
             "callback": callback,
-            "response_timeout": response_timeout,
+            "timeout": timeout,
         }
         await self._channel.subscribe(
             exchange_name=exchange_name,
             queue_name=queue_name,
             routing_key=routing_key,
             callback=callback,
-            response_timeout=response_timeout,
+            timeout=timeout,
         )
 
     async def add_callback(
@@ -247,6 +442,27 @@ class AsyncConnection:
         callback: Callable[..., Awaitable[Any]],
         connection_timeout: Optional[float] = None,
     ):
+        """
+        Executes a callback when the connection is ready or queues it for later execution.
+
+        If the connection and channel are open, executes the callback immediately.
+        Otherwise, queues the callback to be executed when the connection is established.
+
+        Args:
+            callback: The async function to call
+            connection_timeout: Maximum time to wait for the connection to be established
+
+        Returns:
+            Any: The result of the callback
+
+        Raises:
+            AutoReconnectException: When the connection cannot be established within the timeout
+
+        Examples:
+            >>> async def my_operation():
+                    return await connection.publish(...)
+            >>> result = await connection.add_callback(my_operation, 10.0)
+        """
         try:
             if self.is_open and self._channel.is_open:
                 return await callback()

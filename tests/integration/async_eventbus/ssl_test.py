@@ -1,7 +1,8 @@
 import pytest
 from amqp_client_python import AsyncEventbusRabbitMQ, ConnectionType
 from amqp_client_python.signals import Event
-from asyncio import Future, BaseEventLoop, sleep
+from asyncio import Future, BaseEventLoop
+from uuid import uuid4
 
 
 @pytest.mark.asyncio_cooperative
@@ -14,9 +15,9 @@ async def test_ssl(async_eventbus_ssl: AsyncEventbusRabbitMQ, loop: BaseEventLoo
     async def connected():
         if not future.done():
             future.set_result(expected_result)
-    await async_eventbus_ssl.provide_resource("prov.receive", handle, 50)
+    routing_key = str(uuid4())
+    await async_eventbus_ssl.provide_resource(routing_key, handle, 50)
     assert future.done()
     assert future.result() == expected_result
-    await sleep(1)
     
     

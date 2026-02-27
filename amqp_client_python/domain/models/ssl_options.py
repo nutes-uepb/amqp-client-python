@@ -3,17 +3,12 @@ class SSLOptions:
         self, certfile_path: str, keyfile_path: str, ca_certs_path: str
     ) -> None:
         """
-        Create an SslOptions object that hold the certs paths.
+        Create an SslOptions object that holds the cert paths.
 
         Args:
             certfile_path: cert file path string
             keyfile_path: private key file path string
             ca_certs_path: ca file path string
-
-        Returns:
-            Um dicionário com as notas da escala e os graus.
-
-        Raises:
 
         Examples:
             >>> SSLOptions("./.certs/cert.pem", "./.certs/privkey.pem", "./.certs/ca.pem")

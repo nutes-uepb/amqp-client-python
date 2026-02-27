@@ -2,6 +2,7 @@ import pytest
 from amqp_client_python import AsyncEventbusRabbitMQ, ConnectionType
 from amqp_client_python.signals import Event
 from asyncio import Future, BaseEventLoop, wait_for
+from uuid import uuid4
 
 
 @pytest.mark.asyncio_cooperative
@@ -14,7 +15,8 @@ async def test_signal_connected(async_eventbus: AsyncEventbusRabbitMQ, loop: Bas
     async def connected():
         if not future.done():
             future.set_result(expected_result)
-    await async_eventbus.provide_resource("prov.receive", handle, 50)
+    routing_key = str(uuid4())
+    await async_eventbus.provide_resource(routing_key, handle, 50)
     result = await wait_for(future, 5)
     assert future.done()
     assert result == expected_result
@@ -29,7 +31,8 @@ async def test_signal_channel_openned(async_eventbus: AsyncEventbusRabbitMQ, loo
     async def connected():
         if not future.done():
             future.set_result(expected_result)
-    await async_eventbus.provide_resource("prov.receive", handle, 50)
+    routing_key = str(uuid4())
+    await async_eventbus.provide_resource(routing_key, handle, 50)
     result = await wait_for(future, 5)
     assert future.done()
     assert result == expected_result
@@ -49,7 +52,8 @@ async def test_two_signals_channel_openned(async_eventbus: AsyncEventbusRabbitMQ
     async def connected2():
         if not future_2.done():
             future_2.set_result(expected_result)
-    await async_eventbus.provide_resource("prov.receive", handle, 50)
+    routing_key = str(uuid4())
+    await async_eventbus.provide_resource(routing_key, handle, 50)
     result_1 = await wait_for(future_1, 5)
     assert future_1.done()
     assert result_1 == expected_result

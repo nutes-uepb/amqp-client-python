@@ -10,15 +10,11 @@ class Config:
         self, options: Options, ssl_options: Optional[SSLOptions] = None
     ) -> None:
         """
-        Create an Config object thats hold and mount the connection information.
+        Create a Config object that holds and manages the connection information.
 
         Args:
-            options: hold information for estabilish connection
-            ssl_options: hold information for estabilish SSL connections
-
-        Returns:
-
-        Raises:
+            options: holds information for establishing connection
+            ssl_options: holds information for establishing SSL connections
 
         Examples:
             >>> Config(
@@ -32,16 +28,13 @@ class Config:
 
     def build(self) -> "Config":
         """
-        Create an Config object thats hold and mount the connection information.
-
-        Args:
+        Create a Config object that holds and manages the connection information.
 
         Returns:
             Config object
 
-        Raises:
-
         Examples:
+            >>> # config = Config(...)
             >>> config.build()
         """
         opt = {

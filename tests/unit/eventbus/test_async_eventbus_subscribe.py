@@ -15,7 +15,6 @@ async def test_async_eventbus_subscribe_deep(async_connection_mock, config_mock)
     eventbus = AsyncEventbusRabbitMQ(config_mock)
     eventbus._sub_connection = async_connection_mock
     eventbus._sub_connection.add_callback = async_add_callback
-    # create event
     # create event handler
 
     async def handle(body) -> None:

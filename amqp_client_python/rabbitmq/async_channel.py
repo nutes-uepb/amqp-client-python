@@ -108,7 +108,6 @@ class AsyncChannel:
         :param pika.channel.Channel: The closed channel
         :param Exception reason: why the channel was closed
         """
-        print("channel closed:", reason, flush=True)
         LOGGER.info(f"Channel {channel} was closed: {reason}")
         self._consuming = False
         if self._connection.is_closing or self._connection.is_closed:
@@ -238,10 +237,10 @@ class AsyncChannel:
                     )
                 else:
                     future.set_result(body)
-            return not self.auto_ack and self._channel_rpc.basic_ack(
+            return not self.auto_ack and self._channel_rpc.is_open and self._channel_rpc.basic_ack(
                 basic_deliver.delivery_tag
             )
-        not self.auto_ack and self._channel_rpc.basic_nack(
+        not self.auto_ack and self._channel_rpc.is_open and self._channel_rpc.basic_nack(
             basic_deliver.delivery_tag, requeue=False
         )
 
@@ -334,34 +333,41 @@ class AsyncChannel:
         routing_key: str,
         body,
         content_type,
-        timeout,
+        response_timeout,
         delivery_mode=DeliveryMode.Transient,
         expiration: Optional[Union[str, None]] = None,
         **key_args,
     ):
+        # Create future to track RPC response
         future = self.ioloop.create_future()  # type: ignore
+        # Generate unique correlation ID for RPC matching
         corr_id = str(uuid4())
+        # Store future in tracking dictionary
         self.rpc_futures[corr_id] = {"response": future}
+        # Setup cleanup callback for completed RPC
         clean_response = partial(self.clean_rpc_response, corr_id)
         future.add_done_callback(clean_response)
 
+        # Ensure RPC response consumer is operational
         await self.start_rpc_consumer()
 
+        # Publish RPC request with metadata headers
         self._channel.basic_publish(
             exchange_name,
             routing_key,
-            dumps(body),
+            dumps(body),  # Serialize payload to JSON
             properties=BasicProperties(
-                reply_to=self._callback_queue,
-                correlation_id=corr_id,
-                content_type=content_type,
-                delivery_mode=delivery_mode,
-                expiration=expiration,
+                reply_to=self._callback_queue,  # Response queue address
+                correlation_id=corr_id,  # Request/response matching ID
+                content_type=content_type,  # Payload format descriptor
+                delivery_mode=delivery_mode,  # Persistent/Transient delivery
+                expiration=expiration,  # Message TTL control
                 **key_args,
             ),
             mandatory=False,
         )
 
+        # Setup timeout handler for unfulfilled requests
         def not_arrived(id: str):
             if id in self.rpc_futures:
                 future = self.rpc_futures[id]
@@ -375,27 +381,40 @@ class AsyncChannel:
                     )
 
         func = partial(not_arrived, corr_id)
-        self.ioloop.call_later(timeout, func)  # type: ignore
+        # Schedule timeout check using event loop
+        self.ioloop.call_later(response_timeout, func)  # type: ignore
 
+        # Handle publisher confirms if enabled
         if self.publisher_confirms:
             return await self.handle_publish(future, corr_id)
+        # Return final response or exception
         return await future
 
     async def handle_publish(self, future, corr_id):
+        """Manages dual confirmation flow (publish + response)"""
+
+        # Create separate tracking for publish confirmation
         publish_future = self.ioloop.create_future()
+        # Store both futures in tracking system
         self.rpc_futures[corr_id]["published"] = publish_future
+        # Initiate confirmation tracking
         self.publish_confirmation(publish_future)
+        # Concurrently wait for first completed operation:
+        # - Publisher confirmation (ACK/NACK)
+        # - RPC response arrival
         done_all, pending_all = await wait(
             [publish_future, future], return_when=FIRST_COMPLETED
         )
+        # Extract potential exception from completed operation
         exception = done_all.pop().exception()
         if exception:
+            # Cancel remaining operations
             [undone.cancel() for undone in pending_all]
             raise exception
-        elif len(pending_all):
+        elif len(pending_all):  # Response still pending after confirmation
             return await future
         else:
-            return future.result()
+            return future.result()  # Return final result directly
 
     async def publish(
         self,
@@ -436,9 +455,15 @@ class AsyncChannel:
             return await publish_future
 
     def publish_confirmation(self, future: Future):
+        """Tracks message publishes requiring confirmation"""
+
+        # Increment sequence counter for message tracking
         self._message_number += 1
+        # Store future reference for confirmation handling
         self.futures[self._message_number] = future
+        # Link to delivery tracking system
         self._deliveries[self._message_number] = future
+        # Register cleanup callback using partial binding
         clean = partial(self.clean_publish_confirmation, self._message_number)
         future.add_done_callback(clean)
 
@@ -455,7 +480,7 @@ class AsyncChannel:
         routing_key: str,
         queue_name: str,
         callback,
-        response_timeout,
+        timeout,
         content_type="application/json",
         exchange_type="topic",
         durable=True,
@@ -466,7 +491,7 @@ class AsyncChannel:
             exchange_name, queue_name, exchange_type, durable, auto_delete
         )
         self.register_handler(
-            queue_name, routing_key, callback, content_type, response_timeout
+            queue_name, routing_key, callback, content_type, timeout
         )
 
         self.queue_bind(queue_name, exchange_name, routing_key)
@@ -518,7 +543,7 @@ class AsyncChannel:
         routing_key: str,
         queue_name: str,
         callback,
-        response_timeout: Optional[int],
+        timeout: Optional[int],
         content_type: str = "application/json",
         exchange_type: str = "topic",
         durable: bool = True,
@@ -528,7 +553,7 @@ class AsyncChannel:
             exchange_name, queue_name, exchange_type, durable, auto_delete
         )
         self.register_handler(
-            queue_name, routing_key, callback, content_type, response_timeout
+            queue_name, routing_key, callback, content_type, timeout
         )
 
         self.queue_bind(queue_name, exchange_name, routing_key)
@@ -572,7 +597,7 @@ class AsyncChannel:
                         type="normal",
                     ),
                 )
-            not self.auto_ack and not self._channel.basic_ack(
+            not self.auto_ack and self._channel.is_open and not self._channel.basic_ack(
                 basic_deliver.delivery_tag
             )
 
@@ -599,7 +624,7 @@ class AsyncChannel:
                                 type="error",
                             ),
                         )
-                    return not self.auto_ack and self._channel.basic_nack(
+                    return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
                         basic_deliver.delivery_tag, requeue=False
                     )
 
@@ -615,7 +640,7 @@ class AsyncChannel:
                             type="error",
                         ),
                     )
-                not self.auto_ack and self._channel.basic_nack(
+                not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
                     basic_deliver.delivery_tag, requeue=False
                 )
 

@@ -1,19 +1,20 @@
 <!-- [logo do projeto](assets/icon2.webp){ width="200"} -->
 
-AmqpClientPython framework, high performance, easy to learn, fast to code, ready for production
+AmqpClientPython Library: High performance, easy to learn, fast to code, production-ready
 
 <strong>Documentation:</strong> [https://nutes-uepb.github.io/amqp-client-python](https://nutes-uepb.github.io/amqp-client-python/)<br>
 <strong>Source Code:</strong> [https://github.com/nutes-uepb/amqp-client-python](https://github.com/nutes-uepb/amqp-client-python)
 
-Client with high level of abstraction for manipulation of messages in the event bus RabbitMQ.
-The key features are: <br>
+High-level abstraction client for message handling in RabbitMQ event bus. <br>
+
+## Key Features:
 <ul>
-  <li>Automatic creation and management of queues, exchanges and channels; <br>
-  <li>Connection persistence and auto reconnect; <br>
-  <li>Support for direct, topic and fanout exchanges; <br>
-  <li>Publish; <br>
-  <li>Subscribe; <br>
-  <li>Support for a Remote procedure call (RPC). <br>
+  <li>Automatic queue, exchange, and channel management; <br>
+  <li>Connection persistence and auto-reconnect; <br>
+  <li>Support for direct, topic, and fanout exchanges ; <br>
+  <li>Publish messages; <br>
+  <li>Subscribe to queues; <br>
+  <li>Remote Procedure Call (RPC) support. <br>
 </ul>
 
 {% include "templates/cards.html" %}

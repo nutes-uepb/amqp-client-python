@@ -23,8 +23,8 @@ class AsyncEventbusRabbitMQ:
         rpc_server_auto_ack: bool = False,
     ) -> None:
         """
-        Create an AsyncEventbusRabbitMQ object thats interacts with Bus
-        thats provides some connection management abstractions.
+        Create an AsyncEventbusRabbitMQ object that interacts with Bus that provides
+        some connection management abstractions
 
         Args:
             config: the Config object
@@ -40,27 +40,25 @@ class AsyncEventbusRabbitMQ:
             rpc_server_auto_ack: set to True to ack messages before processing on rpc server connection
 
         Returns:
-            AsyncEventbusRabbitMQ object
-
-        Raises:
+            None: None
 
         Examples:
             >>> async_eventbus = AsyncEventbusRabbitMQ(
                 config, loop, rpc_client_publisher_confirms=True,
                 rpc_server_publisher_confirms=False, rpc_server_auto_ack=False)
             ### register subscribe
-            >>> def handler(*body):
+            >>> def subscribe_handler(body):
                     print(f"do something with: {body}")
-            >>> subscribe_event = ExampleEvent("rpc_exchange")
-            >>> await eventbus.subscribe(subscribe_event, handler, "user.find")
+            >>> await eventbus.subscribe("rpc_exchange", "user.find", subscribe_handler)
             ### provide resource
-            >>> def handler2(*body):
+            >>> def rpc_provider_handler(body) -> Union[str, bytes]:
                     print(f"do something with: {body}")
-                    return "response"
-            >>> await eventbus.provide_resource("user.find2", handle2)
+                    return b"response"
+            >>> await eventbus.provide_resource("user.find2", rpc_provider_handler)
         """
         self._loop: Optional[AbstractEventLoop] = loop
         self._signal = Signal()
+        self._used_connections: List[AsyncConnection] = []
         self._pub_connection = AsyncConnection(
             self._loop,
             pub_publisher_confirms,
@@ -108,7 +106,7 @@ class AsyncEventbusRabbitMQ:
         **kwargs
     ) -> bytes:
         """
-        Sends a publish message to queue of the bus and waits for a response
+        Sends a publish message to a queue of the bus and waits for a response
 
         Args:
             exchange: exchange name
@@ -125,14 +123,14 @@ class AsyncEventbusRabbitMQ:
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
-            PublishTimeoutException: if publish confirmation is setted to True and \
+            PublishTimeoutException: if publish confirmation is set to True and \
             does not receive confirmation on the gived timeout
-            NackException: if publish confirmation is setted to True and receives a nack
+            NackException: if publish confirmation is set to True and receives a nack
             ResponseTimeoutException: if response timeout is reached
             RpcProviderException: if the rpc provider responded with an error
 
         Examples:
-            >>> await eventbus.rpc_client("example.rpc", "user.find", [{"name": "example"}], "application/json")
+            >>> await eventbus.rpc_client("example.rpc", "user.find", {"name": "example"}, "application/json")
         """
 
         async def add_rpc_client():
@@ -165,10 +163,10 @@ class AsyncEventbusRabbitMQ:
         **kwargs
     ) -> Optional[bool]:
         """
-        Sends a publish message to the bus following parameters passed
+        Sends a publish message to the bus following the parameters passed
 
         Args:
-            exchange: exchange name
+            exchange_name: exchange name
             routing_key:  routing key name
             body: body that will be sent
             content_type: content type of message
@@ -178,15 +176,14 @@ class AsyncEventbusRabbitMQ:
             expiration: maximum lifetime of message to stay on the queue
 
         Returns:
-            None: if publish confirmation is setted to False
-            True: if successful when publish confirmation is setted to True
+            None: if publish confirmation is set to False
+            True: if successful when publish confirmation is set to True
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
-            PublishTimeoutException: if publish confirmation is setted to True and \
+            PublishTimeoutException: if publish confirmation is set to True and \
             does not receive confirmation on the gived timeout
-            NackException: if publish confirmation is setted to True and receives a nack
-
+            NackException: if publish confirmation is set to True and receives a nack
 
         Examples:
             >>> exchange_name = "example.rpc"
@@ -212,30 +209,27 @@ class AsyncEventbusRabbitMQ:
     async def provide_resource(
         self,
         name: str,
-        handler: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
-        response_timeout: Optional[int] = None,
+        handler: Callable[[Any], Awaitable[Union[bytes, str]]],
+        timeout: Optional[int] = None,
         connection_timeout: int = 16,
     ) -> None:
         """
-        Register a provider to listen on queue of bus
+        Register a provider to listen on RPC request queue
 
         Args:
             name: routing_key name
             handler: message handler, it will be called when a message is received
-            response_timeout: timeout in seconds for waiting for process the received message
+            timeout: timeout in seconds for waiting for process the received message
             connection_timeout: timeout for waiting for connection restabilishment
-
-        Returns:
-            None: None
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
 
         Examples:
-            >>> async def handle(body) -> Union[bytes, str]:
+            >>> async def handler(body) -> Union[bytes, str]:
                     print(f"received message: {body}")
                     return b"[]"
-            >>> await eventbus.provide_resource("user.find", handle)
+            >>> await eventbus.provide_resource("user.find", handler)
         """
 
         async def add_resource():
@@ -244,10 +238,11 @@ class AsyncEventbusRabbitMQ:
                 self.config.options.rpc_exchange_name,
                 name,
                 handler,
-                response_timeout,
+                timeout,
             )
 
-        self._rpc_server_connection.open(self.config.url)
+        if self._rpc_server_connection.open(self.config.url):
+            self._used_connections.append(self._rpc_server_connection)
         await self._rpc_server_connection.add_callback(add_resource, connection_timeout)
 
     async def subscribe(
@@ -255,7 +250,7 @@ class AsyncEventbusRabbitMQ:
         exchange_name: str,
         routing_key: str,
         handler: Callable[[Any], Awaitable[None]],
-        response_timeout: Optional[float] = None,
+        timeout: Optional[float] = None,
         connection_timeout: int = 16,
     ) -> None:
         """
@@ -265,11 +260,8 @@ class AsyncEventbusRabbitMQ:
             exchange_name: exchange name
             routing_key: routing_key name
             handler: message handler, it will be called when a message is received
-            response_timeout: timeout in seconds for waiting for process the received message
+            timeout: timeout in seconds for waiting for process the received message
             connection_timeout: timeout for waiting for connection restabilishment
-
-        Returns:
-            None: None
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
@@ -279,9 +271,9 @@ class AsyncEventbusRabbitMQ:
                     print(f"received message: {body}")
             >>> exchange_name = "example"
             >>> routing_key = "user.find3"
-            >>> response_timeout = 20
+            >>> timeout = 20
             >>> connection_timeout = 16
-            >>> await eventbus.subscribe(exchange_name, routing_key, handle, response_timeout, connection_timeout)
+            >>> await eventbus.subscribe(exchange_name, routing_key, handle, timeout, connection_timeout)
         """
 
         async def add_subscribe():
@@ -290,13 +282,45 @@ class AsyncEventbusRabbitMQ:
                 exchange_name,
                 routing_key,
                 handler,
-                response_timeout,
+                timeout,
             )
 
-        self._sub_connection.open(self.config.url)
+        if self._sub_connection.open(self.config.url):
+            self._used_connections.append(self._sub_connection)
         await self._sub_connection.add_callback(add_subscribe, connection_timeout)
 
-    async def dispose(self, stop_event_loop=True) -> None:
+    async def restore(self) -> None:
+        """
+        Restores connections and subscriptions after a disconnection.
+
+        This method attempts to reopen connections that were closed and
+        re-establishes any previously registered subscriptions and RPC providers.
+
+        Examples:
+            >>> # After a dispose, call restore to re-establish connections
+            >>> await eventbus.restore()
+        """
+        for connection in self._used_connections:
+            if not connection.is_open:
+                connection.open(self.config.url)
+
+    async def dispose(self, stop_event_loop: bool = True) -> None:
+        """
+        Closes all connections and optionally stops the event loop.
+
+        This method properly disposes of all resources used by the event bus,
+        including publisher, subscriber, RPC client, and RPC server connections.
+
+        Args:
+            stop_event_loop: Whether to stop the event loop after closing connections.
+
+        Examples:
+            >>> # Close all connections and stop the event loop
+            >>> await eventbus.dispose()
+
+            >>> # Close all connections but keep the event loop running
+            >>> await eventbus.dispose(stop_event_loop=False)
+        """
         await self._pub_connection.close()
         await self._sub_connection.close()
         await self._rpc_client_connection.close()

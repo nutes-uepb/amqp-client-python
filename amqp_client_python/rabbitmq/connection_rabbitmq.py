@@ -56,7 +56,7 @@ class ConnectionRabbitMQ:
 
     def reconnect(self):
         LOGGER.debug("reconnect %s", self.ioloop_is_open)
-        if not self.is_open():
+        if not self.is_open:
             self._connection = self._connectionFactory.create_connection(
                 self._uri,
                 self.on_connection_open,
@@ -119,7 +119,7 @@ class ConnectionRabbitMQ:
             "durable": durable,
             "callback": callback,
         }
-        if self.is_open():
+        if self.is_open:
             self._channel.declare_exchange(
                 exchange=exchange,
                 durable=durable,
@@ -190,7 +190,7 @@ class ConnectionRabbitMQ:
             self.ioloop.add_callback_threadsafe(channel_openned)
 
     def channel_open(self, callback=lambda x: x):
-        if not self.is_open():
+        if not self.is_open:
             raise EventBusException("No connection open!")
         if not self.channel_is_open():
             self._channel.open(self, callback)
@@ -200,7 +200,7 @@ class ConnectionRabbitMQ:
         return self._connection and self._connection.is_open
 
     def channel_is_open(self):
-        return self._channel and self._channel.is_open()
+        return self._channel and self._channel.is_open
 
     def publish(self, exchange_name: str, routing_key: str, message: str):
         if not self.ioloop_is_open:
@@ -271,5 +271,5 @@ class ConnectionRabbitMQ:
 
     def close(self):
         self._channel.close()
-        if self.is_open():
+        if self.is_open:
             self._connection.close()

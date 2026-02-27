@@ -127,7 +127,7 @@ class ChannelRabbitMQ:
         self.rpc_publisher = False
         self.rpc_consumer = False
         if not self._stopping:
-            if not self._connection.is_open():
+            if not self._connection.is_open:
                 if self._connection.ioloop_is_open:
                     self._connection.ioloop.call_later(5, self.reconnect)
                 # self._connection._connection.ioloop.call_later(5, self._connection.pause)
@@ -146,7 +146,7 @@ class ChannelRabbitMQ:
             LOGGER.debug("Closing the channel")
             self._channel.close()
 
-    def start_rpc_consumer(self):
+    def start_rpc_consumer(self, exchange, routing_key, message, content_type, correlation_id):
         self.rpc_consumer = True
         LOGGER.info("Starting rpc consumer")
 
@@ -160,6 +160,17 @@ class ChannelRabbitMQ:
                     on_message_callback=self.__on_response,
                     auto_ack=True,
                     consumer_tag=None,
+                )
+
+                self._channel.basic_publish(
+                    exchange,
+                    routing_key,
+                    message,
+                    properties=BasicProperties(
+                        reply_to=self._callback_queue,
+                        correlation_id=correlation_id,
+                        content_type=content_type,
+                    ),
                 )
 
             LOGGER.info(f"Declaring queue {self._callback_queue}")
@@ -189,18 +200,19 @@ class ChannelRabbitMQ:
         last_id = str(uuid4())
         self.futures[last_id] = future
         self.response = None
-        self._channel.basic_publish(
-            exchange,
-            routing_key,
-            message,
-            properties=BasicProperties(
-                reply_to=self._callback_queue,
-                correlation_id=last_id,
-                content_type=content_type,
-            ),
-        )
         if not self.rpc_consumer:
-            self.start_rpc_consumer()
+            self.start_rpc_consumer(exchange, routing_key, message, content_type, last_id)
+        else:
+            self._channel.basic_publish(
+                exchange,
+                routing_key,
+                message,
+                properties=BasicProperties(
+                    reply_to=self._callback_queue,
+                    correlation_id=last_id,
+                    content_type=content_type,
+                ),
+            )
 
         def prevent_infinite_loop(last_id):
             if last_id in self.futures:
@@ -332,5 +344,5 @@ class ChannelRabbitMQ:
             future.set_result(body)
 
     def close(self):
-        if self.is_open():
+        if self.is_open:
             self._channel.close()

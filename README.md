@@ -1,6 +1,6 @@
 # AMQP Client Python
 
-Client with high level of abstraction for manipulation of messages in the event bus RabbitMQ.
+A Python client providing a high-level abstraction for interacting with RabbitMQ, simplifying message publishing, subscribing, and RPC patterns.
 
 --------
 
@@ -21,6 +21,18 @@ Client with high level of abstraction for manipulation of messages in the event 
 
 **Source Code**: <a href="https://github.com/nutes-uepb/amqp-client-python" target="_blank">https://github.com/nutes-uepb/amqp-client-python</a>
 
+**Discord Server**: <a href="https://discord.gg/RkXNeZpNZk" target="_blank">https://discord.gg/RkXNeZpNZk</a>
+
+### 🦀 Looking for higher performance? Try `amqp-rs`!
+If you need higher throughput, thread safety, and built-in compression, check out [**amqp-rs**](https://pypi.org/project/amqp-rs/).
+
+It is a high-performance Python extension developed in Rust using PyO3 and `tokio`. It shares a similar API and design philosophy with this library, but adds native thread safety, `zstd`/`zlib`/`lz4` compression, robust TLS/SSL support, and graceful shutdowns. 
+
+You can install it via `pip` or `uv`:
+```bash
+pip install amqp-rs
+```
+
 ---
 ### Features:
 - Automatic creation and management of queues, exchanges and channels;
@@ -36,6 +48,18 @@ Client with high level of abstraction for manipulation of messages in the event 
 | ---- | ---- |
 | 0.2.0 | 0.2.0 |
 | 0.1.14 | ~0.1.12 |
+
+### Installation
+
+You can install `amqp-client-python` using pip:
+```bash
+pip install amqp-client-python
+```
+
+### Prerequisites
+
+*   Python 3.7+
+*   A running RabbitMQ instance.
 
 ### Examples:
 #### you can use [sync](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_rabbitmq.py) , [async eventbus](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/async_eventbus_rabbitmq.py) and [sync wrapper](https://github.com/nutes-uepb/amqp-client-python/blob/develop/amqp_client_python/rabbitmq/eventbus_wrapper_rabbitmq.py) of async eventbus
