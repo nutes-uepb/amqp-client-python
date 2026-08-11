@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Optional, Callable, Awaitable, Tuple, Dict, List, Any
+from typing import Optional, Callable, Awaitable, Tuple, Dict, Any
 
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
 from .async_channel import AsyncChannel

@@ -1,9 +1,11 @@
 import pytest
 from collections import deque
 from unittest.mock import MagicMock, AsyncMock, patch
-from asyncio import Future, get_event_loop
+from asyncio import get_event_loop
 from amqp_client_python.rabbitmq.async_channel import AsyncChannel
 from amqp_client_python.rabbitmq.async_connection import AsyncConnection
+
+
 @pytest.mark.asyncio_cooperative
 async def test_start_rpc_publisher_concurrency_fix():
     """Verify start_rpc_publisher awaits rpc_publisher_future when starting, avoiding rpc_consumer_future bug."""
