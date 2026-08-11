@@ -1,3 +1,4 @@
+from collections import deque
 from typing import MutableMapping, Mapping, Optional, Union, Dict, List
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
@@ -63,9 +64,9 @@ class AsyncChannel:
     def is_open(self) -> Optional[bool]:
         return self._channel and self._channel.is_open
 
-    def open(self, connection: AsyncioConnection, callbacks=[]):
+    def open(self, connection: AsyncioConnection, callbacks=None):
         if not self.is_open:
-            self.callbacks = callbacks
+            self.callbacks = callbacks if callbacks is not None else deque()
             self._connection = connection
             self.ioloop = connection.ioloop
             self._channel = self.channel_factory.create_channel(
@@ -87,10 +88,15 @@ class AsyncChannel:
         self.ioloop.create_task(self.process_callbacks())  # type: ignore
 
     async def process_callbacks(self):
-        for callback, future in self.callbacks:
-            result = await callback()
-            if not future.done():
-                future.set_result(result)
+        while self.callbacks:
+            callback, future = self.callbacks.popleft()
+            try:
+                result = await callback()
+                if not future.done():
+                    future.set_result(result)
+            except Exception as exc:
+                if not future.done():
+                    future.set_exception(exc)
 
     def add_on_channel_close_callback(self):
         """This method tells pika to call the on_channel_closed method if
@@ -302,7 +308,7 @@ class AsyncChannel:
         if self.rpc_publisher_started:
             return True
         if self.rpc_publisher_starting:
-            return await self.rpc_consumer_future
+            return await self.rpc_publisher_future
         self.rpc_publisher_starting = True
         self.rpc_publisher_future = self.ioloop.create_future()
 

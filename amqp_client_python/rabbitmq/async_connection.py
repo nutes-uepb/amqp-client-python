@@ -1,4 +1,6 @@
-from typing import Optional, Callable, Awaitable, Tuple, Dict, List, Any
+from collections import deque
+from typing import Optional, Callable, Awaitable, Tuple, Dict, Any
+
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
 from .async_channel import AsyncChannel
 from ..exceptions import AutoReconnectException
@@ -60,7 +62,7 @@ class AsyncConnection:
         self.openning = False
         self.reconnecting = False
         self.reconnect_delay = 1
-        self.callbacks: List[Tuple[Callable, Future]] = []
+        self.callbacks: deque[Tuple[Callable, Future]] = deque()
         self.type = connection_type
         self.backup: Dict[str, Dict[str, Any]] = {
             "exchange": {},
@@ -87,6 +89,7 @@ class AsyncConnection:
             if not self.ioloop:
                 self.ioloop = get_event_loop()
             self.openning = True
+            self._closing = False
             self._connection = self.connection_factory.create_connection(
                 uri=uri,
                 on_connection_open=self.on_connection_open,
@@ -129,6 +132,33 @@ class AsyncConnection:
             signal=self.signal,
         )
         self._channel.publisher_confirms = self.publisher_confirms
+
+        if self.reconnecting or self.backup["subscribe"] or self.backup["rpc_subscribe"]:
+            async def recorvery():
+                for routing_key in list(self.backup["subscribe"].keys()):
+                    params = self.backup["subscribe"][routing_key]
+                    await self.subscribe(
+                        params["queue_name"],
+                        params["exchange_name"],
+                        routing_key,
+                        params["callback"],
+                        params["timeout"],
+                    )
+                for routing_key in list(self.backup["rpc_subscribe"].keys()):
+                    params = self.backup["rpc_subscribe"][routing_key]
+                    await self.rpc_subscribe(
+                        params["queue_name"],
+                        params["exchange_name"],
+                        routing_key,
+                        params["callback"],
+                        params["timeout"],
+                    )
+
+            future: Future = Future(loop=self.ioloop)
+            self.callbacks.append((recorvery, future))
+            self.reconnect_delay = 1
+            self.reconnecting = False
+
         self._channel.open(self._connection, self.callbacks)
 
     def on_connection_open_error(self, _unused_connection, err):
@@ -193,30 +223,30 @@ class AsyncConnection:
             )
             self.reconnect_delay += 1
         else:
+            if self.reconnecting:
+                async def recorvery():
+                    for routing_key in list(self.backup["subscribe"].keys()):
+                        params = self.backup["subscribe"][routing_key]
+                        await self.subscribe(
+                            params["queue_name"],
+                            params["exchange_name"],
+                            routing_key,
+                            params["callback"],
+                            params["timeout"],
+                        )
+                    for routing_key in list(self.backup["rpc_subscribe"].keys()):
+                        params = self.backup["rpc_subscribe"][routing_key]
+                        await self.rpc_subscribe(
+                            params["queue_name"],
+                            params["exchange_name"],
+                            routing_key,
+                            params["callback"],
+                            params["timeout"],
+                        )
 
-            async def recorvery():
-                for routing_key in self.backup["subscribe"]:
-                    params = self.backup["subscribe"][routing_key]
-                    await self.subscribe(
-                        params["queue_name"],
-                        params["exchange_name"],
-                        routing_key,
-                        params["callback"],
-                        params["timeout"],
-                    )
-                for routing_key in self.backup["rpc_subscribe"]:
-                    params = self.backup["rpc_subscribe"][routing_key]
-                    await self.rpc_subscribe(
-                        params["queue_name"],
-                        params["exchange_name"],
-                        routing_key,
-                        params["callback"],
-                        params["timeout"],
-                    )
-
-            self.ioloop.create_task(self.add_callback(recorvery))  # type: ignore
-            self.reconnect_delay = 1
-            self.reconnecting = False
+                self.reconnect_delay = 1
+                self.reconnecting = False
+                self.ioloop.create_task(self.add_callback(recorvery))  # type: ignore
 
     @property
     def is_open(self) -> Optional[bool]:
@@ -464,7 +494,7 @@ class AsyncConnection:
             >>> result = await connection.add_callback(my_operation, 10.0)
         """
         try:
-            if self.is_open and self._channel.is_open:
+            if self.is_open and self._channel and self._channel.is_open:
                 return await callback()
             else:
                 future: Future = Future(loop=self.ioloop)
