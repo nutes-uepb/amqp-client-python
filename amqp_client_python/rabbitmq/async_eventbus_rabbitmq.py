@@ -212,6 +212,8 @@ class AsyncEventbusRabbitMQ:
         handler: Callable[[Any], Awaitable[Union[bytes, str]]],
         timeout: Optional[int] = None,
         connection_timeout: int = 16,
+        content_type: str = "application/json",
+        auto_decode: bool = True,
     ) -> None:
         """
         Register a provider to listen on RPC request queue
@@ -221,6 +223,8 @@ class AsyncEventbusRabbitMQ:
             handler: message handler, it will be called when a message is received
             timeout: timeout in seconds for waiting for process the received message
             connection_timeout: timeout for waiting for connection restabilishment
+            content_type: Content type of expected message
+            auto_decode: Whether to auto-decode JSON payload (default True)
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
@@ -233,12 +237,18 @@ class AsyncEventbusRabbitMQ:
         """
 
         async def add_resource():
+            extra_kwargs = {}
+            if content_type != "application/json":
+                extra_kwargs["content_type"] = content_type
+            if not auto_decode:
+                extra_kwargs["auto_decode"] = auto_decode
             await self._rpc_server_connection.rpc_subscribe(
                 self.config.options.rpc_queue_name,
                 self.config.options.rpc_exchange_name,
                 name,
                 handler,
                 timeout,
+                **extra_kwargs,
             )
 
         if self._rpc_server_connection.open(self.config.url):
@@ -252,6 +262,8 @@ class AsyncEventbusRabbitMQ:
         handler: Callable[[Any], Awaitable[None]],
         timeout: Optional[float] = None,
         connection_timeout: int = 16,
+        content_type: str = "application/json",
+        auto_decode: bool = True,
     ) -> None:
         """
         Register a provider to listen on queue of bus
@@ -262,6 +274,8 @@ class AsyncEventbusRabbitMQ:
             handler: message handler, it will be called when a message is received
             timeout: timeout in seconds for waiting for process the received message
             connection_timeout: timeout for waiting for connection restabilishment
+            content_type: Content type of expected message
+            auto_decode: Whether to auto-decode JSON payload (default True)
 
         Raises:
             AutoReconnectException: when cannout reconnect on the gived timeout
@@ -277,12 +291,18 @@ class AsyncEventbusRabbitMQ:
         """
 
         async def add_subscribe():
+            extra_kwargs = {}
+            if content_type != "application/json":
+                extra_kwargs["content_type"] = content_type
+            if not auto_decode:
+                extra_kwargs["auto_decode"] = auto_decode
             await self._sub_connection.subscribe(
                 self.config.options.queue_name,
                 exchange_name,
                 routing_key,
                 handler,
                 timeout,
+                **extra_kwargs,
             )
 
         if self._sub_connection.open(self.config.url):

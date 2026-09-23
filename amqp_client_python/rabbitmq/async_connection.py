@@ -143,6 +143,8 @@ class AsyncConnection:
                         routing_key,
                         params["callback"],
                         params["timeout"],
+                        content_type=params.get("content_type", "application/json"),
+                        auto_decode=params.get("auto_decode", True),
                     )
                 for routing_key in list(self.backup["rpc_subscribe"].keys()):
                     params = self.backup["rpc_subscribe"][routing_key]
@@ -152,6 +154,8 @@ class AsyncConnection:
                         routing_key,
                         params["callback"],
                         params["timeout"],
+                        content_type=params.get("content_type", "application/json"),
+                        auto_decode=params.get("auto_decode", True),
                     )
 
             future: Future = Future(loop=self.ioloop)
@@ -233,6 +237,8 @@ class AsyncConnection:
                             routing_key,
                             params["callback"],
                             params["timeout"],
+                            content_type=params.get("content_type", "application/json"),
+                            auto_decode=params.get("auto_decode", True),
                         )
                     for routing_key in list(self.backup["rpc_subscribe"].keys()):
                         params = self.backup["rpc_subscribe"][routing_key]
@@ -242,6 +248,8 @@ class AsyncConnection:
                             routing_key,
                             params["callback"],
                             params["timeout"],
+                            content_type=params.get("content_type", "application/json"),
+                            auto_decode=params.get("auto_decode", True),
                         )
 
                 self.reconnect_delay = 1
@@ -386,7 +394,14 @@ class AsyncConnection:
         )
 
     async def rpc_subscribe(
-        self, queue_name, exchange_name, routing_key, callback, timeout
+        self,
+        queue_name,
+        exchange_name,
+        routing_key,
+        callback,
+        timeout,
+        content_type="application/json",
+        auto_decode=True,
     ):
         """
         Registers an RPC handler for a specific routing key.
@@ -397,24 +412,16 @@ class AsyncConnection:
             routing_key: The routing key to subscribe to
             callback: The function to call when a message is received
             timeout: Timeout in seconds for processing the received message
-
-        Examples:
-            >>> async def handle_rpc(body):
-                    result = process_request(body)
-                    return json.dumps(result).encode()
-            >>> await connection.rpc_subscribe(
-                    "rpc_queue",
-                    "rpc_exchange",
-                    "user.find",
-                    handle_rpc,
-                    10.0
-                )
+            content_type: Content type of expected message
+            auto_decode: Whether to auto-decode JSON payload
         """
         self.backup["rpc_subscribe"][routing_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
             "callback": callback,
             "timeout": timeout,
+            "content_type": content_type,
+            "auto_decode": auto_decode,
         }
         await self._channel.rpc_subscribe(
             queue_name=queue_name,
@@ -422,6 +429,8 @@ class AsyncConnection:
             routing_key=routing_key,
             callback=callback,
             timeout=timeout,
+            content_type=content_type,
+            auto_decode=auto_decode,
         )
 
     async def subscribe(
@@ -431,6 +440,8 @@ class AsyncConnection:
         routing_key: str,
         callback: Callable[[Any], Awaitable[None]],
         timeout: Optional[float],
+        content_type: str = "application/json",
+        auto_decode: bool = True,
     ):
         """
         Subscribes to messages with a specific routing key.
@@ -441,23 +452,16 @@ class AsyncConnection:
             routing_key: The routing key to subscribe to
             callback: The function to call when a message is received
             timeout: Timeout in seconds for processing the received message
-
-        Examples:
-            >>> async def handle_message(body):
-                    print(f"Received: {body}")
-            >>> await connection.subscribe(
-                    "notifications_queue",
-                    "notifications",
-                    "email.send",
-                    handle_message,
-                    5.0
-                )
+            content_type: Content type of expected message
+            auto_decode: Whether to auto-decode JSON payload
         """
         self.backup["subscribe"][routing_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
             "callback": callback,
             "timeout": timeout,
+            "content_type": content_type,
+            "auto_decode": auto_decode,
         }
         await self._channel.subscribe(
             exchange_name=exchange_name,
@@ -465,6 +469,8 @@ class AsyncConnection:
             routing_key=routing_key,
             callback=callback,
             timeout=timeout,
+            content_type=content_type,
+            auto_decode=auto_decode,
         )
 
     async def add_callback(

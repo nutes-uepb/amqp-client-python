@@ -60,6 +60,12 @@ class AsyncChannel:
         self._deliveries: MutableMapping[int, Future] = {}
         self.response_timeout = 60
 
+    @staticmethod
+    def _serialize_payload(body, content_type: str = "application/json"):
+        if isinstance(body, (bytes, bytearray, memoryview)):
+            return body
+        return dumps(body)
+
     @property
     def is_open(self) -> Optional[bool]:
         return self._channel and self._channel.is_open
@@ -361,7 +367,7 @@ class AsyncChannel:
         self._channel.basic_publish(
             exchange_name,
             routing_key,
-            dumps(body),  # Serialize payload to JSON
+            self._serialize_payload(body, content_type),
             properties=BasicProperties(
                 reply_to=self._callback_queue,  # Response queue address
                 correlation_id=corr_id,  # Request/response matching ID
@@ -436,7 +442,7 @@ class AsyncChannel:
         self._channel.basic_publish(
             exchange_name,
             routing_key,
-            dumps(body),
+            self._serialize_payload(body, content_type),
             properties=BasicProperties(
                 reply_to=self._callback_queue,
                 content_type=content_type,
@@ -491,13 +497,14 @@ class AsyncChannel:
         exchange_type="topic",
         durable=True,
         auto_delete=False,
+        auto_decode=True,
     ):
         await self.start_rpc_publisher()
         self.register_queue(
             exchange_name, queue_name, exchange_type, durable, auto_delete
         )
         self.register_handler(
-            queue_name, routing_key, callback, content_type, timeout
+            queue_name, routing_key, callback, content_type, timeout, auto_decode=auto_decode
         )
 
         self.queue_bind(queue_name, exchange_name, routing_key)
@@ -532,13 +539,14 @@ class AsyncChannel:
             self.consumers[queue_name] = False
 
     def register_handler(
-        self, queue_name, routing_key, callback, content_type, response_timeout
+        self, queue_name, routing_key, callback, content_type, response_timeout, auto_decode=True
     ):
         if routing_key not in self.subscribes[queue_name]:
             self.subscribes[queue_name][routing_key] = {
                 "handle": callback,
                 "content_type": content_type,
                 "response_timeout": response_timeout or self.response_timeout,
+                "auto_decode": auto_decode,
             }
             if "*" in routing_key and routing_key not in self.re_subscribes:
                 self.re_subscribes.append(routing_key)
@@ -554,12 +562,13 @@ class AsyncChannel:
         exchange_type: str = "topic",
         durable: bool = True,
         auto_delete: bool = False,
+        auto_decode: bool = True,
     ) -> None:
         self.register_queue(
             exchange_name, queue_name, exchange_type, durable, auto_delete
         )
         self.register_handler(
-            queue_name, routing_key, callback, content_type, timeout
+            queue_name, routing_key, callback, content_type, timeout, auto_decode=auto_decode
         )
 
         self.queue_bind(queue_name, exchange_name, routing_key)
@@ -587,7 +596,11 @@ class AsyncChannel:
 
         async def process_message(handler: HandlerType):
             nonlocal body
-            body = loads(body)
+            if handler.get("auto_decode", True) and handler.get("content_type") == "application/json":
+                try:
+                    body = loads(body)
+                except Exception:
+                    pass
             response = await wait_for(
                 handler["handle"](body),
                 timeout=handler["response_timeout"],
