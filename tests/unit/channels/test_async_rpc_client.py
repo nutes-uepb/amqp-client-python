@@ -132,3 +132,40 @@ async def test_rpc_client_consumer_started(
         with pytest.raises(EventBusException):
             assert result == await wait_for(rpc_client, timeout=2.5)
         assert channel.rpc_consumer_starting is False
+
+
+@pytest.mark.asyncio_cooperative
+async def test_rpc_client_raw_bytes(connection_mock, channel_mock, channel_factory_mock):
+    exchange, routing_key, body, content_type, timeout = (
+        "ex_example",
+        "rk_example",
+        b'{"raw": "bytes"}',
+        "application/json",
+        1,
+    )
+    expected_result = b"result"
+    future_publish = Future()
+    future_response = Future()
+    future_consumer = Future()
+    future_publish.set_result(True)
+    future_response.set_result(expected_result)
+    future_consumer.set_result(True)
+    connection_mock.ioloop.create_future.side_effect = [
+        future_response,
+        future_publish,
+        future_consumer,
+    ]
+    channel_factory_mock.create_channel.return_value = channel_mock
+    channel = AsyncChannel(channel_factory=channel_factory_mock)
+    channel.publisher_confirms = False
+    channel.open(connection_mock)
+    rpc_client = channel.rpc_client(exchange, routing_key, body, content_type, timeout)
+    result = await rpc_client
+    channel_mock.basic_publish.assert_called_once()
+    assert channel_mock.basic_publish.call_args.args == (
+        exchange,
+        routing_key,
+        b'{"raw": "bytes"}',
+    )
+    assert result == expected_result
+

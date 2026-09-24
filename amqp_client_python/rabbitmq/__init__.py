@@ -1,6 +1,6 @@
 from .async_eventbus_rabbitmq import AsyncEventbusRabbitMQ
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ
-from .async_connection import AsyncConnection, ConnectionType
+from .async_connection import AsyncConnection
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from .async_channel import AsyncChannel
 from .eventbus_rabbitmq import EventbusRabbitMQ
@@ -9,3 +9,17 @@ from .connection_rabbitmq import ConnectionRabbitMQ
 from .channel_factory_rabbitmq import ChannelFactoryRabbitMQ
 from .channel_rabbitmq import ChannelRabbitMQ
 from .eventbus_wrapper_rabbitmq import EventbusWrapperRabbitMQ
+
+__all__ = [
+    "AsyncEventbusRabbitMQ",
+    "AsyncConnectionFactoryRabbitMQ",
+    "AsyncConnection",
+    "AsyncChannelFactoryRabbitMQ",
+    "AsyncChannel",
+    "EventbusRabbitMQ",
+    "ConnectionFactoryRabbitMQ",
+    "ConnectionRabbitMQ",
+    "ChannelFactoryRabbitMQ",
+    "ChannelRabbitMQ",
+    "EventbusWrapperRabbitMQ",
+]

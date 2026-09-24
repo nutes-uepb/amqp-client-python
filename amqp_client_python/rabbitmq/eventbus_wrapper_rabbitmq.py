@@ -142,6 +142,8 @@ class EventbusWrapperRabbitMQ:
         handler: Callable[[Any], Awaitable[None]],
         response_timeout: Optional[int] = None,
         connection_timeout: int = 16,
+        content_type: str = "application/json",
+        auto_decode: bool = True,
     ) -> Future:
         if self._thread.ident == current_thread().ident:
             raise BlockingException(
@@ -154,6 +156,8 @@ class EventbusWrapperRabbitMQ:
                 handler,
                 response_timeout,
                 connection_timeout,
+                content_type=content_type,
+                auto_decode=auto_decode,
             ),
             self._loop,
         )
@@ -165,13 +169,21 @@ class EventbusWrapperRabbitMQ:
         handler: Callable[[Any], Awaitable[None]],
         response_timeout: Optional[int] = None,
         connection_timeout: int = 16,
+        content_type: str = "application/json",
+        auto_decode: bool = True,
     ):
         if self._thread.ident != current_thread().ident:
             raise ThreadUnsafeException(
                 "Cannot run async call on this thread, try to use sync thread safe methods"
             )
         await self._async_eventbus.subscribe(
-            exchange_name, routing_key, handler, response_timeout, connection_timeout
+            exchange_name,
+            routing_key,
+            handler,
+            response_timeout,
+            connection_timeout,
+            content_type=content_type,
+            auto_decode=auto_decode,
         )
 
     def provide_resource(
@@ -180,6 +192,8 @@ class EventbusWrapperRabbitMQ:
         callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
         response_timeout: Optional[int] = None,
         connection_timeout: int = 16,
+        content_type: str = "application/json",
+        auto_decode: bool = True,
     ) -> Future:
         if self._thread.ident == current_thread().ident:
             raise BlockingException(
@@ -187,7 +201,12 @@ class EventbusWrapperRabbitMQ:
             )
         return run_coroutine_threadsafe(
             self._async_eventbus.provide_resource(
-                name, callback, response_timeout, connection_timeout
+                name,
+                callback,
+                response_timeout,
+                connection_timeout,
+                content_type=content_type,
+                auto_decode=auto_decode,
             ),
             self._loop,
         )
@@ -198,13 +217,20 @@ class EventbusWrapperRabbitMQ:
         callback: Callable[[List[Any]], Awaitable[Union[bytes, str]]],
         response_timeout: Optional[int] = None,
         connection_timeout: int = 16,
+        content_type: str = "application/json",
+        auto_decode: bool = True,
     ):
         if self._thread.ident != current_thread().ident:
             raise ThreadUnsafeException(
                 "Cannot run async call on this thread, try to use sync thread safe methods"
             )
         await self._async_eventbus.provide_resource(
-            name, callback, response_timeout, connection_timeout
+            name,
+            callback,
+            response_timeout,
+            connection_timeout,
+            content_type=content_type,
+            auto_decode=auto_decode,
         )
 
     def dispose(self):

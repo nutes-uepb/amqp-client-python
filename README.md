@@ -46,19 +46,22 @@ pip install amqp-rs
 ### Table of Compatibility
 | version  | compatible with |
 | ---- | ---- |
+| 0.2.1 | ~0.2.0 |
 | 0.2.0 | 0.2.0 |
 | 0.1.14 | ~0.1.12 |
 
 ### Installation
 
-You can install `amqp-client-python` using pip:
+You can install `amqp-client-python` using uv or pip:
 ```bash
+uv add amqp-client-python
+# or
 pip install amqp-client-python
 ```
 
 ### Prerequisites
 
-*   Python 3.7+
+*   Python 3.9+
 *   A running RabbitMQ instance.
 
 ### Examples:
@@ -75,15 +78,18 @@ from amqp_client_python import (
 )
 config = Config(Options("queue", "rpc_queue", "rpc_exchange"))
 eventbus = AsyncEventbusRabbitMQ(config)
-# publish
+# publish (supports dict/str with auto-JSON, or raw bytes/bytearray without overhead)
+await eventbus.publish("rpc_exchange", "routing.key", {"message": "content"})
+await eventbus.publish("rpc_exchange", "routing.key", b"raw_binary_payload")
 
-eventbus.publish("rpc_exchange", "routing.key", "message_content")
-# subscribe
+# subscribe (auto_decode=True delivers parsed JSON dict; auto_decode=False delivers raw bytes)
 async def subscribe_handler(body) -> None:
     print(body, type(body), flush=True) # handle messages
 await eventbus.subscribe("rpc_exchange", "routing.key", subscribe_handler)
+
 # rpc_publish
-response = await eventbus.rpc_client("rpc_exchange", "user.find", "message_content")
+response = await eventbus.rpc_client("rpc_exchange", "user.find", {"name": "alice"})
+
 # provider
 async def rpc_provider_handler(body) -> bytes:
     print(f"body: {body}")

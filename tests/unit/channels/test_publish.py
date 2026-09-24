@@ -71,3 +71,32 @@ async def test_async_publish_confirmation(
         channel.publish_confirmation = channel_mock.publish_confirmation
         with pytest.raises(PublishTimeoutException):
             await wait_for(publish, timeout=timeout + 1)
+
+
+@pytest.mark.asyncio_cooperative
+async def test_channel_publish_raw_bytes(connection_mock, channel_mock, channel_factory_mock):
+    exchange, routing_key, body, content_type, timeout = (
+        "ex_example",
+        "rk_example",
+        b'{"raw": "bytes"}',
+        "application/json",
+        6,
+    )
+    future_publish = Future()
+    future_publish.set_result(True)
+    connection_mock.ioloop.create_future.return_value = future_publish
+    channel_factory_mock.create_channel.return_value = channel_mock
+    channel = AsyncChannel(channel_factory=channel_factory_mock)
+    channel.publisher_confirms = False
+    channel.open(connection_mock)
+    publish = channel.publish(
+        exchange, routing_key, body, content_type, timeout, connection_mock.ioloop
+    )
+    await publish
+    channel_mock.basic_publish.assert_called_once()
+    # Ensure raw bytes were passed through directly without json.dumps
+    assert channel_mock.basic_publish.call_args.args == (
+        exchange,
+        routing_key,
+        b'{"raw": "bytes"}',
+    )
