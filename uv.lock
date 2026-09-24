@@ -8,7 +8,7 @@ resolution-markers = [
 
 [[package]]
 name = "amqp-client-python"
-version = "0.2.1.dev2"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "pika" },
