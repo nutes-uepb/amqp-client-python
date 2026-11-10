@@ -577,21 +577,10 @@ class AsyncChannel:
             self._compiled_patterns[queue_name] = []
 
         if "*" in routing_key or "#" in routing_key:
-            # 1. AMQP topic wildcard pattern (* = single word, # = zero or more words)
+            # AMQP topic wildcard pattern (* = single word [^.]+, # = zero or more words .*)
             amqp_regex = "^" + re.escape(routing_key).replace(r"\*", r"[^.]+").replace(r"\#", r".*") + "$"
             try:
                 self._compiled_patterns[queue_name].append((routing_key, re.compile(amqp_regex)))
-            except re.error:
-                pass
-
-            # 2. Raw regex compile for backward compatibility
-            try:
-                raw_re = re.compile(routing_key)
-                if not any(
-                    k == routing_key and p.pattern == raw_re.pattern
-                    for k, p in self._compiled_patterns[queue_name]
-                ):
-                    self._compiled_patterns[queue_name].append((routing_key, raw_re))
             except re.error:
                 pass
 
@@ -689,15 +678,17 @@ class AsyncChannel:
 
                 queue_type = getattr(self, "_queue_exchange_type", {}).get(queue_name, "topic")
                 if queue_type != "direct":
-                    patterns = getattr(self, "_compiled_patterns", {}).get(queue_name, [])
-                    for pattern_key, pattern in patterns:
-                        if pattern.match(basic_deliver.routing_key):
-                            pattern_handler = handlers.get(pattern_key)
-                            if pattern_handler:
-                                return await process_message(pattern_handler)
-                    for routing_key in self.re_subscribes:
-                        if routing_key in handlers and re.match(routing_key, basic_deliver.routing_key):
-                            return await process_message(handlers[routing_key])
+                    patterns = getattr(self, "_compiled_patterns", {}).get(queue_name)
+                    if patterns:
+                        for pattern_key, pattern in patterns:
+                            if pattern.match(basic_deliver.routing_key):
+                                pattern_handler = handlers.get(pattern_key)
+                                if pattern_handler:
+                                    return await process_message(pattern_handler)
+                    elif self.re_subscribes:
+                        for routing_key in self.re_subscribes:
+                            if routing_key in handlers and re.match(routing_key, basic_deliver.routing_key):
+                                return await process_message(handlers[routing_key])
 
                 if self.rpc_publisher_started and props.reply_to:
                     self._channel_rpc.basic_publish(
