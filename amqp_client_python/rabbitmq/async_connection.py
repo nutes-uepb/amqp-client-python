@@ -188,8 +188,8 @@ class AsyncConnection:
             self.retry_connection()
 
     async def _recover_subscriptions(self):
-        for routing_key in list(self.backup["subscribe"].keys()):
-            params = self.backup["subscribe"][routing_key]
+        for key, params in list(self.backup["subscribe"].items()):
+            routing_key = params.get("routing_key") or (key[1] if isinstance(key, tuple) else key)
             await self.subscribe(
                 params["queue_name"],
                 params["exchange_name"],
@@ -202,8 +202,8 @@ class AsyncConnection:
                 durable=params.get("durable", True),
                 auto_delete=params.get("auto_delete", False),
             )
-        for routing_key in list(self.backup["rpc_subscribe"].keys()):
-            params = self.backup["rpc_subscribe"][routing_key]
+        for key, params in list(self.backup["rpc_subscribe"].items()):
+            routing_key = params.get("routing_key") or (key[1] if isinstance(key, tuple) else key)
             await self.rpc_subscribe(
                 params["queue_name"],
                 params["exchange_name"],
@@ -212,7 +212,7 @@ class AsyncConnection:
                 params["timeout"],
                 content_type=params.get("content_type", "application/json"),
                 auto_decode=params.get("auto_decode", True),
-                exchange_type=params.get("exchange_type", "direct"),
+                exchange_type=params.get("exchange_type", "topic"),
                 durable=params.get("durable", True),
                 auto_delete=params.get("auto_delete", False),
             )
@@ -220,9 +220,6 @@ class AsyncConnection:
     def retry_connection(self):
         """
         Attempts to reconnect to RabbitMQ with exponential backoff.
-
-        If reconnection is successful, this method will recover previous subscriptions
-        and RPC handlers.
         """
         if not self.is_open:
             if self.reconnect_delay > 30:
@@ -384,7 +381,7 @@ class AsyncConnection:
         timeout,
         content_type="application/json",
         auto_decode=True,
-        exchange_type="direct",
+        exchange_type="topic",
         durable=True,
         auto_delete=False,
     ):
@@ -399,13 +396,15 @@ class AsyncConnection:
             timeout: Timeout in seconds for processing the received message
             content_type: Content type of expected message
             auto_decode: Whether to auto-decode JSON payload
-            exchange_type: Exchange type for RPC server (default 'direct')
+            exchange_type: Exchange type for RPC server (default 'topic')
             durable: Durability of queue (default True)
             auto_delete: Auto delete flag for queue (default False)
         """
-        self.backup["rpc_subscribe"][routing_key] = {
+        sub_key = (queue_name, routing_key)
+        self.backup["rpc_subscribe"][sub_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
+            "routing_key": routing_key,
             "callback": callback,
             "timeout": timeout,
             "content_type": content_type,
@@ -455,9 +454,11 @@ class AsyncConnection:
             durable: Durability of queue (default True)
             auto_delete: Auto delete flag for queue (default False)
         """
-        self.backup["subscribe"][routing_key] = {
+        sub_key = (queue_name, routing_key)
+        self.backup["subscribe"][sub_key] = {
             "queue_name": queue_name,
             "exchange_name": exchange_name,
+            "routing_key": routing_key,
             "callback": callback,
             "timeout": timeout,
             "content_type": content_type,

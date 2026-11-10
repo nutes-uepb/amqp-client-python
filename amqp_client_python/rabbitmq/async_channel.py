@@ -1,5 +1,5 @@
 from collections import deque
-from typing import MutableMapping, Mapping, Optional, Union, Dict, List, Tuple
+from typing import MutableMapping, Mapping, Optional, Union, Dict, List, Tuple, Any
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -54,6 +54,8 @@ class AsyncChannel:
         self.auto_ack = auto_ack
         self.subscribes: Dict[str, Dict[str, HandlerType]] = {}
         self.re_subscribes: List[str] = []
+        self._compiled_patterns: Dict[str, List[Tuple[str, Any]]] = {}
+        self._queue_exchange_type: Dict[str, str] = {}
         self.consumers: Dict[str, bool] = {}
         self.publisher_confirms = False
         self._message_number = 0
@@ -520,7 +522,7 @@ class AsyncChannel:
         callback,
         timeout,
         content_type="application/json",
-        exchange_type="direct",
+        exchange_type="topic",
         durable=True,
         auto_delete=False,
         auto_decode=True,
@@ -551,22 +553,53 @@ class AsyncChannel:
         self,
         exchange_name,
         queue_name: str,
-        exchange_type="direct",
+        exchange_type="topic",
         durable=True,
         auto_delete=False,
     ):
         if queue_name not in self.subscribes:
-            if not len(self.subscribes):
-                self.subscribes[queue_name] = {}
+            self.subscribes[queue_name] = {}
+        exchange_type_str = str(getattr(exchange_type, "value", exchange_type))
+        if not hasattr(self, "_queue_exchange_type"):
+            self._queue_exchange_type = {}
+        self._queue_exchange_type[queue_name] = exchange_type_str
+
         self.setup_exchange(exchange_name, exchange_type, durable=durable)
         self.queue_declare(queue_name, durable=durable, auto_delete=auto_delete)
 
         if queue_name not in self.consumers:
             self.consumers[queue_name] = False
 
+    def _compile_routing_pattern(self, queue_name: str, routing_key: str):
+        if not hasattr(self, "_compiled_patterns"):
+            self._compiled_patterns = {}
+        if queue_name not in self._compiled_patterns:
+            self._compiled_patterns[queue_name] = []
+
+        if "*" in routing_key or "#" in routing_key:
+            # 1. AMQP topic wildcard pattern (* = single word, # = zero or more words)
+            amqp_regex = "^" + re.escape(routing_key).replace(r"\*", r"[^.]+").replace(r"\#", r".*") + "$"
+            try:
+                self._compiled_patterns[queue_name].append((routing_key, re.compile(amqp_regex)))
+            except re.error:
+                pass
+
+            # 2. Raw regex compile for backward compatibility
+            try:
+                raw_re = re.compile(routing_key)
+                if not any(
+                    k == routing_key and p.pattern == raw_re.pattern
+                    for k, p in self._compiled_patterns[queue_name]
+                ):
+                    self._compiled_patterns[queue_name].append((routing_key, raw_re))
+            except re.error:
+                pass
+
     def register_handler(
         self, queue_name, routing_key, callback, content_type, response_timeout, auto_decode=True
     ):
+        if queue_name not in self.subscribes:
+            self.subscribes[queue_name] = {}
         if routing_key not in self.subscribes[queue_name]:
             self.subscribes[queue_name][routing_key] = {
                 "handle": callback,
@@ -576,6 +609,7 @@ class AsyncChannel:
             }
             if "*" in routing_key and routing_key not in self.re_subscribes:
                 self.re_subscribes.append(routing_key)
+            self._compile_routing_pattern(queue_name, routing_key)
 
     async def subscribe(
         self,
@@ -648,30 +682,37 @@ class AsyncChannel:
 
         async def handle_message(queue_name, basic_deliver, props):
             try:
-                if basic_deliver.routing_key in self.subscribes[queue_name]:
-                    await process_message(
-                        self.subscribes[queue_name][basic_deliver.routing_key]
-                    )
-                else:
+                handlers = self.subscribes.get(queue_name, {})
+                handler = handlers.get(basic_deliver.routing_key)
+                if handler:
+                    return await process_message(handler)
+
+                queue_type = getattr(self, "_queue_exchange_type", {}).get(queue_name, "topic")
+                if queue_type != "direct":
+                    patterns = getattr(self, "_compiled_patterns", {}).get(queue_name, [])
+                    for pattern_key, pattern in patterns:
+                        if pattern.match(basic_deliver.routing_key):
+                            pattern_handler = handlers.get(pattern_key)
+                            if pattern_handler:
+                                return await process_message(pattern_handler)
                     for routing_key in self.re_subscribes:
-                        if re.match(routing_key, basic_deliver.routing_key):
-                            return await process_message(
-                                self.subscribes[queue_name][routing_key]
-                            )
-                    if self.rpc_publisher_started and props.reply_to:
-                        self._channel_rpc.basic_publish(
-                            "",
-                            props.reply_to,
-                            "Provider Error: routing_key not binded",
-                            properties=BasicProperties(
-                                correlation_id=props.correlation_id,
-                                content_type="text/plain",
-                                type="error",
-                            ),
-                        )
-                    return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
-                        basic_deliver.delivery_tag, requeue=False
+                        if routing_key in handlers and re.match(routing_key, basic_deliver.routing_key):
+                            return await process_message(handlers[routing_key])
+
+                if self.rpc_publisher_started and props.reply_to:
+                    self._channel_rpc.basic_publish(
+                        "",
+                        props.reply_to,
+                        "Provider Error: routing_key not binded",
+                        properties=BasicProperties(
+                            correlation_id=props.correlation_id,
+                            content_type="text/plain",
+                            type="error",
+                        ),
                     )
+                return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
+                    basic_deliver.delivery_tag, requeue=False
+                )
 
             except BaseException as err:
                 if self.rpc_publisher_started and props.reply_to:

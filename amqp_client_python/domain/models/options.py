@@ -15,7 +15,7 @@ class Options:
         vhost: str = "/",
         heartbeat: Optional[int] = 60,
         publisher_confirms: bool = False,
-        rpc_exchange_type: str = "direct",
+        rpc_exchange_type: str = "topic",
         rpc_queue_durable: bool = True,
         rpc_queue_auto_delete: bool = False,
         exchange_type: str = "topic",
@@ -38,7 +38,7 @@ class Options:
             vhost: vhost information
             heartbeat: interval between heartbeat
             publisher_confirms: wait for publisher confirmations
-            rpc_exchange_type: exchange type for RPC server (default 'direct')
+            rpc_exchange_type: exchange type for RPC server (default 'topic')
             rpc_queue_durable: durability for RPC server queue (default True)
             rpc_queue_auto_delete: auto_delete for RPC server queue (default False)
             exchange_type: exchange type for pub/sub subscriptions (default 'topic')
