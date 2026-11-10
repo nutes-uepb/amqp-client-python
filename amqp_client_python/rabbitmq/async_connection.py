@@ -134,32 +134,8 @@ class AsyncConnection:
         self._channel.publisher_confirms = self.publisher_confirms
 
         if self.reconnecting or self.backup["subscribe"] or self.backup["rpc_subscribe"]:
-            async def recorvery():
-                for routing_key in list(self.backup["subscribe"].keys()):
-                    params = self.backup["subscribe"][routing_key]
-                    await self.subscribe(
-                        params["queue_name"],
-                        params["exchange_name"],
-                        routing_key,
-                        params["callback"],
-                        params["timeout"],
-                        content_type=params.get("content_type", "application/json"),
-                        auto_decode=params.get("auto_decode", True),
-                    )
-                for routing_key in list(self.backup["rpc_subscribe"].keys()):
-                    params = self.backup["rpc_subscribe"][routing_key]
-                    await self.rpc_subscribe(
-                        params["queue_name"],
-                        params["exchange_name"],
-                        routing_key,
-                        params["callback"],
-                        params["timeout"],
-                        content_type=params.get("content_type", "application/json"),
-                        auto_decode=params.get("auto_decode", True),
-                    )
-
             future: Future = Future(loop=self.ioloop)
-            self.callbacks.append((recorvery, future))
+            self.callbacks.append((self._recover_subscriptions, future))
             self.reconnect_delay = 1
             self.reconnecting = False
 
@@ -211,6 +187,36 @@ class AsyncConnection:
             self.reconnecting = True
             self.retry_connection()
 
+    async def _recover_subscriptions(self):
+        for routing_key in list(self.backup["subscribe"].keys()):
+            params = self.backup["subscribe"][routing_key]
+            await self.subscribe(
+                params["queue_name"],
+                params["exchange_name"],
+                routing_key,
+                params["callback"],
+                params["timeout"],
+                content_type=params.get("content_type", "application/json"),
+                auto_decode=params.get("auto_decode", True),
+                exchange_type=params.get("exchange_type", "topic"),
+                durable=params.get("durable", True),
+                auto_delete=params.get("auto_delete", False),
+            )
+        for routing_key in list(self.backup["rpc_subscribe"].keys()):
+            params = self.backup["rpc_subscribe"][routing_key]
+            await self.rpc_subscribe(
+                params["queue_name"],
+                params["exchange_name"],
+                routing_key,
+                params["callback"],
+                params["timeout"],
+                content_type=params.get("content_type", "application/json"),
+                auto_decode=params.get("auto_decode", True),
+                exchange_type=params.get("exchange_type", "direct"),
+                durable=params.get("durable", True),
+                auto_delete=params.get("auto_delete", False),
+            )
+
     def retry_connection(self):
         """
         Attempts to reconnect to RabbitMQ with exponential backoff.
@@ -228,33 +234,9 @@ class AsyncConnection:
             self.reconnect_delay += 1
         else:
             if self.reconnecting:
-                async def recorvery():
-                    for routing_key in list(self.backup["subscribe"].keys()):
-                        params = self.backup["subscribe"][routing_key]
-                        await self.subscribe(
-                            params["queue_name"],
-                            params["exchange_name"],
-                            routing_key,
-                            params["callback"],
-                            params["timeout"],
-                            content_type=params.get("content_type", "application/json"),
-                            auto_decode=params.get("auto_decode", True),
-                        )
-                    for routing_key in list(self.backup["rpc_subscribe"].keys()):
-                        params = self.backup["rpc_subscribe"][routing_key]
-                        await self.rpc_subscribe(
-                            params["queue_name"],
-                            params["exchange_name"],
-                            routing_key,
-                            params["callback"],
-                            params["timeout"],
-                            content_type=params.get("content_type", "application/json"),
-                            auto_decode=params.get("auto_decode", True),
-                        )
-
                 self.reconnect_delay = 1
                 self.reconnecting = False
-                self.ioloop.create_task(self.add_callback(recorvery))  # type: ignore
+                self.ioloop.create_task(self.add_callback(self._recover_subscriptions))  # type: ignore
 
     @property
     def is_open(self) -> Optional[bool]:
@@ -402,6 +384,9 @@ class AsyncConnection:
         timeout,
         content_type="application/json",
         auto_decode=True,
+        exchange_type="direct",
+        durable=True,
+        auto_delete=False,
     ):
         """
         Registers an RPC handler for a specific routing key.
@@ -414,6 +399,9 @@ class AsyncConnection:
             timeout: Timeout in seconds for processing the received message
             content_type: Content type of expected message
             auto_decode: Whether to auto-decode JSON payload
+            exchange_type: Exchange type for RPC server (default 'direct')
+            durable: Durability of queue (default True)
+            auto_delete: Auto delete flag for queue (default False)
         """
         self.backup["rpc_subscribe"][routing_key] = {
             "queue_name": queue_name,
@@ -422,6 +410,9 @@ class AsyncConnection:
             "timeout": timeout,
             "content_type": content_type,
             "auto_decode": auto_decode,
+            "exchange_type": exchange_type,
+            "durable": durable,
+            "auto_delete": auto_delete,
         }
         await self._channel.rpc_subscribe(
             queue_name=queue_name,
@@ -431,6 +422,9 @@ class AsyncConnection:
             timeout=timeout,
             content_type=content_type,
             auto_decode=auto_decode,
+            exchange_type=exchange_type,
+            durable=durable,
+            auto_delete=auto_delete,
         )
 
     async def subscribe(
@@ -442,6 +436,9 @@ class AsyncConnection:
         timeout: Optional[float],
         content_type: str = "application/json",
         auto_decode: bool = True,
+        exchange_type: str = "topic",
+        durable: bool = True,
+        auto_delete: bool = False,
     ):
         """
         Subscribes to messages with a specific routing key.
@@ -454,6 +451,9 @@ class AsyncConnection:
             timeout: Timeout in seconds for processing the received message
             content_type: Content type of expected message
             auto_decode: Whether to auto-decode JSON payload
+            exchange_type: Exchange type for subscription (default 'topic')
+            durable: Durability of queue (default True)
+            auto_delete: Auto delete flag for queue (default False)
         """
         self.backup["subscribe"][routing_key] = {
             "queue_name": queue_name,
@@ -462,6 +462,9 @@ class AsyncConnection:
             "timeout": timeout,
             "content_type": content_type,
             "auto_decode": auto_decode,
+            "exchange_type": exchange_type,
+            "durable": durable,
+            "auto_delete": auto_delete,
         }
         await self._channel.subscribe(
             exchange_name=exchange_name,
@@ -471,6 +474,9 @@ class AsyncConnection:
             timeout=timeout,
             content_type=content_type,
             auto_decode=auto_decode,
+            exchange_type=exchange_type,
+            durable=durable,
+            auto_delete=auto_delete,
         )
 
     async def add_callback(

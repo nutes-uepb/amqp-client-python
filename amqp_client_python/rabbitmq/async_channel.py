@@ -1,5 +1,5 @@
 from collections import deque
-from typing import MutableMapping, Mapping, Optional, Union, Dict, List
+from typing import MutableMapping, Mapping, Optional, Union, Dict, List, Tuple
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -59,6 +59,7 @@ class AsyncChannel:
         self._message_number = 0
         self._deliveries: MutableMapping[int, Future] = {}
         self.response_timeout = 60
+        self._declared_exchanges: Dict[str, Tuple[str, bool]] = {}
 
     @staticmethod
     def _serialize_payload(body, content_type: str = "application/json"):
@@ -87,6 +88,7 @@ class AsyncChannel:
         """
         LOGGER.info("Channel opened")
         self._channel = channel
+        self._declared_exchanges.clear()
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
         self._prefetch_count and self.set_qos(self._prefetch_count)
@@ -120,12 +122,14 @@ class AsyncChannel:
         :param pika.channel.Channel: The closed channel
         :param Exception reason: why the channel was closed
         """
-        LOGGER.info(f"Channel {channel} was closed: {reason}")
+        LOGGER.warning(f"Channel {channel} was closed by RabbitMQ: {reason}")
         self._consuming = False
+        if hasattr(self, "_declared_exchanges"):
+            self._declared_exchanges.clear()
         if self._connection.is_closing or self._connection.is_closed:
             LOGGER.info("Connection is closing or already closed")
         else:
-            LOGGER.info("Closing connection")
+            LOGGER.info(f"Closing connection due to channel closure: {reason}")
             self._connection.close()
 
     def add_publish_confirms(self):
@@ -160,14 +164,36 @@ class AsyncChannel:
         be invoked by pika.
         :param str|unicode exchange_name: The name of the exchange to declare
         """
-        LOGGER.info(f"Declaring exchange: {exchange_name}")
+        if not exchange_name:
+            return
+
+        exchange_type_str = str(getattr(exchange_type, "value", exchange_type))
+        durable_bool = bool(durable)
+
+        if not hasattr(self, "_declared_exchanges"):
+            self._declared_exchanges = {}
+
+        if exchange_name in self._declared_exchanges:
+            prev_type, prev_durable = self._declared_exchanges[exchange_name]
+            if (prev_type, prev_durable) == (exchange_type_str, durable_bool):
+                return
+            LOGGER.warning(
+                f"Exchange '{exchange_name}' was already declared as type='{prev_type}', durable={prev_durable}. "
+                f"Re-declaring with type='{exchange_type_str}', durable={durable_bool} on the same channel may "
+                f"trigger PRECONDITION_FAILED."
+            )
+
+        self._declared_exchanges[exchange_name] = (exchange_type_str, durable_bool)
+        LOGGER.info(
+            f"Declaring exchange: {exchange_name} (type={exchange_type_str}, durable={durable_bool})"
+        )
         # Note: using functools.partial is not required, it is demonstrating
         # how arbitrary data can be passed to the callback when it is called
         cb = partial(self.on_exchange_declareok, userdata=exchange_name)
         self._channel.exchange_declare(
             exchange=exchange_name,
-            exchange_type=exchange_type,
-            durable=durable,
+            exchange_type=exchange_type_str,
+            durable=durable_bool,
             callback=cb,
         )
 
@@ -494,7 +520,7 @@ class AsyncChannel:
         callback,
         timeout,
         content_type="application/json",
-        exchange_type="topic",
+        exchange_type="direct",
         durable=True,
         auto_delete=False,
         auto_decode=True,
@@ -532,7 +558,7 @@ class AsyncChannel:
         if queue_name not in self.subscribes:
             if not len(self.subscribes):
                 self.subscribes[queue_name] = {}
-        self.setup_exchange(exchange_name, exchange_type)
+        self.setup_exchange(exchange_name, exchange_type, durable=durable)
         self.queue_declare(queue_name, durable=durable, auto_delete=auto_delete)
 
         if queue_name not in self.consumers:

@@ -1,7 +1,7 @@
 from typing import Callable, Awaitable, Optional, Union, Any, List
 from .async_connection import AsyncConnection
 from ..domain.utils import ConnectionType
-from amqp_client_python.domain.models import Config
+from amqp_client_python.domain.models import Config, Options
 from asyncio import AbstractEventLoop, get_event_loop
 from pika import DeliveryMode
 from amqp_client_python.signals import Signal
@@ -242,6 +242,11 @@ class AsyncEventbusRabbitMQ:
                 extra_kwargs["content_type"] = content_type
             if not auto_decode:
                 extra_kwargs["auto_decode"] = auto_decode
+            options = getattr(self.config, "options", None)
+            if isinstance(options, Options):
+                extra_kwargs["exchange_type"] = options.rpc_exchange_type
+                extra_kwargs["durable"] = options.rpc_queue_durable
+                extra_kwargs["auto_delete"] = options.rpc_queue_auto_delete
             await self._rpc_server_connection.rpc_subscribe(
                 self.config.options.rpc_queue_name,
                 self.config.options.rpc_exchange_name,
@@ -296,6 +301,11 @@ class AsyncEventbusRabbitMQ:
                 extra_kwargs["content_type"] = content_type
             if not auto_decode:
                 extra_kwargs["auto_decode"] = auto_decode
+            options = getattr(self.config, "options", None)
+            if isinstance(options, Options):
+                extra_kwargs["exchange_type"] = options.exchange_type
+                extra_kwargs["durable"] = options.queue_durable
+                extra_kwargs["auto_delete"] = options.queue_auto_delete
             await self._sub_connection.subscribe(
                 self.config.options.queue_name,
                 exchange_name,
