@@ -1,5 +1,5 @@
 from collections import deque
-from typing import MutableMapping, Mapping, Optional, Union, Dict, List, Tuple, Any
+from typing import MutableMapping, Optional, Union, Dict, List, Tuple, Any
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -7,6 +7,7 @@ from amqp_client_python.exceptions import (
     PublishTimeoutException,
     ResponseTimeoutException,
     EventBusException,
+    AutoReconnectException,
 )
 from amqp_client_python.signals import Signal, Event
 from amqp_client_python.domain.utils.types import HandlerType
@@ -37,18 +38,21 @@ class AsyncChannel:
     ) -> None:
         self.ioloop = None
         self.channel_factory = channel_factory
-        self._channel: Channel = None
-        self._connection: AsyncioConnection = None
+        self._channel: Channel = None  # type: ignore
+        self._channel_rpc: Channel = None  # type: ignore
+        self._connection: AsyncioConnection = None  # type: ignore
         self.type = channel_type
         self.signal = signal
         self._callback_queue = f"amqp.{uuid4()}"
         self.futures: MutableMapping[int, Future] = {}
-        self.rpc_futures: MutableMapping[str, Mapping[str, Future]] = {}
+        self.rpc_futures: MutableMapping[str, Dict[str, Any]] = {}
         self.rpc_consumer = False
         self.rpc_consumer_started = False
         self.rpc_consumer_starting = False
         self.rpc_publisher_started = False
         self.rpc_publisher_starting = False
+        self._rpc_consumer_timer: Optional[Any] = None
+        self._rpc_publisher_timer: Optional[Any] = None
         self.consumer_tag = None
         self._prefetch_count = prefetch_count
         self.auto_ack = auto_ack
@@ -58,8 +62,11 @@ class AsyncChannel:
         self._queue_exchange_type: Dict[str, str] = {}
         self.consumers: Dict[str, bool] = {}
         self.publisher_confirms = False
+        self._acked = 0
+        self._nacked = 0
         self._message_number = 0
         self._deliveries: MutableMapping[int, Future] = {}
+        self._publish_timers: Dict[int, Any] = {}
         self.response_timeout = 60
         self._declared_exchanges: Dict[str, Tuple[str, bool]] = {}
 
@@ -100,6 +107,8 @@ class AsyncChannel:
     async def process_callbacks(self):
         while self.callbacks:
             callback, future = self.callbacks.popleft()
+            if future.done():
+                continue
             try:
                 result = await callback()
                 if not future.done():
@@ -128,9 +137,42 @@ class AsyncChannel:
         self._consuming = False
         if hasattr(self, "_declared_exchanges"):
             self._declared_exchanges.clear()
-        if self._connection.is_closing or self._connection.is_closed:
+
+        exc = AutoReconnectException(f"Channel closed unexpectedly: {reason}")
+        # Abort in-flight RPCs
+        for corr_id, entry in list(self.rpc_futures.items()):
+            timer = entry.get("timer")
+            if timer and not timer.cancelled():
+                timer.cancel()
+            resp = entry.get("response")
+            if resp and not resp.done():
+                resp.set_exception(exc)
+            pub = entry.get("published")
+            if pub and not pub.done():
+                pub.set_exception(exc)
+        self.rpc_futures.clear()
+
+        # Abort in-flight publisher confirms
+        for msg_id, fut in list(self.futures.items()):
+            if not fut.done():
+                fut.set_exception(exc)
+        self.futures.clear()
+        self._deliveries.clear()
+        for timer in self._publish_timers.values():
+            if not timer.cancelled():
+                timer.cancel()
+        self._publish_timers.clear()
+
+        if self._rpc_consumer_timer and not self._rpc_consumer_timer.cancelled():
+            self._rpc_consumer_timer.cancel()
+            self._rpc_consumer_timer = None
+        if self._rpc_publisher_timer and not self._rpc_publisher_timer.cancelled():
+            self._rpc_publisher_timer.cancel()
+            self._rpc_publisher_timer = None
+
+        if self._connection and (self._connection.is_closing or self._connection.is_closed):
             LOGGER.info("Connection is closing or already closed")
-        else:
+        elif self._connection:
             LOGGER.info(f"Closing connection due to channel closure: {reason}")
             self._connection.close()
 
@@ -305,6 +347,9 @@ class AsyncChannel:
             self._channel_rpc.add_on_close_callback(self.on_channel_closed)
 
             def on_declare(channel):
+                if self._rpc_consumer_timer and not self._rpc_consumer_timer.cancelled():
+                    self._rpc_consumer_timer.cancel()
+                    self._rpc_consumer_timer = None
                 self.consumer_tag = self._channel_rpc.basic_consume(
                     queue=self._callback_queue,
                     on_message_callback=self.on_response,
@@ -313,7 +358,8 @@ class AsyncChannel:
                 )
                 self.rpc_consumer_started = True
                 self.rpc_consumer_starting = False
-                self.rpc_consumer_future.set_result(True)
+                if not self.rpc_consumer_future.done():
+                    self.rpc_consumer_future.set_result(True)
 
             LOGGER.info(f"Declaring queue {self._callback_queue}")
             self._channel_rpc.queue_declare(
@@ -335,7 +381,9 @@ class AsyncChannel:
                     EventBusException("Error: cannot set rpc_consumer")
                 )
 
-        self.ioloop.call_later(2, attemp_failed)
+        if self._rpc_consumer_timer and not self._rpc_consumer_timer.cancelled():
+            self._rpc_consumer_timer.cancel()
+        self._rpc_consumer_timer = self.ioloop.call_later(2, attemp_failed)
         return await self.rpc_consumer_future
 
     async def start_rpc_publisher(self):
@@ -347,10 +395,14 @@ class AsyncChannel:
         self.rpc_publisher_future = self.ioloop.create_future()
 
         def on_open(channel: Channel):
+            if self._rpc_publisher_timer and not self._rpc_publisher_timer.cancelled():
+                self._rpc_publisher_timer.cancel()
+                self._rpc_publisher_timer = None
             self._channel_rpc.add_on_close_callback(self.on_channel_closed)
             self.rpc_publisher_started = True
             self.rpc_publisher_starting = False
-            self.rpc_publisher_future.set_result(True)
+            if not self.rpc_publisher_future.done():
+                self.rpc_publisher_future.set_result(True)
 
         self._channel_rpc: Channel = self.channel_factory.create_channel(
             self._connection, on_channel_open=on_open
@@ -364,7 +416,9 @@ class AsyncChannel:
                     EventBusException("Error: cannot set rpc_publisher")
                 )
 
-        self.ioloop.call_later(2, attemp_failed)
+        if self._rpc_publisher_timer and not self._rpc_publisher_timer.cancelled():
+            self._rpc_publisher_timer.cancel()
+        self._rpc_publisher_timer = self.ioloop.call_later(2, attemp_failed)
         return await self.rpc_publisher_future
 
     async def rpc_client(
@@ -388,41 +442,51 @@ class AsyncChannel:
         clean_response = partial(self.clean_rpc_response, corr_id)
         future.add_done_callback(clean_response)
 
-        # Ensure RPC response consumer is operational
-        await self.start_rpc_consumer()
+        try:
+            # Ensure RPC response consumer is operational
+            await self.start_rpc_consumer()
 
-        # Publish RPC request with metadata headers
-        self._channel.basic_publish(
-            exchange_name,
-            routing_key,
-            self._serialize_payload(body, content_type),
-            properties=BasicProperties(
-                reply_to=self._callback_queue,  # Response queue address
-                correlation_id=corr_id,  # Request/response matching ID
-                content_type=content_type,  # Payload format descriptor
-                delivery_mode=delivery_mode,  # Persistent/Transient delivery
-                expiration=expiration,  # Message TTL control
-                **key_args,
-            ),
-            mandatory=False,
-        )
+            # Publish RPC request with metadata headers
+            self._channel.basic_publish(
+                exchange_name,
+                routing_key,
+                self._serialize_payload(body, content_type),
+                properties=BasicProperties(
+                    reply_to=self._callback_queue,  # Response queue address
+                    correlation_id=corr_id,  # Request/response matching ID
+                    content_type=content_type,  # Payload format descriptor
+                    delivery_mode=delivery_mode,  # Persistent/Transient delivery
+                    expiration=expiration,  # Message TTL control
+                    **key_args,
+                ),
+                mandatory=False,
+            )
+        except Exception:
+            self.clean_rpc_response(corr_id, future)
+            if not future.done():
+                future.cancel()
+            raise
 
         # Setup timeout handler for unfulfilled requests
         def not_arrived(id: str):
             if id in self.rpc_futures:
-                future = self.rpc_futures[id]
-                if self.publisher_confirms and not future["published"].done():
-                    return future["published"].set_exception(
+                entry = self.rpc_futures[id]
+                pub_future = entry.get("published")
+                if self.publisher_confirms and pub_future and not pub_future.done():
+                    return pub_future.set_exception(
                         PublishTimeoutException("PublishTimeout: time limit reached")
                     )
-                if not future["response"].done():
-                    return future["response"].set_exception(
+                resp_future = entry.get("response")
+                if resp_future and not resp_future.done():
+                    return resp_future.set_exception(
                         ResponseTimeoutException("ResponseTimeout: time limit reached")
                     )
 
         func = partial(not_arrived, corr_id)
         # Schedule timeout check using event loop
-        self.ioloop.call_later(response_timeout, func)  # type: ignore
+        timer = self.ioloop.call_later(response_timeout, func)  # type: ignore
+        if corr_id in self.rpc_futures:
+            self.rpc_futures[corr_id]["timer"] = timer
 
         # Handle publisher confirms if enabled
         if self.publisher_confirms:
@@ -436,7 +500,8 @@ class AsyncChannel:
         # Create separate tracking for publish confirmation
         publish_future = self.ioloop.create_future()
         # Store both futures in tracking system
-        self.rpc_futures[corr_id]["published"] = publish_future
+        if corr_id in self.rpc_futures:
+            self.rpc_futures[corr_id]["published"] = publish_future
         # Initiate confirmation tracking
         self.publish_confirmation(publish_future)
         # Concurrently wait for first completed operation:
@@ -446,15 +511,19 @@ class AsyncChannel:
             [publish_future, future], return_when=FIRST_COMPLETED
         )
         # Extract potential exception from completed operation
-        exception = done_all.pop().exception()
-        if exception:
-            # Cancel remaining operations
-            [undone.cancel() for undone in pending_all]
-            raise exception
-        elif len(pending_all):  # Response still pending after confirmation
-            return await future
-        else:
-            return future.result()  # Return final result directly
+        first_exc = None
+        for d in done_all:
+            exc = d.exception()
+            if exc and first_exc is None:
+                first_exc = exc
+        if first_exc:
+            for p in pending_all:
+                p.cancel()
+            raise first_exc
+
+        if future in done_all:
+            return future.result()
+        return await future
 
     async def publish(
         self,
@@ -485,13 +554,15 @@ class AsyncChannel:
             self.publish_confirmation(publish_future)
 
             def not_arrived(id):
-                if id in self.futures:
-                    self.futures[id].set_exception(
+                fut = self.futures.get(id)
+                if fut and not fut.done():
+                    fut.set_exception(
                         PublishTimeoutException("Timeout: time limit reached")
                     )
 
             func = partial(not_arrived, self._message_number)
-            self.ioloop.call_later(timeout, func)  # type: ignore
+            timer = self.ioloop.call_later(timeout, func)  # type: ignore
+            self._publish_timers[self._message_number] = timer
             return await publish_future
 
     def publish_confirmation(self, future: Future):
@@ -499,20 +570,28 @@ class AsyncChannel:
 
         # Increment sequence counter for message tracking
         self._message_number += 1
+        msg_id = self._message_number
         # Store future reference for confirmation handling
-        self.futures[self._message_number] = future
+        self.futures[msg_id] = future
         # Link to delivery tracking system
-        self._deliveries[self._message_number] = future
+        self._deliveries[msg_id] = future
         # Register cleanup callback using partial binding
-        clean = partial(self.clean_publish_confirmation, self._message_number)
+        clean = partial(self.clean_publish_confirmation, msg_id)
         future.add_done_callback(clean)
 
-    def clean_publish_confirmation(self, meassage_id: int, _fut):
-        self.futures.pop(meassage_id)
-        self._deliveries.pop(meassage_id)
+    def clean_publish_confirmation(self, meassage_id: int, _fut=None):
+        self.futures.pop(meassage_id, None)
+        self._deliveries.pop(meassage_id, None)
+        timer = self._publish_timers.pop(meassage_id, None)
+        if timer and not timer.cancelled():
+            timer.cancel()
 
-    def clean_rpc_response(self, corr_id: str, _fut):
-        self.rpc_futures.pop(corr_id)
+    def clean_rpc_response(self, corr_id: str, _fut=None):
+        entry = self.rpc_futures.pop(corr_id, None)
+        if entry:
+            timer = entry.get("timer")
+            if timer and not timer.cancelled():
+                timer.cancel()
 
     async def rpc_subscribe(
         self,
@@ -577,6 +656,8 @@ class AsyncChannel:
             self._compiled_patterns[queue_name] = []
 
         if "*" in routing_key or "#" in routing_key:
+            if any(k == routing_key for k, _ in self._compiled_patterns[queue_name]):
+                return
             # AMQP topic wildcard pattern (* = single word [^.]+, # = zero or more words .*)
             amqp_regex = "^" + re.escape(routing_key).replace(r"\*", r"[^.]+").replace(r"\#", r".*") + "$"
             try:
@@ -606,7 +687,7 @@ class AsyncChannel:
         routing_key: str,
         queue_name: str,
         callback,
-        timeout: Optional[int],
+        timeout: Optional[Union[int, float]],
         content_type: str = "application/json",
         exchange_type: str = "topic",
         durable: bool = True,
@@ -654,7 +735,13 @@ class AsyncChannel:
                 handler["handle"](body),
                 timeout=handler["response_timeout"],
             )
-            if self.rpc_publisher_started and response and props.reply_to:
+            if (
+                self.rpc_publisher_started
+                and self._channel_rpc
+                and self._channel_rpc.is_open
+                and response
+                and props.reply_to
+            ):
                 self._channel_rpc.basic_publish(
                     "",
                     props.reply_to,
@@ -690,7 +777,12 @@ class AsyncChannel:
                             if routing_key in handlers and re.match(routing_key, basic_deliver.routing_key):
                                 return await process_message(handlers[routing_key])
 
-                if self.rpc_publisher_started and props.reply_to:
+                if (
+                    self.rpc_publisher_started
+                    and self._channel_rpc
+                    and self._channel_rpc.is_open
+                    and props.reply_to
+                ):
                     self._channel_rpc.basic_publish(
                         "",
                         props.reply_to,
@@ -706,7 +798,12 @@ class AsyncChannel:
                 )
 
             except BaseException as err:
-                if self.rpc_publisher_started and props.reply_to:
+                if (
+                    self.rpc_publisher_started
+                    and self._channel_rpc
+                    and self._channel_rpc.is_open
+                    and props.reply_to
+                ):
                     self._channel_rpc.basic_publish(
                         "",
                         props.reply_to,
@@ -721,6 +818,12 @@ class AsyncChannel:
                     basic_deliver.delivery_tag, requeue=False
                 )
 
-        self.ioloop.create_task(  # type: ignore
+        task = self.ioloop.create_task(  # type: ignore
             handle_message(queue_name, basic_deliver, props)
         )
+
+        def _on_task_done(t: Future):
+            if not t.cancelled() and t.exception():
+                LOGGER.error(f"Error handling message on queue {queue_name}: {t.exception()}")
+
+        task.add_done_callback(_on_task_done)

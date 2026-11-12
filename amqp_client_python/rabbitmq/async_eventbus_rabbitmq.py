@@ -145,7 +145,9 @@ class AsyncEventbusRabbitMQ:
                 **kwargs
             )
 
-        self._rpc_client_connection.open(self.config.url)
+        if self._rpc_client_connection.open(self.config.url):
+            if self._rpc_client_connection not in self._used_connections:
+                self._used_connections.append(self._rpc_client_connection)
         return await self._rpc_client_connection.add_callback(
             add_rpc_client, connection_timeout
         )
@@ -203,7 +205,9 @@ class AsyncEventbusRabbitMQ:
                 **kwargs
             )
 
-        self._pub_connection.open(self.config.url)
+        if self._pub_connection.open(self.config.url):
+            if self._pub_connection not in self._used_connections:
+                self._used_connections.append(self._pub_connection)
         return await self._pub_connection.add_callback(add_publish, connection_timeout)
 
     async def provide_resource(
@@ -257,7 +261,8 @@ class AsyncEventbusRabbitMQ:
             )
 
         if self._rpc_server_connection.open(self.config.url):
-            self._used_connections.append(self._rpc_server_connection)
+            if self._rpc_server_connection not in self._used_connections:
+                self._used_connections.append(self._rpc_server_connection)
         await self._rpc_server_connection.add_callback(add_resource, connection_timeout)
 
     async def subscribe(
@@ -316,8 +321,18 @@ class AsyncEventbusRabbitMQ:
             )
 
         if self._sub_connection.open(self.config.url):
-            self._used_connections.append(self._sub_connection)
+            if self._sub_connection not in self._used_connections:
+                self._used_connections.append(self._sub_connection)
         await self._sub_connection.add_callback(add_subscribe, connection_timeout)
+
+    @property
+    def _all_connections(self) -> List[AsyncConnection]:
+        return [
+            self._pub_connection,
+            self._sub_connection,
+            self._rpc_client_connection,
+            self._rpc_server_connection,
+        ]
 
     async def restore(self) -> None:
         """
@@ -330,7 +345,8 @@ class AsyncEventbusRabbitMQ:
             >>> # After a dispose, call restore to re-establish connections
             >>> await eventbus.restore()
         """
-        for connection in self._used_connections:
+        connections = self._used_connections if self._used_connections else self._all_connections
+        for connection in connections:
             if not connection.is_open:
                 connection.open(self.config.url)
 

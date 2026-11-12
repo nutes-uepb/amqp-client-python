@@ -54,6 +54,8 @@ class AsyncConnection:
         self.publisher_confirms = publisher_confirms
         self.connection_factory = AsyncConnectionFactoryRabbitMQ()
         self._connection: Optional[AsyncioConnection] = None
+        self._channel: AsyncChannel = None  # type: ignore
+        self._reconnect_timer: Optional[Any] = None
         self._prefetch_count = prefetch_count
         self._auto_ack = auto_ack
         self.signal = signal
@@ -104,13 +106,15 @@ class AsyncConnection:
         """
         Closes the connection to RabbitMQ gracefully.
 
-        This method will only close the connection if it is currently open.
-
         Examples:
             >>> await connection.close()
         """
-        if self.is_open:
-            self._closing = True
+        self._closing = True
+        self.reconnecting = False
+        if self._reconnect_timer is not None and not self._reconnect_timer.cancelled():
+            self._reconnect_timer.cancel()
+            self._reconnect_timer = None
+        if self._connection and not self._connection.is_closed:
             self._connection.close()
 
     def on_connection_open(self, _unused_connection):
@@ -123,6 +127,10 @@ class AsyncConnection:
             _unused_connection: The connection object (not used)
         """
         LOGGER.info(f"connection openned {_unused_connection}, {self._connection}")
+        if self._reconnect_timer and not self._reconnect_timer.cancelled():
+            self._reconnect_timer.cancel()
+            self._reconnect_timer = None
+
         self.signal.emmit(Event.CONNECTED, condiction=self.type, loop=self.ioloop)
         self.openning = False
         self._channel = AsyncChannel(
@@ -152,7 +160,8 @@ class AsyncConnection:
         """
         LOGGER.info(f"connection open error: {err}, will attempt a connection")
         self.openning = False
-        self.reconnect()
+        if not self._closing:
+            self.reconnect()
 
     def on_connection_closed(self, _unused_connection, reason):
         """
@@ -168,10 +177,12 @@ class AsyncConnection:
         """
         self._channel = None
         if self._closing:
-            LOGGER.warn("connection closed intentionally")
-            # self._connection.ioloop.stop()
+            LOGGER.warning("connection closed intentionally")
+            if self._reconnect_timer and not self._reconnect_timer.cancelled():
+                self._reconnect_timer.cancel()
+                self._reconnect_timer = None
         else:
-            LOGGER.warn(
+            LOGGER.warning(
                 f"Connection closed, reason: {reason}, will attempt a connection"
             )
             self.reconnect()
@@ -183,53 +194,69 @@ class AsyncConnection:
         Will be invoked if the connection can't be opened or is closed.
         Indicates that a reconnect is necessary.
         """
+        if self._closing:
+            return
         if not self.reconnecting:
             self.reconnecting = True
             self.retry_connection()
 
     async def _recover_subscriptions(self):
         for key, params in list(self.backup["subscribe"].items()):
-            routing_key = params.get("routing_key") or (key[1] if isinstance(key, tuple) else key)
-            await self.subscribe(
-                params["queue_name"],
-                params["exchange_name"],
-                routing_key,
-                params["callback"],
-                params["timeout"],
-                content_type=params.get("content_type", "application/json"),
-                auto_decode=params.get("auto_decode", True),
-                exchange_type=params.get("exchange_type", "topic"),
-                durable=params.get("durable", True),
-                auto_delete=params.get("auto_delete", False),
-            )
+            try:
+                routing_key = params.get("routing_key") or (key[1] if isinstance(key, tuple) else key)
+                await self.subscribe(
+                    params["queue_name"],
+                    params["exchange_name"],
+                    routing_key,
+                    params["callback"],
+                    params["timeout"],
+                    content_type=params.get("content_type", "application/json"),
+                    auto_decode=params.get("auto_decode", True),
+                    exchange_type=params.get("exchange_type", "topic"),
+                    durable=params.get("durable", True),
+                    auto_delete=params.get("auto_delete", False),
+                )
+            except Exception as exc:
+                LOGGER.error(f"Failed to recover subscribe subscription for {key}: {exc}")
         for key, params in list(self.backup["rpc_subscribe"].items()):
-            routing_key = params.get("routing_key") or (key[1] if isinstance(key, tuple) else key)
-            await self.rpc_subscribe(
-                params["queue_name"],
-                params["exchange_name"],
-                routing_key,
-                params["callback"],
-                params["timeout"],
-                content_type=params.get("content_type", "application/json"),
-                auto_decode=params.get("auto_decode", True),
-                exchange_type=params.get("exchange_type", "topic"),
-                durable=params.get("durable", True),
-                auto_delete=params.get("auto_delete", False),
-            )
+            try:
+                routing_key = params.get("routing_key") or (key[1] if isinstance(key, tuple) else key)
+                await self.rpc_subscribe(
+                    params["queue_name"],
+                    params["exchange_name"],
+                    routing_key,
+                    params["callback"],
+                    params["timeout"],
+                    content_type=params.get("content_type", "application/json"),
+                    auto_decode=params.get("auto_decode", True),
+                    exchange_type=params.get("exchange_type", "topic"),
+                    durable=params.get("durable", True),
+                    auto_delete=params.get("auto_delete", False),
+                )
+            except Exception as exc:
+                LOGGER.error(f"Failed to recover rpc_subscribe subscription for {key}: {exc}")
 
     def retry_connection(self):
         """
         Attempts to reconnect to RabbitMQ with exponential backoff.
         """
+        if self._closing:
+            return
+
         if not self.is_open:
             if self.reconnect_delay > 30:
                 self.reconnect_delay = 30
             self.open(self.url)
-            self.ioloop.call_later(  # type: ignore
+            if self._reconnect_timer and not self._reconnect_timer.cancelled():
+                self._reconnect_timer.cancel()
+            self._reconnect_timer = self.ioloop.call_later(  # type: ignore
                 self.reconnect_delay, self.retry_connection
             )
             self.reconnect_delay += 1
         else:
+            if self._reconnect_timer and not self._reconnect_timer.cancelled():
+                self._reconnect_timer.cancel()
+                self._reconnect_timer = None
             if self.reconnecting:
                 self.reconnect_delay = 1
                 self.reconnecting = False
@@ -257,6 +284,10 @@ class AsyncConnection:
         """
         if not self._closing:
             self._closing = True
+            self.reconnecting = False
+            if self._reconnect_timer and not self._reconnect_timer.cancelled():
+                self._reconnect_timer.cancel()
+                self._reconnect_timer = None
             LOGGER.warning("Stopping intentionally")
             if self._consuming:
                 self._connection.ioloop.run_forever()  # type: ignore
@@ -506,14 +537,21 @@ class AsyncConnection:
                     return await connection.publish(...)
             >>> result = await connection.add_callback(my_operation, 10.0)
         """
-        try:
-            if self.is_open and self._channel and self._channel.is_open:
-                return await callback()
-            else:
-                future: Future = Future(loop=self.ioloop)
-                self.callbacks.append((callback, future))
+        if self.is_open and self._channel and self._channel.is_open:
+            return await callback()
+        else:
+            future: Future = Future(loop=self.ioloop)
+            item = (callback, future)
+            self.callbacks.append(item)
+            try:
                 return await wait_for(future, connection_timeout)
-        except TimeoutError:
-            raise AutoReconnectException(
-                "Timeout: failed to connect, order rejected..."
-            )
+            except TimeoutError:
+                raise AutoReconnectException(
+                    "Timeout: failed to connect, order rejected..."
+                )
+            finally:
+                if future.done() and item in self.callbacks:
+                    try:
+                        self.callbacks.remove(item)
+                    except ValueError:
+                        pass

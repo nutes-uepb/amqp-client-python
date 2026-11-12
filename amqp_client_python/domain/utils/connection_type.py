@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class ConnectionType(Enum):
+class ConnectionType(str, Enum):
     PUBLISH = "publish"
     SUBSCRIBE = "subscribe"
     RPC_CLIENT = "rpc_client"
