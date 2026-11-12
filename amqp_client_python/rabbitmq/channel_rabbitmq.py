@@ -335,13 +335,14 @@ class ChannelRabbitMQ:
 
     def __on_response(self, ch: Channel, method, props, body, future=None):
         if props.correlation_id in self.futures:
-            future = self.futures[props.correlation_id]
-            del self.futures[props.correlation_id]
-            if props.type == "error":
-                future.set_exception(
-                    Exception(f"Internal Server Error: {body.decode('utf-8')}")
-                )
-            future.set_result(body)
+            future = self.futures.pop(props.correlation_id, None)
+            if future and not future.done():
+                if props.type == "error":
+                    future.set_exception(
+                        Exception(f"Internal Server Error: {body.decode('utf-8')}")
+                    )
+                else:
+                    future.set_result(body)
 
     def close(self):
         if self.is_open:

@@ -168,4 +168,3 @@ async def test_rpc_client_raw_bytes(connection_mock, channel_mock, channel_facto
         b'{"raw": "bytes"}',
     )
     assert result == expected_result
-
