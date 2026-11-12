@@ -1,5 +1,5 @@
 from collections import deque
-from typing import MutableMapping, Mapping, Optional, Union, Dict, List, Tuple, Any
+from typing import MutableMapping, Optional, Union, Dict, List, Tuple, Any
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
