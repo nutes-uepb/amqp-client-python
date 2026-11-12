@@ -1,5 +1,5 @@
 from collections import deque
-from typing import MutableMapping, Mapping, Optional, Union, Dict, List
+from typing import MutableMapping, Mapping, Optional, Union, Dict, List, Tuple, Any
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -54,11 +54,14 @@ class AsyncChannel:
         self.auto_ack = auto_ack
         self.subscribes: Dict[str, Dict[str, HandlerType]] = {}
         self.re_subscribes: List[str] = []
+        self._compiled_patterns: Dict[str, List[Tuple[str, Any]]] = {}
+        self._queue_exchange_type: Dict[str, str] = {}
         self.consumers: Dict[str, bool] = {}
         self.publisher_confirms = False
         self._message_number = 0
         self._deliveries: MutableMapping[int, Future] = {}
         self.response_timeout = 60
+        self._declared_exchanges: Dict[str, Tuple[str, bool]] = {}
 
     @staticmethod
     def _serialize_payload(body, content_type: str = "application/json"):
@@ -87,6 +90,7 @@ class AsyncChannel:
         """
         LOGGER.info("Channel opened")
         self._channel = channel
+        self._declared_exchanges.clear()
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
         self._prefetch_count and self.set_qos(self._prefetch_count)
@@ -120,12 +124,14 @@ class AsyncChannel:
         :param pika.channel.Channel: The closed channel
         :param Exception reason: why the channel was closed
         """
-        LOGGER.info(f"Channel {channel} was closed: {reason}")
+        LOGGER.warning(f"Channel {channel} was closed by RabbitMQ: {reason}")
         self._consuming = False
+        if hasattr(self, "_declared_exchanges"):
+            self._declared_exchanges.clear()
         if self._connection.is_closing or self._connection.is_closed:
             LOGGER.info("Connection is closing or already closed")
         else:
-            LOGGER.info("Closing connection")
+            LOGGER.info(f"Closing connection due to channel closure: {reason}")
             self._connection.close()
 
     def add_publish_confirms(self):
@@ -160,14 +166,36 @@ class AsyncChannel:
         be invoked by pika.
         :param str|unicode exchange_name: The name of the exchange to declare
         """
-        LOGGER.info(f"Declaring exchange: {exchange_name}")
+        if not exchange_name:
+            return
+
+        exchange_type_str = str(getattr(exchange_type, "value", exchange_type))
+        durable_bool = bool(durable)
+
+        if not hasattr(self, "_declared_exchanges"):
+            self._declared_exchanges = {}
+
+        if exchange_name in self._declared_exchanges:
+            prev_type, prev_durable = self._declared_exchanges[exchange_name]
+            if (prev_type, prev_durable) == (exchange_type_str, durable_bool):
+                return
+            LOGGER.warning(
+                f"Exchange '{exchange_name}' was already declared as type='{prev_type}', durable={prev_durable}. "
+                f"Re-declaring with type='{exchange_type_str}', durable={durable_bool} on the same channel may "
+                f"trigger PRECONDITION_FAILED."
+            )
+
+        self._declared_exchanges[exchange_name] = (exchange_type_str, durable_bool)
+        LOGGER.info(
+            f"Declaring exchange: {exchange_name} (type={exchange_type_str}, durable={durable_bool})"
+        )
         # Note: using functools.partial is not required, it is demonstrating
         # how arbitrary data can be passed to the callback when it is called
         cb = partial(self.on_exchange_declareok, userdata=exchange_name)
         self._channel.exchange_declare(
             exchange=exchange_name,
-            exchange_type=exchange_type,
-            durable=durable,
+            exchange_type=exchange_type_str,
+            durable=durable_bool,
             callback=cb,
         )
 
@@ -525,22 +553,42 @@ class AsyncChannel:
         self,
         exchange_name,
         queue_name: str,
-        exchange_type="direct",
+        exchange_type="topic",
         durable=True,
         auto_delete=False,
     ):
         if queue_name not in self.subscribes:
-            if not len(self.subscribes):
-                self.subscribes[queue_name] = {}
-        self.setup_exchange(exchange_name, exchange_type)
+            self.subscribes[queue_name] = {}
+        exchange_type_str = str(getattr(exchange_type, "value", exchange_type))
+        if not hasattr(self, "_queue_exchange_type"):
+            self._queue_exchange_type = {}
+        self._queue_exchange_type[queue_name] = exchange_type_str
+
+        self.setup_exchange(exchange_name, exchange_type, durable=durable)
         self.queue_declare(queue_name, durable=durable, auto_delete=auto_delete)
 
         if queue_name not in self.consumers:
             self.consumers[queue_name] = False
 
+    def _compile_routing_pattern(self, queue_name: str, routing_key: str):
+        if not hasattr(self, "_compiled_patterns"):
+            self._compiled_patterns = {}
+        if queue_name not in self._compiled_patterns:
+            self._compiled_patterns[queue_name] = []
+
+        if "*" in routing_key or "#" in routing_key:
+            # AMQP topic wildcard pattern (* = single word [^.]+, # = zero or more words .*)
+            amqp_regex = "^" + re.escape(routing_key).replace(r"\*", r"[^.]+").replace(r"\#", r".*") + "$"
+            try:
+                self._compiled_patterns[queue_name].append((routing_key, re.compile(amqp_regex)))
+            except re.error:
+                pass
+
     def register_handler(
         self, queue_name, routing_key, callback, content_type, response_timeout, auto_decode=True
     ):
+        if queue_name not in self.subscribes:
+            self.subscribes[queue_name] = {}
         if routing_key not in self.subscribes[queue_name]:
             self.subscribes[queue_name][routing_key] = {
                 "handle": callback,
@@ -550,6 +598,7 @@ class AsyncChannel:
             }
             if "*" in routing_key and routing_key not in self.re_subscribes:
                 self.re_subscribes.append(routing_key)
+            self._compile_routing_pattern(queue_name, routing_key)
 
     async def subscribe(
         self,
@@ -622,30 +671,39 @@ class AsyncChannel:
 
         async def handle_message(queue_name, basic_deliver, props):
             try:
-                if basic_deliver.routing_key in self.subscribes[queue_name]:
-                    await process_message(
-                        self.subscribes[queue_name][basic_deliver.routing_key]
+                handlers = self.subscribes.get(queue_name, {})
+                handler = handlers.get(basic_deliver.routing_key)
+                if handler:
+                    return await process_message(handler)
+
+                queue_type = getattr(self, "_queue_exchange_type", {}).get(queue_name, "topic")
+                if queue_type != "direct":
+                    patterns = getattr(self, "_compiled_patterns", {}).get(queue_name)
+                    if patterns:
+                        for pattern_key, pattern in patterns:
+                            if pattern.match(basic_deliver.routing_key):
+                                pattern_handler = handlers.get(pattern_key)
+                                if pattern_handler:
+                                    return await process_message(pattern_handler)
+                    elif self.re_subscribes:
+                        for routing_key in self.re_subscribes:
+                            if routing_key in handlers and re.match(routing_key, basic_deliver.routing_key):
+                                return await process_message(handlers[routing_key])
+
+                if self.rpc_publisher_started and props.reply_to:
+                    self._channel_rpc.basic_publish(
+                        "",
+                        props.reply_to,
+                        "Provider Error: routing_key not binded",
+                        properties=BasicProperties(
+                            correlation_id=props.correlation_id,
+                            content_type="text/plain",
+                            type="error",
+                        ),
                     )
-                else:
-                    for routing_key in self.re_subscribes:
-                        if re.match(routing_key, basic_deliver.routing_key):
-                            return await process_message(
-                                self.subscribes[queue_name][routing_key]
-                            )
-                    if self.rpc_publisher_started and props.reply_to:
-                        self._channel_rpc.basic_publish(
-                            "",
-                            props.reply_to,
-                            "Provider Error: routing_key not binded",
-                            properties=BasicProperties(
-                                correlation_id=props.correlation_id,
-                                content_type="text/plain",
-                                type="error",
-                            ),
-                        )
-                    return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
-                        basic_deliver.delivery_tag, requeue=False
-                    )
+                return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
+                    basic_deliver.delivery_tag, requeue=False
+                )
 
             except BaseException as err:
                 if self.rpc_publisher_started and props.reply_to:
