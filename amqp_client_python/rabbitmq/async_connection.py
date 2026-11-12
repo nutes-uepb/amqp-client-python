@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Optional, Callable, Awaitable, Tuple, Dict, Any
+from typing import Optional, Callable, Awaitable, Tuple, Dict, Any, Union
 
 from .async_connection_factory import AsyncConnectionFactoryRabbitMQ, AsyncioConnection
 from .async_channel import AsyncChannel
@@ -64,7 +64,7 @@ class AsyncConnection:
         self.reconnect_delay = 1
         self.callbacks: deque[Tuple[Callable, Future]] = deque()
         self.type = connection_type
-        self.backup: Dict[str, Dict[str, Any]] = {
+        self.backup: Dict[str, Dict[Union[str, Tuple[str, str]], Any]] = {
             "exchange": {},
             "queue": {},
             "subscribe": {},
