@@ -1,7 +1,10 @@
+import asyncio
+from unittest.mock import MagicMock
 from amqp_client_python.rabbitmq import AsyncChannel
 from amqp_client_python.exceptions import EventBusException
 from amqp_client_python import ConnectionType
 from asyncio import iscoroutine, Future, get_running_loop
+from pika import BasicProperties
 import pytest
 
 
@@ -74,3 +77,47 @@ async def test_rpc_subscribe_publisher_started(
         with pytest.raises(EventBusException):
             assert await rpc_subscribe is None
         assert channel.rpc_publisher_started is False
+
+
+@pytest.mark.asyncio_cooperative
+async def test_rpc_server_dict_and_list_serialization():
+    """Verify that RPC server responses returning dicts are serialized without AttributeError."""
+    loop = asyncio.get_running_loop()
+    channel = AsyncChannel()
+    channel.ioloop = loop
+    channel._channel = MagicMock()
+    channel._channel.is_open = True
+    channel.rpc_publisher_started = True
+    channel._channel_rpc = MagicMock()
+    channel._channel_rpc.is_open = True
+
+    async def my_dict_handler(body):
+        return {"status": "success", "user_id": 42}
+
+    channel.subscribes["rpc_queue"] = {
+        "user.get": {
+            "handle": my_dict_handler,
+            "content_type": "application/json",
+            "response_timeout": 5,
+            "auto_decode": True,
+        }
+    }
+
+    deliver = MagicMock()
+    deliver.routing_key = "user.get"
+    deliver.delivery_tag = 101
+
+    props = BasicProperties(
+        reply_to="amq.gen-reply",
+        correlation_id="corr-1234",
+    )
+
+    channel.on_message("rpc_queue", channel._channel, deliver, props, b"{}")
+    await asyncio.sleep(0.05)
+
+    assert channel._channel_rpc.basic_publish.called
+    args, kwargs = channel._channel_rpc.basic_publish.call_args
+    assert args[0] == ""
+    assert args[1] == "amq.gen-reply"
+    assert isinstance(args[2], (bytes, str))
+    assert '"status": "success"' in args[2] or b'"status": "success"' in args[2]

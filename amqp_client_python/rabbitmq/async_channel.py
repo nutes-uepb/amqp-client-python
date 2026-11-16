@@ -1,5 +1,13 @@
+import asyncio
+import logging
+import re
+from asyncio import AbstractEventLoop, Future, wait, wait_for, FIRST_COMPLETED
 from collections import deque
+from functools import partial
+from json import dumps, loads
 from typing import MutableMapping, Optional, Union, Dict, List, Tuple, Any
+from uuid import uuid4
+
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -14,12 +22,6 @@ from amqp_client_python.domain.utils.types import HandlerType
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.channel import Channel
 from pika import BasicProperties, DeliveryMode
-from asyncio import AbstractEventLoop, Future, wait, wait_for, FIRST_COMPLETED
-from functools import partial
-from json import dumps, loads
-from uuid import uuid4
-import logging
-import re
 
 
 LOGGER = logging.getLogger(__name__)
@@ -49,8 +51,11 @@ class AsyncChannel:
         self.rpc_consumer = False
         self.rpc_consumer_started = False
         self.rpc_consumer_starting = False
+        self.rpc_consumer_future: Optional[Future] = None
         self.rpc_publisher_started = False
         self.rpc_publisher_starting = False
+        self.rpc_publisher_future: Optional[Future] = None
+        self._pending_consumer_registrations: List[Future] = []
         self._rpc_consumer_timer: Optional[Any] = None
         self._rpc_publisher_timer: Optional[Any] = None
         self.consumer_tag = None
@@ -170,6 +175,22 @@ class AsyncChannel:
             self._rpc_publisher_timer.cancel()
             self._rpc_publisher_timer = None
 
+        if hasattr(self, "rpc_consumer_future") and self.rpc_consumer_future and not self.rpc_consumer_future.done():
+            self.rpc_consumer_future.set_exception(exc)
+        self.rpc_consumer_starting = False
+        self.rpc_consumer_started = False
+
+        if hasattr(self, "rpc_publisher_future") and self.rpc_publisher_future and not self.rpc_publisher_future.done():
+            self.rpc_publisher_future.set_exception(exc)
+        self.rpc_publisher_starting = False
+        self.rpc_publisher_started = False
+
+        if hasattr(self, "_pending_consumer_registrations"):
+            for reg_fut in self._pending_consumer_registrations:
+                if not reg_fut.done():
+                    reg_fut.set_exception(exc)
+            self._pending_consumer_registrations.clear()
+
         if self._connection and (self._connection.is_closing or self._connection.is_closed):
             LOGGER.info("Connection is closing or already closed")
         elif self._connection:
@@ -187,20 +208,28 @@ class AsyncChannel:
     def on_delivery_confirmation(self, method_frame) -> None:
         confirmation_type = method_frame.method.NAME.split(".")[1].lower()
         delivery_tag = method_frame.method.delivery_tag
-        if confirmation_type == "ack":
-            self._acked += 1
-            if delivery_tag in self._deliveries:
-                future = self._deliveries[delivery_tag]
-                not future.done() and future.set_result(True)  # type: ignore
-        elif confirmation_type == "nack":
-            self._nacked += 1
-            if delivery_tag in self._deliveries:
-                future = self._deliveries[delivery_tag]
-                not future.done() and future.set_exception(  # type: ignore
-                    NackException(
-                        f"Publish confirmation: nack of {delivery_tag} publish"
+        multiple = getattr(method_frame.method, "multiple", False)
+
+        tags_to_confirm = (
+            [tag for tag in list(self._deliveries.keys()) if tag <= delivery_tag]
+            if multiple
+            else ([delivery_tag] if delivery_tag in self._deliveries else [])
+        )
+
+        for tag in tags_to_confirm:
+            future = self._deliveries.get(tag)
+            if confirmation_type == "ack":
+                self._acked += 1
+                if future and not future.done():
+                    future.set_result(True)
+            elif confirmation_type == "nack":
+                self._nacked += 1
+                if future and not future.done():
+                    future.set_exception(
+                        NackException(
+                            f"Publish confirmation: nack of {tag} publish"
+                        )
                     )
-                )
 
     def setup_exchange(self, exchange_name, exchange_type, durable=True):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
@@ -618,13 +647,21 @@ class AsyncChannel:
         if not self.consumers[queue_name]:
             assert self.ioloop is not None
             registered: Future[bool] = self.ioloop.create_future()
+            if not hasattr(self, "_pending_consumer_registrations"):
+                self._pending_consumer_registrations = []
+            self._pending_consumer_registrations.append(registered)
+            registered.add_done_callback(
+                lambda f: self._pending_consumer_registrations.remove(f)
+                if hasattr(self, "_pending_consumer_registrations") and f in self._pending_consumer_registrations
+                else None
+            )
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
             self._channel.basic_consume(
                 queue_name,
                 on_message_callback=func,
                 auto_ack=self.auto_ack,
-                callback=lambda _: registered.set_result(True),
+                callback=lambda _: not registered.done() and registered.set_result(True),
             )
             await registered
 
@@ -658,10 +695,38 @@ class AsyncChannel:
         if "*" in routing_key or "#" in routing_key:
             if any(k == routing_key for k, _ in self._compiled_patterns[queue_name]):
                 return
-            # AMQP topic wildcard pattern (* = single word [^.]+, # = zero or more words .*)
-            amqp_regex = "^" + re.escape(routing_key).replace(r"\*", r"[^.]+").replace(r"\#", r".*") + "$"
             try:
-                self._compiled_patterns[queue_name].append((routing_key, re.compile(amqp_regex)))
+                if routing_key == "#":
+                    pattern = re.compile(r"^.*$")
+                else:
+                    tokens = routing_key.split(".")
+                    regex_tokens = []
+                    for i, token in enumerate(tokens):
+                        if token == "*":
+                            regex_tokens.append(r"[^.]+")
+                        elif token == "#":
+                            if i == 0:
+                                regex_tokens.append(r"(?:.*\.)?")
+                            elif i == len(tokens) - 1:
+                                regex_tokens.append(r"(?:\..*)?")
+                            else:
+                                regex_tokens.append(r"(?:\..*?)?")
+                        else:
+                            regex_tokens.append(re.escape(token))
+
+                    regex_str = "^"
+                    for i, tok in enumerate(regex_tokens):
+                        orig = tokens[i]
+                        if i > 0:
+                            prev_orig = tokens[i - 1]
+                            if prev_orig != "#" and orig != "#":
+                                regex_str += r"\."
+                            elif prev_orig == "#" and orig != "#" and i - 1 > 0:
+                                regex_str += r"\."
+                        regex_str += tok
+                    regex_str += "$"
+                    pattern = re.compile(regex_str)
+                self._compiled_patterns[queue_name].append((routing_key, pattern))
             except re.error:
                 pass
 
@@ -739,16 +804,18 @@ class AsyncChannel:
                 self.rpc_publisher_started
                 and self._channel_rpc
                 and self._channel_rpc.is_open
-                and response
+                and response is not None
                 and props.reply_to
             ):
+                content_type = handler.get("content_type", "application/json")
+                serialized_response = self._serialize_payload(response, content_type)
                 self._channel_rpc.basic_publish(
                     "",
                     props.reply_to,
-                    response,
+                    serialized_response,
                     properties=BasicProperties(
                         correlation_id=props.correlation_id,
-                        content_type=handler["content_type"],
+                        content_type=content_type,
                         type="normal",
                     ),
                 )
@@ -797,7 +864,9 @@ class AsyncChannel:
                     basic_deliver.delivery_tag, requeue=False
                 )
 
-            except BaseException as err:
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:
                 if (
                     self.rpc_publisher_started
                     and self._channel_rpc

@@ -1,8 +1,11 @@
+import asyncio
+from unittest.mock import MagicMock
 from amqp_client_python.rabbitmq import AsyncChannel
 from amqp_client_python.exceptions import (
     PublishTimeoutException,
     ResponseTimeoutException,
     EventBusException,
+    AutoReconnectException,
 )
 from asyncio import iscoroutine, Future, wait_for, get_running_loop
 import pytest
@@ -168,3 +171,32 @@ async def test_rpc_client_raw_bytes(connection_mock, channel_mock, channel_facto
         b'{"raw": "bytes"}',
     )
     assert result == expected_result
+
+
+@pytest.mark.asyncio_cooperative
+async def test_rpc_deadlock_eliminated_on_channel_close():
+    """Verify that channel closure during RPC setup fails pending futures and resets flags."""
+    loop = get_running_loop()
+    channel = AsyncChannel()
+    channel.ioloop = loop
+    channel._connection = MagicMock()
+    channel._connection.is_closing = False
+    channel._connection.is_closed = False
+
+    channel.channel_factory = MagicMock()
+    mock_chan = MagicMock()
+    channel.channel_factory.create_channel.return_value = mock_chan
+
+    task = asyncio.create_task(channel.start_rpc_publisher())
+    await asyncio.sleep(0.01)
+
+    assert channel.rpc_publisher_starting is True
+
+    channel.on_channel_closed(mock_chan, "Broker connection lost")
+
+    with pytest.raises(AutoReconnectException):
+        await task
+
+    assert channel.rpc_publisher_starting is False
+    assert channel.rpc_publisher_started is False
+    assert channel.rpc_publisher_future.done()

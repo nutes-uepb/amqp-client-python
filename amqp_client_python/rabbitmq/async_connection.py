@@ -66,7 +66,7 @@ class AsyncConnection:
         self.reconnect_delay = 1
         self.callbacks: deque[Tuple[Callable, Future]] = deque()
         self.type = connection_type
-        self.backup: Dict[str, Dict[Union[str, Tuple[str, str]], Any]] = {
+        self.backup: Dict[str, Dict[Union[str, Tuple[str, ...]], Any]] = {
             "exchange": {},
             "queue": {},
             "subscribe": {},
@@ -114,6 +114,15 @@ class AsyncConnection:
         if self._reconnect_timer is not None and not self._reconnect_timer.cancelled():
             self._reconnect_timer.cancel()
             self._reconnect_timer = None
+        while self.callbacks:
+            try:
+                cb, fut = self.callbacks.popleft()
+                if not fut.done():
+                    fut.set_exception(
+                        AutoReconnectException("Connection closed by client")
+                    )
+            except IndexError:
+                break
         if self._connection and not self._connection.is_closed:
             self._connection.close()
 
@@ -181,6 +190,15 @@ class AsyncConnection:
             if self._reconnect_timer and not self._reconnect_timer.cancelled():
                 self._reconnect_timer.cancel()
                 self._reconnect_timer = None
+            while self.callbacks:
+                try:
+                    cb, fut = self.callbacks.popleft()
+                    if not fut.done():
+                        fut.set_exception(
+                            AutoReconnectException("Connection closed by client")
+                        )
+                except IndexError:
+                    break
         else:
             LOGGER.warning(
                 f"Connection closed, reason: {reason}, will attempt a connection"

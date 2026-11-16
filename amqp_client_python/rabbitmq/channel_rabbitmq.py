@@ -272,7 +272,7 @@ class ChannelRabbitMQ:
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
     def addResource(self, name: str, resource, content_type="application/json") -> bool:
-        if not hasattr(self.consumers, name):
+        if name not in self.consumers:
             self.consumers[name] = {"handle": resource, "content_type": content_type}
             return True
         return False

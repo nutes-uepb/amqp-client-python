@@ -1,6 +1,7 @@
 from amqp_client_python.rabbitmq import AsyncChannel
-from amqp_client_python.exceptions import PublishTimeoutException
+from amqp_client_python.exceptions import PublishTimeoutException, NackException
 from asyncio import iscoroutine, Future, wait_for, get_running_loop
+from unittest.mock import MagicMock
 import pytest
 from json import dumps
 
@@ -100,3 +101,64 @@ async def test_channel_publish_raw_bytes(connection_mock, channel_mock, channel_
         routing_key,
         b'{"raw": "bytes"}',
     )
+
+
+@pytest.mark.asyncio_cooperative
+async def test_batched_publisher_confirms_multiple():
+    """Verify that Basic.Ack with multiple=True confirms all tags <= delivery_tag."""
+    loop = get_running_loop()
+    channel = AsyncChannel()
+    channel.ioloop = loop
+    channel._channel = MagicMock()
+    channel.add_publish_confirms()
+
+    fut1 = loop.create_future()
+    fut2 = loop.create_future()
+    fut3 = loop.create_future()
+
+    channel.publish_confirmation(fut1)  # tag 1
+    channel.publish_confirmation(fut2)  # tag 2
+    channel.publish_confirmation(fut3)  # tag 3
+
+    assert 1 in channel._deliveries
+    assert 2 in channel._deliveries
+    assert 3 in channel._deliveries
+
+    frame = MagicMock()
+    frame.method.NAME = "Basic.Ack"
+    frame.method.delivery_tag = 3
+    frame.method.multiple = True
+
+    channel.on_delivery_confirmation(frame)
+
+    assert fut1.done() and fut1.result() is True
+    assert fut2.done() and fut2.result() is True
+    assert fut3.done() and fut3.result() is True
+    assert channel._acked == 3
+
+
+@pytest.mark.asyncio_cooperative
+async def test_batched_publisher_confirms_nack_multiple():
+    """Verify that Basic.Nack with multiple=True fails all tags <= delivery_tag."""
+    loop = get_running_loop()
+    channel = AsyncChannel()
+    channel.ioloop = loop
+    channel._channel = MagicMock()
+    channel.add_publish_confirms()
+
+    fut1 = loop.create_future()
+    fut2 = loop.create_future()
+
+    channel.publish_confirmation(fut1)  # tag 1
+    channel.publish_confirmation(fut2)  # tag 2
+
+    frame = MagicMock()
+    frame.method.NAME = "Basic.Nack"
+    frame.method.delivery_tag = 2
+    frame.method.multiple = True
+
+    channel.on_delivery_confirmation(frame)
+
+    assert fut1.done() and isinstance(fut1.exception(), NackException)
+    assert fut2.done() and isinstance(fut2.exception(), NackException)
+    assert channel._nacked == 2

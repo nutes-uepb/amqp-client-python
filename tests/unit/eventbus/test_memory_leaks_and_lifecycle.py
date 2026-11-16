@@ -227,3 +227,39 @@ def test_sync_channel_on_response_error():
 
     assert fut.done()
     assert fut.exception() is not None
+
+
+@pytest.mark.asyncio_cooperative
+async def test_add_callback_rejected_on_close():
+    """Verify that queued add_callback operations are rejected with AutoReconnectException on close()."""
+    loop = asyncio.get_running_loop()
+    conn = AsyncConnection(ioloop=loop)
+    conn._connection = MagicMock()
+    conn._connection.is_closed = False
+
+    async def dummy_operation():
+        return "never_reached"
+
+    task = asyncio.create_task(conn.add_callback(dummy_operation, connection_timeout=None))
+    await asyncio.sleep(0.01)
+
+    assert len(conn.callbacks) == 1
+
+    await conn.close()
+
+    with pytest.raises(AutoReconnectException) as exc_info:
+        await task
+    assert "Connection closed by client" in str(exc_info.value)
+    assert len(conn.callbacks) == 0
+
+
+def test_sync_add_resource_dict_name():
+    """Verify ChannelRabbitMQ.addResource works for dict method names and detects duplicates."""
+    channel = ChannelRabbitMQ()
+
+    assert channel.addResource("get", lambda x: x) is True
+    assert "get" in channel.consumers
+    assert channel.addResource("get", lambda x: x) is False
+
+    assert channel.addResource("user.create", lambda x: x) is True
+    assert channel.addResource("user.create", lambda x: x) is False
