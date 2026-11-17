@@ -185,7 +185,8 @@ async def test_cancelled_error_not_swallowed():
 
     props = BasicProperties()
 
-    channel.on_message("cancel_queue", channel._channel, deliver, props, b"cancel")
-    await asyncio.sleep(0.05)
+    task = channel.on_message("cancel_queue", channel._channel, deliver, props, b"cancel")
+    with pytest.raises(asyncio.CancelledError):
+        await task
 
     assert not channel._channel.basic_nack.called

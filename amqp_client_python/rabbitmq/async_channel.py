@@ -776,7 +776,7 @@ class AsyncChannel:
 
     def on_message(
         self, queue_name, _unused_channel, basic_deliver, props: BasicProperties, body
-    ) -> None:
+    ) -> Any:
         """Invoked by pika when a message is delivered from RabbitMQ. The
         channel is passed for your convenience. The basic_deliver object that
         is passed in carries the exchange, routing key, delivery tag and
@@ -896,3 +896,4 @@ class AsyncChannel:
                 LOGGER.error(f"Error handling message on queue {queue_name}: {t.exception()}")
 
         task.add_done_callback(_on_task_done)
+        return task

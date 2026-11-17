@@ -112,8 +112,13 @@ async def test_rpc_server_dict_and_list_serialization():
         correlation_id="corr-1234",
     )
 
+    published = loop.create_future()
+    channel._channel_rpc.basic_publish = MagicMock(
+        side_effect=lambda *args, **kwargs: not published.done() and published.set_result(True)
+    )
+
     channel.on_message("rpc_queue", channel._channel, deliver, props, b"{}")
-    await asyncio.sleep(0.05)
+    await asyncio.wait_for(published, timeout=5.0)
 
     assert channel._channel_rpc.basic_publish.called
     args, kwargs = channel._channel_rpc.basic_publish.call_args
