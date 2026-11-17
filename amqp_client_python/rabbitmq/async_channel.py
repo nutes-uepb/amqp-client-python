@@ -357,7 +357,7 @@ class AsyncChannel:
 
     def unsubscribe(self, consumer_tag: str):
         self.rpc_consumer_started = False
-        if self.rpc_consumer_starting and not self.rpc_consumer_future.done():
+        if self.rpc_consumer_starting and self.rpc_consumer_future is not None and not self.rpc_consumer_future.done():
             self.rpc_consumer_future.cancel()
         self._channel.basic_cancel(consumer_tag)
 
@@ -387,7 +387,7 @@ class AsyncChannel:
                 )
                 self.rpc_consumer_started = True
                 self.rpc_consumer_starting = False
-                if not self.rpc_consumer_future.done():
+                if self.rpc_consumer_future is not None and not self.rpc_consumer_future.done():
                     self.rpc_consumer_future.set_result(True)
 
             LOGGER.info(f"Declaring queue {self._callback_queue}")
@@ -403,7 +403,7 @@ class AsyncChannel:
         )
 
         def attemp_failed():
-            if not self.rpc_consumer_future.done():
+            if self.rpc_consumer_future is not None and not self.rpc_consumer_future.done():
                 self.rpc_consumer_started = False
                 self.rpc_consumer_starting = False
                 self.rpc_consumer_future.set_exception(
@@ -430,7 +430,7 @@ class AsyncChannel:
             self._channel_rpc.add_on_close_callback(self.on_channel_closed)
             self.rpc_publisher_started = True
             self.rpc_publisher_starting = False
-            if not self.rpc_publisher_future.done():
+            if self.rpc_publisher_future is not None and not self.rpc_publisher_future.done():
                 self.rpc_publisher_future.set_result(True)
 
         self._channel_rpc: Channel = self.channel_factory.create_channel(
@@ -438,7 +438,7 @@ class AsyncChannel:
         )
 
         def attemp_failed():
-            if not self.rpc_publisher_future.done():
+            if self.rpc_publisher_future is not None and not self.rpc_publisher_future.done():
                 self.rpc_publisher_started = False
                 self.rpc_publisher_starting = False
                 self.rpc_publisher_future.set_exception(
@@ -661,7 +661,7 @@ class AsyncChannel:
                 queue_name,
                 on_message_callback=func,
                 auto_ack=self.auto_ack,
-                callback=lambda _: not registered.done() and registered.set_result(True),
+                callback=lambda _: registered.set_result(True) if not registered.done() else None,
             )
             await registered
 
