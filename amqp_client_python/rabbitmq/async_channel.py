@@ -808,7 +808,10 @@ class AsyncChannel:
                 and props.reply_to
             ):
                 content_type = handler.get("content_type", "application/json")
-                serialized_response = self._serialize_payload(response, content_type)
+                if isinstance(response, (bytes, bytearray, memoryview, str)):
+                    serialized_response = response
+                else:
+                    serialized_response = dumps(response)
                 self._channel_rpc.basic_publish(
                     "",
                     props.reply_to,
