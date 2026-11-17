@@ -30,7 +30,13 @@ class IOLoopFactory:
 
     @classmethod
     def add_reconnection(cls, call: Callable):
-        cls._reconnection_list.append(call)
+        if call not in cls._reconnection_list:
+            cls._reconnection_list.append(call)
+
+    @classmethod
+    def remove_reconnection(cls, call: Callable):
+        if call in cls._reconnection_list:
+            cls._reconnection_list.remove(call)
 
     @classmethod
     def _reconnect(cls):

@@ -103,6 +103,7 @@ class ConnectionRabbitMQ:
 
     def stop(self):
         self._stopping = True
+        self.ioloop_factory.remove_reconnection(self.reconnect)
         if self.ioloop_is_open:
             self._connection.ioloop.stop()
 

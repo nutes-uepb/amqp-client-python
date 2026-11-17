@@ -56,7 +56,7 @@ async def test_auto_recovery_on_connection_open():
 
     mock_connection = MagicMock()
     conn.connection_factory.create_connection = MagicMock(return_value=mock_connection)
-    
+
     with patch.object(AsyncChannel, "open") as mock_channel_open:
         conn.on_connection_open(mock_connection)
         assert conn.reconnecting is False

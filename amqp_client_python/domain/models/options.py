@@ -15,6 +15,12 @@ class Options:
         vhost: str = "/",
         heartbeat: Optional[int] = 60,
         publisher_confirms: bool = False,
+        rpc_exchange_type: str = "topic",
+        rpc_queue_durable: bool = True,
+        rpc_queue_auto_delete: bool = False,
+        exchange_type: str = "topic",
+        queue_durable: bool = True,
+        queue_auto_delete: bool = False,
         **kwargs: Dict[str, Any]
     ) -> None:
         """
@@ -32,6 +38,12 @@ class Options:
             vhost: vhost information
             heartbeat: interval between heartbeat
             publisher_confirms: wait for publisher confirmations
+            rpc_exchange_type: exchange type for RPC server (default 'topic')
+            rpc_queue_durable: durability for RPC server queue (default True)
+            rpc_queue_auto_delete: auto_delete for RPC server queue (default False)
+            exchange_type: exchange type for pub/sub subscriptions (default 'topic')
+            queue_durable: durability for pub/sub subscriptions queue (default True)
+            queue_auto_delete: auto_delete for pub/sub subscriptions queue (default False)
             **kwargs: pika options
 
         Examples:
@@ -56,4 +68,10 @@ class Options:
         self.vhost = vhost
         self.heartbeat = heartbeat
         self.publisher_confirms = publisher_confirms
+        self.rpc_exchange_type = kwargs.pop("rpc_exchange_type", rpc_exchange_type)
+        self.rpc_queue_durable = kwargs.pop("rpc_queue_durable", rpc_queue_durable)
+        self.rpc_queue_auto_delete = kwargs.pop("rpc_queue_auto_delete", rpc_queue_auto_delete)
+        self.exchange_type = kwargs.pop("exchange_type", exchange_type)
+        self.queue_durable = kwargs.pop("queue_durable", queue_durable)
+        self.queue_auto_delete = kwargs.pop("queue_auto_delete", queue_auto_delete)
         self.kwargs = kwargs
