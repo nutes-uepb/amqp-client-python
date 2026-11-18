@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+import time
 from asyncio import AbstractEventLoop, Future, wait, wait_for, FIRST_COMPLETED
 from collections import deque
 from functools import partial
@@ -70,7 +71,9 @@ class AsyncChannel:
         self._acked = 0
         self._nacked = 0
         self._message_number = 0
-        self._deliveries: MutableMapping[int, Future] = {}
+        self._deliveries: MutableMapping[int, Future] = self.futures
+        self._delivery_deadlines: Dict[int, float] = {}
+        self._publish_timer: Optional[Any] = None
         self._publish_timers: Dict[int, Any] = {}
         self.response_timeout = 60
         self._declared_exchanges: Dict[str, Tuple[str, bool]] = {}
@@ -144,8 +147,10 @@ class AsyncChannel:
             self._declared_exchanges.clear()
 
         exc = AutoReconnectException(f"Channel closed unexpectedly: {reason}")
-        # Abort in-flight RPCs
-        for corr_id, entry in list(self.rpc_futures.items()):
+        # Abort in-flight RPCs (atomic swap style)
+        pending_rpc = self.rpc_futures
+        self.rpc_futures = {}
+        for corr_id, entry in pending_rpc.items():
             timer = entry.get("timer")
             if timer and not timer.cancelled():
                 timer.cancel()
@@ -155,18 +160,25 @@ class AsyncChannel:
             pub = entry.get("published")
             if pub and not pub.done():
                 pub.set_exception(exc)
-        self.rpc_futures.clear()
 
-        # Abort in-flight publisher confirms
-        for msg_id, fut in list(self.futures.items()):
-            if not fut.done():
-                fut.set_exception(exc)
-        self.futures.clear()
-        self._deliveries.clear()
+        # Abort in-flight publisher confirms (atomic swap style)
+        pending_futures = self.futures
+        self.futures = {}
+        self._deliveries = self.futures
+        self._delivery_deadlines.clear()
+
+        if self._publish_timer and not self._publish_timer.cancelled():
+            self._publish_timer.cancel()
+            self._publish_timer = None
+
         for timer in self._publish_timers.values():
             if not timer.cancelled():
                 timer.cancel()
         self._publish_timers.clear()
+
+        for msg_id, fut in pending_futures.items():
+            if not fut.done():
+                fut.set_exception(exc)
 
         if self._rpc_consumer_timer and not self._rpc_consumer_timer.cancelled():
             self._rpc_consumer_timer.cancel()
@@ -200,7 +212,13 @@ class AsyncChannel:
     def add_publish_confirms(self):
         self._acked = 0
         self._nacked = 0
-        self._deliveries = {}
+        self.futures = {}
+        self._deliveries = self.futures
+        self._delivery_deadlines = {}
+        if self._publish_timer and not self._publish_timer.cancelled():
+            self._publish_timer.cancel()
+        self._publish_timer = None
+        self._publish_timers = {}
         self._message_number = 0
         self._channel.confirm_delivery(self.on_delivery_confirmation)
         LOGGER.info("Adding Publish Confirmation")
@@ -215,17 +233,26 @@ class AsyncChannel:
             while self._deliveries:
                 first_tag = next(iter(self._deliveries))
                 if first_tag <= delivery_tag:
+                    self._delivery_deadlines.pop(first_tag, None)
+                    self._publish_timers.pop(first_tag, None)
                     tags_to_confirm.append((first_tag, self._deliveries.pop(first_tag)))
                 else:
                     break
         else:
+            self._delivery_deadlines.pop(delivery_tag, None)
+            self._publish_timers.pop(delivery_tag, None)
             future = self._deliveries.pop(delivery_tag, None)
             tags_to_confirm = [(delivery_tag, future)] if future else []
 
+        if (
+            not self._deliveries
+            and self._publish_timer
+            and not self._publish_timer.cancelled()
+        ):
+            self._publish_timer.cancel()
+            self._publish_timer = None
+
         for tag, future in tags_to_confirm:
-            timer = self._publish_timers.pop(tag, None)
-            if timer and not timer.cancelled():
-                timer.cancel()
             if confirmation_type == "ack":
                 self._acked += 1
                 if future and not future.done():
@@ -589,18 +616,48 @@ class AsyncChannel:
         if self.publisher_confirms:
             publish_future: Future = self.ioloop.create_future()  # type: ignore
             self.publish_confirmation(publish_future)
+            msg_id = self._message_number
+            now = time.monotonic()
+            self._delivery_deadlines[msg_id] = now + timeout
 
-            def not_arrived(id):
-                fut = self.futures.get(id)
-                if fut and not fut.done():
-                    fut.set_exception(
+            if self._publish_timer is None and self.ioloop:
+                self._publish_timer = self.ioloop.call_later(
+                    timeout, self._on_publish_timeout
+                )
+            self._publish_timers[msg_id] = self._publish_timer
+
+            return await publish_future
+
+    def _on_publish_timeout(self) -> None:
+        self._publish_timer = None
+        now = time.monotonic()
+
+        while self._deliveries:
+            first_tag = next(iter(self._deliveries))
+            deadline = self._delivery_deadlines.get(first_tag, 0)
+            if deadline <= now:
+                future = self._deliveries.pop(first_tag, None)
+                self._delivery_deadlines.pop(first_tag, None)
+                self._publish_timers.pop(first_tag, None)
+                if future and not future.done():
+                    future.set_exception(
                         PublishTimeoutException("Timeout: time limit reached")
                     )
+            else:
+                remaining = max(0.001, deadline - now)
+                if self.ioloop:
+                    self._publish_timer = self.ioloop.call_later(
+                        remaining, self._on_publish_timeout
+                    )
+                return
 
-            func = partial(not_arrived, self._message_number)
-            timer = self.ioloop.call_later(timeout, func)  # type: ignore
-            self._publish_timers[self._message_number] = timer
-            return await publish_future
+        while self.futures:
+            first_tag = next(iter(self.futures))
+            future = self.futures.pop(first_tag)
+            if future and not future.done():
+                future.set_exception(
+                    PublishTimeoutException("Timeout: time limit reached")
+                )
 
     def publish_confirmation(self, future: Future):
         """Tracks message publishes requiring confirmation"""
@@ -608,20 +665,25 @@ class AsyncChannel:
         # Increment sequence counter for message tracking
         self._message_number += 1
         msg_id = self._message_number
-        # Store future reference for confirmation handling
+        # Store future reference for confirmation handling (self._deliveries is an alias to self.futures)
         self.futures[msg_id] = future
-        # Link to delivery tracking system
-        self._deliveries[msg_id] = future
         # Register cleanup callback using partial binding
         clean = partial(self.clean_publish_confirmation, msg_id)
         future.add_done_callback(clean)
 
     def clean_publish_confirmation(self, message_id: int, _fut=None):
         self.futures.pop(message_id, None)
-        self._deliveries.pop(message_id, None)
+        self._delivery_deadlines.pop(message_id, None)
         timer = self._publish_timers.pop(message_id, None)
         if timer and not timer.cancelled():
             timer.cancel()
+        if (
+            not self._deliveries
+            and self._publish_timer
+            and not self._publish_timer.cancelled()
+        ):
+            self._publish_timer.cancel()
+            self._publish_timer = None
 
     def clean_rpc_response(self, corr_id: str, _fut=None):
         entry = self.rpc_futures.pop(corr_id, None)
