@@ -210,14 +210,22 @@ class AsyncChannel:
         delivery_tag = method_frame.method.delivery_tag
         multiple = getattr(method_frame.method, "multiple", False)
 
-        tags_to_confirm = (
-            [tag for tag in list(self._deliveries.keys()) if tag <= delivery_tag]
-            if multiple
-            else ([delivery_tag] if delivery_tag in self._deliveries else [])
-        )
+        if multiple:
+            tags_to_confirm = []
+            while self._deliveries:
+                first_tag = next(iter(self._deliveries))
+                if first_tag <= delivery_tag:
+                    tags_to_confirm.append((first_tag, self._deliveries.pop(first_tag)))
+                else:
+                    break
+        else:
+            future = self._deliveries.pop(delivery_tag, None)
+            tags_to_confirm = [(delivery_tag, future)] if future else []
 
-        for tag in tags_to_confirm:
-            future = self._deliveries.get(tag)
+        for tag, future in tags_to_confirm:
+            timer = self._publish_timers.pop(tag, None)
+            if timer and not timer.cancelled():
+                timer.cancel()
             if confirmation_type == "ack":
                 self._acked += 1
                 if future and not future.done():

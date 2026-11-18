@@ -162,3 +162,47 @@ async def test_batched_publisher_confirms_nack_multiple():
     assert fut1.done() and isinstance(fut1.exception(), NackException)
     assert fut2.done() and isinstance(fut2.exception(), NackException)
     assert channel._nacked == 2
+
+
+@pytest.mark.asyncio_cooperative
+async def test_batched_publisher_confirms_no_reprocessing():
+    """Verify that consecutive batch ACKs do not re-process or re-count already confirmed tags."""
+    loop = get_running_loop()
+    channel = AsyncChannel()
+    channel.ioloop = loop
+    channel._channel = MagicMock()
+    channel.add_publish_confirms()
+
+    fut1 = loop.create_future()
+    fut2 = loop.create_future()
+    fut3 = loop.create_future()
+
+    channel.publish_confirmation(fut1)  # tag 1
+    channel.publish_confirmation(fut2)  # tag 2
+    channel.publish_confirmation(fut3)  # tag 3
+
+    # First ACK confirms up to tag 2
+    frame1 = MagicMock()
+    frame1.method.NAME = "Basic.Ack"
+    frame1.method.delivery_tag = 2
+    frame1.method.multiple = True
+    channel.on_delivery_confirmation(frame1)
+
+    assert fut1.done() and fut1.result() is True
+    assert fut2.done() and fut2.result() is True
+    assert not fut3.done()
+    assert channel._acked == 2
+    assert 1 not in channel._deliveries
+    assert 2 not in channel._deliveries
+    assert 3 in channel._deliveries
+
+    # Second ACK confirms up to tag 3
+    frame2 = MagicMock()
+    frame2.method.NAME = "Basic.Ack"
+    frame2.method.delivery_tag = 3
+    frame2.method.multiple = True
+    channel.on_delivery_confirmation(frame2)
+
+    assert fut3.done() and fut3.result() is True
+    assert channel._acked == 3  # Crucial: Must be 3, not 5 (2 + 3)
+    assert 3 not in channel._deliveries
