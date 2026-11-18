@@ -122,9 +122,9 @@ class AsyncEventbusRabbitMQ:
             bytes: response message
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
             PublishTimeoutException: if publish confirmation is set to True and \
-            does not receive confirmation on the gived timeout
+            does not receive confirmation within the given timeout
             NackException: if publish confirmation is set to True and receives a nack
             ResponseTimeoutException: if response timeout is reached
             RpcProviderException: if the rpc provider responded with an error
@@ -182,9 +182,9 @@ class AsyncEventbusRabbitMQ:
             True: if successful when publish confirmation is set to True
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
             PublishTimeoutException: if publish confirmation is set to True and \
-            does not receive confirmation on the gived timeout
+            does not receive confirmation within the given timeout
             NackException: if publish confirmation is set to True and receives a nack
 
         Examples:
@@ -231,7 +231,7 @@ class AsyncEventbusRabbitMQ:
             auto_decode: Whether to auto-decode JSON payload (default True)
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
 
         Examples:
             >>> async def handler(body) -> Union[bytes, str]:
@@ -288,7 +288,7 @@ class AsyncEventbusRabbitMQ:
             auto_decode: Whether to auto-decode JSON payload (default True)
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
 
         Examples:
             >>> async def handle(body) -> None:

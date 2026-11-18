@@ -616,10 +616,10 @@ class AsyncChannel:
         clean = partial(self.clean_publish_confirmation, msg_id)
         future.add_done_callback(clean)
 
-    def clean_publish_confirmation(self, meassage_id: int, _fut=None):
-        self.futures.pop(meassage_id, None)
-        self._deliveries.pop(meassage_id, None)
-        timer = self._publish_timers.pop(meassage_id, None)
+    def clean_publish_confirmation(self, message_id: int, _fut=None):
+        self.futures.pop(message_id, None)
+        self._deliveries.pop(message_id, None)
+        timer = self._publish_timers.pop(message_id, None)
         if timer and not timer.cancelled():
             timer.cancel()
 

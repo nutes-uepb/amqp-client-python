@@ -36,6 +36,8 @@ A Python client providing a high-level abstraction for interacting with RabbitMQ
 ### Table of Compatibility
 | version  | compatible with |
 | ---- | ---- |
+| 0.2.3 | ~0.2.0 |
+| 0.2.2 | ~0.2.0 (yanked) |
 | 0.2.1 | ~0.2.0 |
 | 0.2.0 | 0.2.0 |
 | 0.1.14 | ~0.1.12 |
@@ -51,7 +53,7 @@ pip install amqp-client-python
 
 ### Prerequisites
 
-*   Python 3.9+
+*   Python 3.10+
 *   A running RabbitMQ instance.
 
 ### Examples:
@@ -196,11 +198,11 @@ The library is provided by NUTES-UEPB.
 <br/>
 <a href="https://nutes.uepb.edu.br/" target="_blank"><img width="250px" src="https://nutes.uepb.edu.br/wp-content/uploads/2018/11/cropped-logo-Nutes-Final.jpg"></a>
 
-### Know Limitations:
+### Known Limitations:
 #### basic eventbus
 <medium><pre>
-When using [**EventbusRabbitMQ**](https://github.com/nutes-uepb/amqp-client-python/blob/master/amqp_client_python/rabbitmq/eventbus_rabbitmq.py#L12) Should not use rpc call inside of rpc provider or subscribe handlers, it may block the ioloop
-#/obs: fixed on other kinds of eventbus, will be removed on nexts releases
+When using [**EventbusRabbitMQ**](https://github.com/nutes-uepb/amqp-client-python/blob/master/amqp_client_python/rabbitmq/eventbus_rabbitmq.py#L12), you should not use RPC calls inside of RPC provider or subscribe handlers, as it may block the ioloop.
+# obs: fixed on other eventbus implementations, will be removed in future releases.
 </pre></medium>
 
 
