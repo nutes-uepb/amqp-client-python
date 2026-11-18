@@ -13,7 +13,7 @@ async def test_async_eventbus_rpc_client_surface(async_connection_mock, config_m
         ["content"],
         "text",
         4,
-        randint(1, 16)        
+        randint(1, 16)
     )
     eventbus = AsyncEventbusRabbitMQ(config_mock)
     eventbus._rpc_client_connection = async_connection_mock

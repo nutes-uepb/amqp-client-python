@@ -1,7 +1,7 @@
 from typing import Callable, Awaitable, Optional, Union, Any, List
 from .async_connection import AsyncConnection
 from ..domain.utils import ConnectionType
-from amqp_client_python.domain.models import Config
+from amqp_client_python.domain.models import Config, Options
 from asyncio import AbstractEventLoop, get_event_loop
 from pika import DeliveryMode
 from amqp_client_python.signals import Signal
@@ -122,9 +122,9 @@ class AsyncEventbusRabbitMQ:
             bytes: response message
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
             PublishTimeoutException: if publish confirmation is set to True and \
-            does not receive confirmation on the gived timeout
+            does not receive confirmation within the given timeout
             NackException: if publish confirmation is set to True and receives a nack
             ResponseTimeoutException: if response timeout is reached
             RpcProviderException: if the rpc provider responded with an error
@@ -145,7 +145,9 @@ class AsyncEventbusRabbitMQ:
                 **kwargs
             )
 
-        self._rpc_client_connection.open(self.config.url)
+        if self._rpc_client_connection.open(self.config.url):
+            if self._rpc_client_connection not in self._used_connections:
+                self._used_connections.append(self._rpc_client_connection)
         return await self._rpc_client_connection.add_callback(
             add_rpc_client, connection_timeout
         )
@@ -180,9 +182,9 @@ class AsyncEventbusRabbitMQ:
             True: if successful when publish confirmation is set to True
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
             PublishTimeoutException: if publish confirmation is set to True and \
-            does not receive confirmation on the gived timeout
+            does not receive confirmation within the given timeout
             NackException: if publish confirmation is set to True and receives a nack
 
         Examples:
@@ -203,7 +205,9 @@ class AsyncEventbusRabbitMQ:
                 **kwargs
             )
 
-        self._pub_connection.open(self.config.url)
+        if self._pub_connection.open(self.config.url):
+            if self._pub_connection not in self._used_connections:
+                self._used_connections.append(self._pub_connection)
         return await self._pub_connection.add_callback(add_publish, connection_timeout)
 
     async def provide_resource(
@@ -227,7 +231,7 @@ class AsyncEventbusRabbitMQ:
             auto_decode: Whether to auto-decode JSON payload (default True)
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
 
         Examples:
             >>> async def handler(body) -> Union[bytes, str]:
@@ -242,6 +246,11 @@ class AsyncEventbusRabbitMQ:
                 extra_kwargs["content_type"] = content_type
             if not auto_decode:
                 extra_kwargs["auto_decode"] = auto_decode
+            options = getattr(self.config, "options", None)
+            if isinstance(options, Options):
+                extra_kwargs["exchange_type"] = options.rpc_exchange_type
+                extra_kwargs["durable"] = options.rpc_queue_durable
+                extra_kwargs["auto_delete"] = options.rpc_queue_auto_delete
             await self._rpc_server_connection.rpc_subscribe(
                 self.config.options.rpc_queue_name,
                 self.config.options.rpc_exchange_name,
@@ -252,7 +261,8 @@ class AsyncEventbusRabbitMQ:
             )
 
         if self._rpc_server_connection.open(self.config.url):
-            self._used_connections.append(self._rpc_server_connection)
+            if self._rpc_server_connection not in self._used_connections:
+                self._used_connections.append(self._rpc_server_connection)
         await self._rpc_server_connection.add_callback(add_resource, connection_timeout)
 
     async def subscribe(
@@ -278,7 +288,7 @@ class AsyncEventbusRabbitMQ:
             auto_decode: Whether to auto-decode JSON payload (default True)
 
         Raises:
-            AutoReconnectException: when cannout reconnect on the gived timeout
+            AutoReconnectException: when cannot reconnect within the given timeout
 
         Examples:
             >>> async def handle(body) -> None:
@@ -296,6 +306,11 @@ class AsyncEventbusRabbitMQ:
                 extra_kwargs["content_type"] = content_type
             if not auto_decode:
                 extra_kwargs["auto_decode"] = auto_decode
+            options = getattr(self.config, "options", None)
+            if isinstance(options, Options):
+                extra_kwargs["exchange_type"] = options.exchange_type
+                extra_kwargs["durable"] = options.queue_durable
+                extra_kwargs["auto_delete"] = options.queue_auto_delete
             await self._sub_connection.subscribe(
                 self.config.options.queue_name,
                 exchange_name,
@@ -306,8 +321,18 @@ class AsyncEventbusRabbitMQ:
             )
 
         if self._sub_connection.open(self.config.url):
-            self._used_connections.append(self._sub_connection)
+            if self._sub_connection not in self._used_connections:
+                self._used_connections.append(self._sub_connection)
         await self._sub_connection.add_callback(add_subscribe, connection_timeout)
+
+    @property
+    def _all_connections(self) -> List[AsyncConnection]:
+        return [
+            self._pub_connection,
+            self._sub_connection,
+            self._rpc_client_connection,
+            self._rpc_server_connection,
+        ]
 
     async def restore(self) -> None:
         """
@@ -320,7 +345,8 @@ class AsyncEventbusRabbitMQ:
             >>> # After a dispose, call restore to re-establish connections
             >>> await eventbus.restore()
         """
-        for connection in self._used_connections:
+        connections = self._used_connections if self._used_connections else self._all_connections
+        for connection in connections:
             if not connection.is_open:
                 connection.open(self.config.url)
 

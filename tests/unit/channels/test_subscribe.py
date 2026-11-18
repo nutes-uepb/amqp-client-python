@@ -1,5 +1,8 @@
+import asyncio
+from unittest.mock import MagicMock
 from amqp_client_python.rabbitmq import AsyncChannel
 from asyncio import iscoroutine
+from pika import BasicProperties
 import pytest
 
 
@@ -118,3 +121,72 @@ async def test_async_channel_on_message_invalid_json_fallback(
 
     res = await received
     assert res == b'non-json-bytes'
+
+
+def test_amqp_topic_wildcard_zero_words():
+    """Verify AMQP # wildcard matches zero words as well as multiple words."""
+    channel = AsyncChannel()
+
+    # user.# matching
+    channel._compile_routing_pattern("test_q", "user.#")
+    patterns = dict(channel._compiled_patterns["test_q"])
+    user_pattern = patterns["user.#"]
+
+    assert user_pattern.match("user") is not None
+    assert user_pattern.match("user.created") is not None
+    assert user_pattern.match("user.profile.update") is not None
+    assert user_pattern.match("order.created") is None
+
+    # #.error matching
+    channel._compile_routing_pattern("test_q", "#.error")
+    patterns = dict(channel._compiled_patterns["test_q"])
+    error_pattern = patterns["#.error"]
+
+    assert error_pattern.match("error") is not None
+    assert error_pattern.match("auth.error") is not None
+    assert error_pattern.match("sys.auth.error") is not None
+    assert error_pattern.match("error.log") is None
+
+    # a.#.z matching
+    channel._compile_routing_pattern("test_q", "a.#.z")
+    patterns = dict(channel._compiled_patterns["test_q"])
+    mid_pattern = patterns["a.#.z"]
+
+    assert mid_pattern.match("a.z") is not None
+    assert mid_pattern.match("a.b.z") is not None
+    assert mid_pattern.match("a.b.c.z") is not None
+    assert mid_pattern.match("a.z.x") is None
+
+
+@pytest.mark.asyncio_cooperative
+async def test_cancelled_error_not_swallowed():
+    """Verify that asyncio.CancelledError is re-raised and not swallowed as normal error."""
+    loop = asyncio.get_running_loop()
+    channel = AsyncChannel()
+    channel.ioloop = loop
+    channel._channel = MagicMock()
+    channel._channel.is_open = True
+
+    async def cancelling_handler(body):
+        raise asyncio.CancelledError()
+
+    channel.subscribes["cancel_queue"] = {
+        "cancel.event": {
+            "handle": cancelling_handler,
+            "content_type": "text/plain",
+            "response_timeout": 5,
+            "auto_decode": False,
+        }
+    }
+
+    deliver = MagicMock()
+    deliver.routing_key = "cancel.event"
+    deliver.delivery_tag = 303
+
+    props = BasicProperties()
+
+    task = channel.on_message("cancel_queue", channel._channel, deliver, props, b"cancel")
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert not channel._channel.basic_nack.called

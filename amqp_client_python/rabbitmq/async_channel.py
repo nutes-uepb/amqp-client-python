@@ -1,5 +1,13 @@
+import asyncio
+import logging
+import re
+from asyncio import AbstractEventLoop, Future, wait, wait_for, FIRST_COMPLETED
 from collections import deque
-from typing import MutableMapping, Mapping, Optional, Union, Dict, List
+from functools import partial
+from json import dumps, loads
+from typing import MutableMapping, Optional, Union, Dict, List, Tuple, Any
+from uuid import uuid4
+
 from .async_channel_factory import AsyncChannelFactoryRabbitMQ
 from amqp_client_python.exceptions import (
     NackException,
@@ -7,18 +15,13 @@ from amqp_client_python.exceptions import (
     PublishTimeoutException,
     ResponseTimeoutException,
     EventBusException,
+    AutoReconnectException,
 )
 from amqp_client_python.signals import Signal, Event
 from amqp_client_python.domain.utils.types import HandlerType
 from pika.adapters.asyncio_connection import AsyncioConnection
 from pika.channel import Channel
 from pika import BasicProperties, DeliveryMode
-from asyncio import AbstractEventLoop, Future, wait, wait_for, FIRST_COMPLETED
-from functools import partial
-from json import dumps, loads
-from uuid import uuid4
-import logging
-import re
 
 
 LOGGER = logging.getLogger(__name__)
@@ -37,28 +40,40 @@ class AsyncChannel:
     ) -> None:
         self.ioloop = None
         self.channel_factory = channel_factory
-        self._channel: Channel = None
-        self._connection: AsyncioConnection = None
+        self._channel: Channel = None  # type: ignore
+        self._channel_rpc: Channel = None  # type: ignore
+        self._connection: AsyncioConnection = None  # type: ignore
         self.type = channel_type
         self.signal = signal
         self._callback_queue = f"amqp.{uuid4()}"
         self.futures: MutableMapping[int, Future] = {}
-        self.rpc_futures: MutableMapping[str, Mapping[str, Future]] = {}
+        self.rpc_futures: MutableMapping[str, Dict[str, Any]] = {}
         self.rpc_consumer = False
         self.rpc_consumer_started = False
         self.rpc_consumer_starting = False
+        self.rpc_consumer_future: Optional[Future] = None
         self.rpc_publisher_started = False
         self.rpc_publisher_starting = False
+        self.rpc_publisher_future: Optional[Future] = None
+        self._pending_consumer_registrations: List[Future] = []
+        self._rpc_consumer_timer: Optional[Any] = None
+        self._rpc_publisher_timer: Optional[Any] = None
         self.consumer_tag = None
         self._prefetch_count = prefetch_count
         self.auto_ack = auto_ack
         self.subscribes: Dict[str, Dict[str, HandlerType]] = {}
         self.re_subscribes: List[str] = []
+        self._compiled_patterns: Dict[str, List[Tuple[str, Any]]] = {}
+        self._queue_exchange_type: Dict[str, str] = {}
         self.consumers: Dict[str, bool] = {}
         self.publisher_confirms = False
+        self._acked = 0
+        self._nacked = 0
         self._message_number = 0
         self._deliveries: MutableMapping[int, Future] = {}
+        self._publish_timers: Dict[int, Any] = {}
         self.response_timeout = 60
+        self._declared_exchanges: Dict[str, Tuple[str, bool]] = {}
 
     @staticmethod
     def _serialize_payload(body, content_type: str = "application/json"):
@@ -87,6 +102,7 @@ class AsyncChannel:
         """
         LOGGER.info("Channel opened")
         self._channel = channel
+        self._declared_exchanges.clear()
         self.add_on_channel_close_callback()
         self.publisher_confirms and self.add_publish_confirms()
         self._prefetch_count and self.set_qos(self._prefetch_count)
@@ -96,6 +112,8 @@ class AsyncChannel:
     async def process_callbacks(self):
         while self.callbacks:
             callback, future = self.callbacks.popleft()
+            if future.done():
+                continue
             try:
                 result = await callback()
                 if not future.done():
@@ -120,12 +138,63 @@ class AsyncChannel:
         :param pika.channel.Channel: The closed channel
         :param Exception reason: why the channel was closed
         """
-        LOGGER.info(f"Channel {channel} was closed: {reason}")
+        LOGGER.warning(f"Channel {channel} was closed by RabbitMQ: {reason}")
         self._consuming = False
-        if self._connection.is_closing or self._connection.is_closed:
+        if hasattr(self, "_declared_exchanges"):
+            self._declared_exchanges.clear()
+
+        exc = AutoReconnectException(f"Channel closed unexpectedly: {reason}")
+        # Abort in-flight RPCs
+        for corr_id, entry in list(self.rpc_futures.items()):
+            timer = entry.get("timer")
+            if timer and not timer.cancelled():
+                timer.cancel()
+            resp = entry.get("response")
+            if resp and not resp.done():
+                resp.set_exception(exc)
+            pub = entry.get("published")
+            if pub and not pub.done():
+                pub.set_exception(exc)
+        self.rpc_futures.clear()
+
+        # Abort in-flight publisher confirms
+        for msg_id, fut in list(self.futures.items()):
+            if not fut.done():
+                fut.set_exception(exc)
+        self.futures.clear()
+        self._deliveries.clear()
+        for timer in self._publish_timers.values():
+            if not timer.cancelled():
+                timer.cancel()
+        self._publish_timers.clear()
+
+        if self._rpc_consumer_timer and not self._rpc_consumer_timer.cancelled():
+            self._rpc_consumer_timer.cancel()
+            self._rpc_consumer_timer = None
+        if self._rpc_publisher_timer and not self._rpc_publisher_timer.cancelled():
+            self._rpc_publisher_timer.cancel()
+            self._rpc_publisher_timer = None
+
+        if hasattr(self, "rpc_consumer_future") and self.rpc_consumer_future and not self.rpc_consumer_future.done():
+            self.rpc_consumer_future.set_exception(exc)
+        self.rpc_consumer_starting = False
+        self.rpc_consumer_started = False
+
+        if hasattr(self, "rpc_publisher_future") and self.rpc_publisher_future and not self.rpc_publisher_future.done():
+            self.rpc_publisher_future.set_exception(exc)
+        self.rpc_publisher_starting = False
+        self.rpc_publisher_started = False
+
+        if hasattr(self, "_pending_consumer_registrations"):
+            for reg_fut in self._pending_consumer_registrations:
+                if not reg_fut.done():
+                    reg_fut.set_exception(exc)
+            self._pending_consumer_registrations.clear()
+
+        if self._connection and (self._connection.is_closing or self._connection.is_closed):
             LOGGER.info("Connection is closing or already closed")
-        else:
-            LOGGER.info("Closing connection")
+        elif self._connection:
+            LOGGER.info(f"Closing connection due to channel closure: {reason}")
             self._connection.close()
 
     def add_publish_confirms(self):
@@ -139,20 +208,36 @@ class AsyncChannel:
     def on_delivery_confirmation(self, method_frame) -> None:
         confirmation_type = method_frame.method.NAME.split(".")[1].lower()
         delivery_tag = method_frame.method.delivery_tag
-        if confirmation_type == "ack":
-            self._acked += 1
-            if delivery_tag in self._deliveries:
-                future = self._deliveries[delivery_tag]
-                not future.done() and future.set_result(True)  # type: ignore
-        elif confirmation_type == "nack":
-            self._nacked += 1
-            if delivery_tag in self._deliveries:
-                future = self._deliveries[delivery_tag]
-                not future.done() and future.set_exception(  # type: ignore
-                    NackException(
-                        f"Publish confirmation: nack of {delivery_tag} publish"
+        multiple = getattr(method_frame.method, "multiple", False)
+
+        if multiple:
+            tags_to_confirm = []
+            while self._deliveries:
+                first_tag = next(iter(self._deliveries))
+                if first_tag <= delivery_tag:
+                    tags_to_confirm.append((first_tag, self._deliveries.pop(first_tag)))
+                else:
+                    break
+        else:
+            future = self._deliveries.pop(delivery_tag, None)
+            tags_to_confirm = [(delivery_tag, future)] if future else []
+
+        for tag, future in tags_to_confirm:
+            timer = self._publish_timers.pop(tag, None)
+            if timer and not timer.cancelled():
+                timer.cancel()
+            if confirmation_type == "ack":
+                self._acked += 1
+                if future and not future.done():
+                    future.set_result(True)
+            elif confirmation_type == "nack":
+                self._nacked += 1
+                if future and not future.done():
+                    future.set_exception(
+                        NackException(
+                            f"Publish confirmation: nack of {tag} publish"
+                        )
                     )
-                )
 
     def setup_exchange(self, exchange_name, exchange_type, durable=True):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
@@ -160,14 +245,36 @@ class AsyncChannel:
         be invoked by pika.
         :param str|unicode exchange_name: The name of the exchange to declare
         """
-        LOGGER.info(f"Declaring exchange: {exchange_name}")
+        if not exchange_name:
+            return
+
+        exchange_type_str = str(getattr(exchange_type, "value", exchange_type))
+        durable_bool = bool(durable)
+
+        if not hasattr(self, "_declared_exchanges"):
+            self._declared_exchanges = {}
+
+        if exchange_name in self._declared_exchanges:
+            prev_type, prev_durable = self._declared_exchanges[exchange_name]
+            if (prev_type, prev_durable) == (exchange_type_str, durable_bool):
+                return
+            LOGGER.warning(
+                f"Exchange '{exchange_name}' was already declared as type='{prev_type}', durable={prev_durable}. "
+                f"Re-declaring with type='{exchange_type_str}', durable={durable_bool} on the same channel may "
+                f"trigger PRECONDITION_FAILED."
+            )
+
+        self._declared_exchanges[exchange_name] = (exchange_type_str, durable_bool)
+        LOGGER.info(
+            f"Declaring exchange: {exchange_name} (type={exchange_type_str}, durable={durable_bool})"
+        )
         # Note: using functools.partial is not required, it is demonstrating
         # how arbitrary data can be passed to the callback when it is called
         cb = partial(self.on_exchange_declareok, userdata=exchange_name)
         self._channel.exchange_declare(
             exchange=exchange_name,
-            exchange_type=exchange_type,
-            durable=durable,
+            exchange_type=exchange_type_str,
+            durable=durable_bool,
             callback=cb,
         )
 
@@ -258,7 +365,7 @@ class AsyncChannel:
 
     def unsubscribe(self, consumer_tag: str):
         self.rpc_consumer_started = False
-        if self.rpc_consumer_starting and not self.rpc_consumer_future.done():
+        if self.rpc_consumer_starting and self.rpc_consumer_future is not None and not self.rpc_consumer_future.done():
             self.rpc_consumer_future.cancel()
         self._channel.basic_cancel(consumer_tag)
 
@@ -277,6 +384,9 @@ class AsyncChannel:
             self._channel_rpc.add_on_close_callback(self.on_channel_closed)
 
             def on_declare(channel):
+                if self._rpc_consumer_timer and not self._rpc_consumer_timer.cancelled():
+                    self._rpc_consumer_timer.cancel()
+                    self._rpc_consumer_timer = None
                 self.consumer_tag = self._channel_rpc.basic_consume(
                     queue=self._callback_queue,
                     on_message_callback=self.on_response,
@@ -285,7 +395,8 @@ class AsyncChannel:
                 )
                 self.rpc_consumer_started = True
                 self.rpc_consumer_starting = False
-                self.rpc_consumer_future.set_result(True)
+                if self.rpc_consumer_future is not None and not self.rpc_consumer_future.done():
+                    self.rpc_consumer_future.set_result(True)
 
             LOGGER.info(f"Declaring queue {self._callback_queue}")
             self._channel_rpc.queue_declare(
@@ -300,14 +411,16 @@ class AsyncChannel:
         )
 
         def attemp_failed():
-            if not self.rpc_consumer_future.done():
+            if self.rpc_consumer_future is not None and not self.rpc_consumer_future.done():
                 self.rpc_consumer_started = False
                 self.rpc_consumer_starting = False
                 self.rpc_consumer_future.set_exception(
                     EventBusException("Error: cannot set rpc_consumer")
                 )
 
-        self.ioloop.call_later(2, attemp_failed)
+        if self._rpc_consumer_timer and not self._rpc_consumer_timer.cancelled():
+            self._rpc_consumer_timer.cancel()
+        self._rpc_consumer_timer = self.ioloop.call_later(2, attemp_failed)
         return await self.rpc_consumer_future
 
     async def start_rpc_publisher(self):
@@ -319,24 +432,30 @@ class AsyncChannel:
         self.rpc_publisher_future = self.ioloop.create_future()
 
         def on_open(channel: Channel):
+            if self._rpc_publisher_timer and not self._rpc_publisher_timer.cancelled():
+                self._rpc_publisher_timer.cancel()
+                self._rpc_publisher_timer = None
             self._channel_rpc.add_on_close_callback(self.on_channel_closed)
             self.rpc_publisher_started = True
             self.rpc_publisher_starting = False
-            self.rpc_publisher_future.set_result(True)
+            if self.rpc_publisher_future is not None and not self.rpc_publisher_future.done():
+                self.rpc_publisher_future.set_result(True)
 
         self._channel_rpc: Channel = self.channel_factory.create_channel(
             self._connection, on_channel_open=on_open
         )
 
         def attemp_failed():
-            if not self.rpc_publisher_future.done():
+            if self.rpc_publisher_future is not None and not self.rpc_publisher_future.done():
                 self.rpc_publisher_started = False
                 self.rpc_publisher_starting = False
                 self.rpc_publisher_future.set_exception(
                     EventBusException("Error: cannot set rpc_publisher")
                 )
 
-        self.ioloop.call_later(2, attemp_failed)
+        if self._rpc_publisher_timer and not self._rpc_publisher_timer.cancelled():
+            self._rpc_publisher_timer.cancel()
+        self._rpc_publisher_timer = self.ioloop.call_later(2, attemp_failed)
         return await self.rpc_publisher_future
 
     async def rpc_client(
@@ -360,41 +479,51 @@ class AsyncChannel:
         clean_response = partial(self.clean_rpc_response, corr_id)
         future.add_done_callback(clean_response)
 
-        # Ensure RPC response consumer is operational
-        await self.start_rpc_consumer()
+        try:
+            # Ensure RPC response consumer is operational
+            await self.start_rpc_consumer()
 
-        # Publish RPC request with metadata headers
-        self._channel.basic_publish(
-            exchange_name,
-            routing_key,
-            self._serialize_payload(body, content_type),
-            properties=BasicProperties(
-                reply_to=self._callback_queue,  # Response queue address
-                correlation_id=corr_id,  # Request/response matching ID
-                content_type=content_type,  # Payload format descriptor
-                delivery_mode=delivery_mode,  # Persistent/Transient delivery
-                expiration=expiration,  # Message TTL control
-                **key_args,
-            ),
-            mandatory=False,
-        )
+            # Publish RPC request with metadata headers
+            self._channel.basic_publish(
+                exchange_name,
+                routing_key,
+                self._serialize_payload(body, content_type),
+                properties=BasicProperties(
+                    reply_to=self._callback_queue,  # Response queue address
+                    correlation_id=corr_id,  # Request/response matching ID
+                    content_type=content_type,  # Payload format descriptor
+                    delivery_mode=delivery_mode,  # Persistent/Transient delivery
+                    expiration=expiration,  # Message TTL control
+                    **key_args,
+                ),
+                mandatory=False,
+            )
+        except Exception:
+            self.clean_rpc_response(corr_id, future)
+            if not future.done():
+                future.cancel()
+            raise
 
         # Setup timeout handler for unfulfilled requests
         def not_arrived(id: str):
             if id in self.rpc_futures:
-                future = self.rpc_futures[id]
-                if self.publisher_confirms and not future["published"].done():
-                    return future["published"].set_exception(
+                entry = self.rpc_futures[id]
+                pub_future = entry.get("published")
+                if self.publisher_confirms and pub_future and not pub_future.done():
+                    return pub_future.set_exception(
                         PublishTimeoutException("PublishTimeout: time limit reached")
                     )
-                if not future["response"].done():
-                    return future["response"].set_exception(
+                resp_future = entry.get("response")
+                if resp_future and not resp_future.done():
+                    return resp_future.set_exception(
                         ResponseTimeoutException("ResponseTimeout: time limit reached")
                     )
 
         func = partial(not_arrived, corr_id)
         # Schedule timeout check using event loop
-        self.ioloop.call_later(response_timeout, func)  # type: ignore
+        timer = self.ioloop.call_later(response_timeout, func)  # type: ignore
+        if corr_id in self.rpc_futures:
+            self.rpc_futures[corr_id]["timer"] = timer
 
         # Handle publisher confirms if enabled
         if self.publisher_confirms:
@@ -408,7 +537,8 @@ class AsyncChannel:
         # Create separate tracking for publish confirmation
         publish_future = self.ioloop.create_future()
         # Store both futures in tracking system
-        self.rpc_futures[corr_id]["published"] = publish_future
+        if corr_id in self.rpc_futures:
+            self.rpc_futures[corr_id]["published"] = publish_future
         # Initiate confirmation tracking
         self.publish_confirmation(publish_future)
         # Concurrently wait for first completed operation:
@@ -418,15 +548,19 @@ class AsyncChannel:
             [publish_future, future], return_when=FIRST_COMPLETED
         )
         # Extract potential exception from completed operation
-        exception = done_all.pop().exception()
-        if exception:
-            # Cancel remaining operations
-            [undone.cancel() for undone in pending_all]
-            raise exception
-        elif len(pending_all):  # Response still pending after confirmation
-            return await future
-        else:
-            return future.result()  # Return final result directly
+        first_exc = None
+        for d in done_all:
+            exc = d.exception()
+            if exc and first_exc is None:
+                first_exc = exc
+        if first_exc:
+            for p in pending_all:
+                p.cancel()
+            raise first_exc
+
+        if future in done_all:
+            return future.result()
+        return await future
 
     async def publish(
         self,
@@ -457,13 +591,15 @@ class AsyncChannel:
             self.publish_confirmation(publish_future)
 
             def not_arrived(id):
-                if id in self.futures:
-                    self.futures[id].set_exception(
+                fut = self.futures.get(id)
+                if fut and not fut.done():
+                    fut.set_exception(
                         PublishTimeoutException("Timeout: time limit reached")
                     )
 
             func = partial(not_arrived, self._message_number)
-            self.ioloop.call_later(timeout, func)  # type: ignore
+            timer = self.ioloop.call_later(timeout, func)  # type: ignore
+            self._publish_timers[self._message_number] = timer
             return await publish_future
 
     def publish_confirmation(self, future: Future):
@@ -471,20 +607,28 @@ class AsyncChannel:
 
         # Increment sequence counter for message tracking
         self._message_number += 1
+        msg_id = self._message_number
         # Store future reference for confirmation handling
-        self.futures[self._message_number] = future
+        self.futures[msg_id] = future
         # Link to delivery tracking system
-        self._deliveries[self._message_number] = future
+        self._deliveries[msg_id] = future
         # Register cleanup callback using partial binding
-        clean = partial(self.clean_publish_confirmation, self._message_number)
+        clean = partial(self.clean_publish_confirmation, msg_id)
         future.add_done_callback(clean)
 
-    def clean_publish_confirmation(self, meassage_id: int, _fut):
-        self.futures.pop(meassage_id)
-        self._deliveries.pop(meassage_id)
+    def clean_publish_confirmation(self, message_id: int, _fut=None):
+        self.futures.pop(message_id, None)
+        self._deliveries.pop(message_id, None)
+        timer = self._publish_timers.pop(message_id, None)
+        if timer and not timer.cancelled():
+            timer.cancel()
 
-    def clean_rpc_response(self, corr_id: str, _fut):
-        self.rpc_futures.pop(corr_id)
+    def clean_rpc_response(self, corr_id: str, _fut=None):
+        entry = self.rpc_futures.pop(corr_id, None)
+        if entry:
+            timer = entry.get("timer")
+            if timer and not timer.cancelled():
+                timer.cancel()
 
     async def rpc_subscribe(
         self,
@@ -511,13 +655,21 @@ class AsyncChannel:
         if not self.consumers[queue_name]:
             assert self.ioloop is not None
             registered: Future[bool] = self.ioloop.create_future()
+            if not hasattr(self, "_pending_consumer_registrations"):
+                self._pending_consumer_registrations = []
+            self._pending_consumer_registrations.append(registered)
+            registered.add_done_callback(
+                lambda f: self._pending_consumer_registrations.remove(f)
+                if hasattr(self, "_pending_consumer_registrations") and f in self._pending_consumer_registrations
+                else None
+            )
             self.consumers[queue_name] = True
             func = partial(self.on_message, queue_name)
             self._channel.basic_consume(
                 queue_name,
                 on_message_callback=func,
                 auto_ack=self.auto_ack,
-                callback=lambda _: registered.set_result(True),
+                callback=lambda _: registered.set_result(True) if not registered.done() else None,
             )
             await registered
 
@@ -525,22 +677,72 @@ class AsyncChannel:
         self,
         exchange_name,
         queue_name: str,
-        exchange_type="direct",
+        exchange_type="topic",
         durable=True,
         auto_delete=False,
     ):
         if queue_name not in self.subscribes:
-            if not len(self.subscribes):
-                self.subscribes[queue_name] = {}
-        self.setup_exchange(exchange_name, exchange_type)
+            self.subscribes[queue_name] = {}
+        exchange_type_str = str(getattr(exchange_type, "value", exchange_type))
+        if not hasattr(self, "_queue_exchange_type"):
+            self._queue_exchange_type = {}
+        self._queue_exchange_type[queue_name] = exchange_type_str
+
+        self.setup_exchange(exchange_name, exchange_type, durable=durable)
         self.queue_declare(queue_name, durable=durable, auto_delete=auto_delete)
 
         if queue_name not in self.consumers:
             self.consumers[queue_name] = False
 
+    def _compile_routing_pattern(self, queue_name: str, routing_key: str):
+        if not hasattr(self, "_compiled_patterns"):
+            self._compiled_patterns = {}
+        if queue_name not in self._compiled_patterns:
+            self._compiled_patterns[queue_name] = []
+
+        if "*" in routing_key or "#" in routing_key:
+            if any(k == routing_key for k, _ in self._compiled_patterns[queue_name]):
+                return
+            try:
+                if routing_key == "#":
+                    pattern = re.compile(r"^.*$")
+                else:
+                    tokens = routing_key.split(".")
+                    regex_tokens = []
+                    for i, token in enumerate(tokens):
+                        if token == "*":
+                            regex_tokens.append(r"[^.]+")
+                        elif token == "#":
+                            if i == 0:
+                                regex_tokens.append(r"(?:.*\.)?")
+                            elif i == len(tokens) - 1:
+                                regex_tokens.append(r"(?:\..*)?")
+                            else:
+                                regex_tokens.append(r"(?:\..*?)?")
+                        else:
+                            regex_tokens.append(re.escape(token))
+
+                    regex_str = "^"
+                    for i, tok in enumerate(regex_tokens):
+                        orig = tokens[i]
+                        if i > 0:
+                            prev_orig = tokens[i - 1]
+                            if prev_orig != "#" and orig != "#":
+                                regex_str += r"\."
+                            elif prev_orig == "#" and orig != "#" and i - 1 > 0:
+                                regex_str += r"\."
+                        regex_str += tok
+                    regex_str += "$"
+                    pattern = re.compile(regex_str)
+                self._compiled_patterns[queue_name].append((routing_key, pattern))
+            except re.error:
+                pass
+
     def register_handler(
         self, queue_name, routing_key, callback, content_type, response_timeout, auto_decode=True
     ):
+        if queue_name not in self.subscribes:
+            self.subscribes[queue_name] = {}
         if routing_key not in self.subscribes[queue_name]:
             self.subscribes[queue_name][routing_key] = {
                 "handle": callback,
@@ -550,6 +752,7 @@ class AsyncChannel:
             }
             if "*" in routing_key and routing_key not in self.re_subscribes:
                 self.re_subscribes.append(routing_key)
+            self._compile_routing_pattern(queue_name, routing_key)
 
     async def subscribe(
         self,
@@ -557,7 +760,7 @@ class AsyncChannel:
         routing_key: str,
         queue_name: str,
         callback,
-        timeout: Optional[int],
+        timeout: Optional[Union[int, float]],
         content_type: str = "application/json",
         exchange_type: str = "topic",
         durable: bool = True,
@@ -581,7 +784,7 @@ class AsyncChannel:
 
     def on_message(
         self, queue_name, _unused_channel, basic_deliver, props: BasicProperties, body
-    ) -> None:
+    ) -> Any:
         """Invoked by pika when a message is delivered from RabbitMQ. The
         channel is passed for your convenience. The basic_deliver object that
         is passed in carries the exchange, routing key, delivery tag and
@@ -605,14 +808,25 @@ class AsyncChannel:
                 handler["handle"](body),
                 timeout=handler["response_timeout"],
             )
-            if self.rpc_publisher_started and response and props.reply_to:
+            if (
+                self.rpc_publisher_started
+                and self._channel_rpc
+                and self._channel_rpc.is_open
+                and response is not None
+                and props.reply_to
+            ):
+                content_type = handler.get("content_type", "application/json")
+                if isinstance(response, (bytes, bytearray, memoryview, str)):
+                    serialized_response = response
+                else:
+                    serialized_response = dumps(response)
                 self._channel_rpc.basic_publish(
                     "",
                     props.reply_to,
-                    response,
+                    serialized_response,
                     properties=BasicProperties(
                         correlation_id=props.correlation_id,
-                        content_type=handler["content_type"],
+                        content_type=content_type,
                         type="normal",
                     ),
                 )
@@ -622,33 +836,54 @@ class AsyncChannel:
 
         async def handle_message(queue_name, basic_deliver, props):
             try:
-                if basic_deliver.routing_key in self.subscribes[queue_name]:
-                    await process_message(
-                        self.subscribes[queue_name][basic_deliver.routing_key]
-                    )
-                else:
-                    for routing_key in self.re_subscribes:
-                        if re.match(routing_key, basic_deliver.routing_key):
-                            return await process_message(
-                                self.subscribes[queue_name][routing_key]
-                            )
-                    if self.rpc_publisher_started and props.reply_to:
-                        self._channel_rpc.basic_publish(
-                            "",
-                            props.reply_to,
-                            "Provider Error: routing_key not binded",
-                            properties=BasicProperties(
-                                correlation_id=props.correlation_id,
-                                content_type="text/plain",
-                                type="error",
-                            ),
-                        )
-                    return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
-                        basic_deliver.delivery_tag, requeue=False
-                    )
+                handlers = self.subscribes.get(queue_name, {})
+                handler = handlers.get(basic_deliver.routing_key)
+                if handler:
+                    return await process_message(handler)
 
-            except BaseException as err:
-                if self.rpc_publisher_started and props.reply_to:
+                queue_type = getattr(self, "_queue_exchange_type", {}).get(queue_name, "topic")
+                if queue_type != "direct":
+                    patterns = getattr(self, "_compiled_patterns", {}).get(queue_name)
+                    if patterns:
+                        for pattern_key, pattern in patterns:
+                            if pattern.match(basic_deliver.routing_key):
+                                pattern_handler = handlers.get(pattern_key)
+                                if pattern_handler:
+                                    return await process_message(pattern_handler)
+                    elif self.re_subscribes:
+                        for routing_key in self.re_subscribes:
+                            if routing_key in handlers and re.match(routing_key, basic_deliver.routing_key):
+                                return await process_message(handlers[routing_key])
+
+                if (
+                    self.rpc_publisher_started
+                    and self._channel_rpc
+                    and self._channel_rpc.is_open
+                    and props.reply_to
+                ):
+                    self._channel_rpc.basic_publish(
+                        "",
+                        props.reply_to,
+                        "Provider Error: routing_key not binded",
+                        properties=BasicProperties(
+                            correlation_id=props.correlation_id,
+                            content_type="text/plain",
+                            type="error",
+                        ),
+                    )
+                return not self.auto_ack and self._channel.is_open and self._channel.basic_nack(
+                    basic_deliver.delivery_tag, requeue=False
+                )
+
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:
+                if (
+                    self.rpc_publisher_started
+                    and self._channel_rpc
+                    and self._channel_rpc.is_open
+                    and props.reply_to
+                ):
                     self._channel_rpc.basic_publish(
                         "",
                         props.reply_to,
@@ -663,6 +898,13 @@ class AsyncChannel:
                     basic_deliver.delivery_tag, requeue=False
                 )
 
-        self.ioloop.create_task(  # type: ignore
+        task = self.ioloop.create_task(  # type: ignore
             handle_message(queue_name, basic_deliver, props)
         )
+
+        def _on_task_done(t: Future):
+            if not t.cancelled() and t.exception():
+                LOGGER.error(f"Error handling message on queue {queue_name}: {t.exception()}")
+
+        task.add_done_callback(_on_task_done)
+        return task

@@ -1,6 +1,7 @@
 [flake8]
 ignore = E722, W503, E402
 max-line-length = 120
+exclude = .venv, .git, __pycache__, dist, build
 per-file-ignores =
     conftest.py
     __init__.py: F401
